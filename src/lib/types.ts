@@ -1,0 +1,54 @@
+export type Category =
+  "music" | "arts" | "food" | "technology" | "wellness" | "community";
+export type Event = {
+  id: string;
+  slug: string;
+  ownerId: string | null;
+  title: string;
+  description: string;
+  category: Category;
+  city: string;
+  venue: string;
+  address: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  price: number;
+  currency: string;
+  capacity: number;
+  available: number;
+  image: string;
+  host: string;
+  sample: boolean;
+  artists?: string[];
+  genres?: string[];
+};
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  interests: Category[];
+  stripeAccount: string | null;
+  emailVerified: boolean;
+};
+export type Booking = {
+  id: string;
+  userId: string;
+  eventId: string;
+  quantity: number;
+  total: number;
+  currency: string;
+  status: "pending" | "confirmed" | "expired" | "cancelled" | "refunded";
+  mode: "sample" | "free" | "stripe";
+  code: string;
+  sessionId: string | null;
+  checkoutUrl: string | null;
+  expiresAt: number;
+  createdAt: number;
+  checkedIn: number;
+  refundRequested: number;
+  requestKey: string;
+  stripeAccount: string | null;
+};
+export type Ticket = Booking & { event: Event };
+export type EmailDeliveryMode = "resend" | "preview" | "unavailable";
