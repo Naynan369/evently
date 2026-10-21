@@ -94,7 +94,7 @@ export function appleDeveloperToken(browser = false) {
     );
   }
 }
-export function startSpotify(userId: string, sessionToken: string) {
+export async function startSpotify(userId: string, sessionToken: string) {
   requireProvider("spotify");
   const callback = applicationOrigin() + "/api/music/spotify/callback";
   if (new URL(callback).hostname === "localhost")
@@ -104,12 +104,12 @@ export function startSpotify(userId: string, sessionToken: string) {
     );
   const state = randomBytes(32).toString("base64url"),
     verifier = randomBytes(48).toString("base64url");
-  run(
+  await run(
     "DELETE FROM oauth_states WHERE expires_at<? OR user_id=?",
     Date.now(),
     userId,
   );
-  run(
+  await run(
     "INSERT INTO oauth_states(state_hash,user_id,session_hash,verifier,expires_at) VALUES(?,?,?,?,?)",
     tokenHash(state),
     userId,
@@ -153,13 +153,13 @@ async function spotifyToken(params: URLSearchParams) {
     throw new AppError("Spotify returned an incomplete authorization.", 502);
   return data;
 }
-export function consumeSpotifyState(
+export async function consumeSpotifyState(
   userId: string,
   sessionToken: string,
   state: string,
 ) {
-  return transaction(() => {
-    const stored = one<{
+  return transaction(async () => {
+    const stored = await one<{
       user_id: string;
       session_hash: string;
       verifier: string;
@@ -175,7 +175,7 @@ export function consumeSpotifyState(
         "This connection request expired. Please start again.",
         400,
       );
-    run("DELETE FROM oauth_states WHERE state_hash=?", tokenHash(state));
+    await run("DELETE FROM oauth_states WHERE state_hash=?", tokenHash(state));
     return decryptMusic(stored.verifier, userId + ":oauth");
   });
 }
@@ -186,7 +186,7 @@ export async function finishSpotify(
   code: string,
 ) {
   requireProvider("spotify");
-  const verifier = consumeSpotifyState(userId, sessionToken, state);
+  const verifier = await consumeSpotifyState(userId, sessionToken, state);
   const token = await spotifyToken(
     new URLSearchParams({
       grant_type: "authorization_code",
@@ -209,9 +209,9 @@ export async function finishSpotify(
   const account = (await response.json()) as { id: string };
   if (!account.id)
     throw new AppError("Spotify did not return an account.", 502);
-  assertActiveSession(userId, sessionToken);
-  disconnectMusic(userId, "spotify");
-  saveConnection(userId, "spotify", {
+  await assertActiveSession(userId, sessionToken);
+  await disconnectMusic(userId, "spotify");
+  await saveConnection(userId, "spotify", {
     accessToken: token.access_token,
     refreshToken: token.refresh_token,
     expiresAt: Date.now() + token.expires_in * 1000,
@@ -223,7 +223,7 @@ async function credentials(
   provider: MusicProvider,
 ): Promise<Credentials & { consentAt: number }> {
   requireProvider(provider);
-  const saved = connection(userId, provider);
+  const saved = await connection(userId, provider);
   if (!saved) throw new AppError("Connect your music account first.", 409);
   if (provider === "spotify" && saved.expiresAt < Date.now() + 60000) {
     if (!saved.refreshToken)
@@ -239,7 +239,7 @@ async function credentials(
       );
     } catch (error) {
       if (error instanceof AppError && error.status === 401)
-        disconnectIfCurrent(userId, provider, saved.consentAt);
+        await disconnectIfCurrent(userId, provider, saved.consentAt);
       throw error;
     }
     const updated = {
@@ -248,7 +248,7 @@ async function credentials(
       refreshToken: token.refresh_token || saved.refreshToken,
       expiresAt: Date.now() + token.expires_in * 1000,
     };
-    const changed = run(
+    const changed = await run(
       "UPDATE music_connections SET credentials=? WHERE user_id=? AND provider=? AND consent_at=?",
       encryptMusic(JSON.stringify(updated), userId + ":" + provider),
       userId,
@@ -285,7 +285,7 @@ async function providerRequest<T>(
     cache: "no-store",
   });
   if (result.status === 401) {
-    disconnectIfCurrent(userId, provider, saved.consentAt);
+    await disconnectIfCurrent(userId, provider, saved.consentAt);
     throw new AppError(
       "Your music authorization expired. Please reconnect.",
       401,
@@ -405,9 +405,9 @@ export async function connectApple(
       "Apple Music could not authorize your library. Check your subscription and try again.",
       401,
     );
-  assertActiveSession(userId, sessionToken);
-  disconnectMusic(userId, "apple");
-  saveConnection(userId, "apple", { accessToken: token, expiresAt: 0 });
+  await assertActiveSession(userId, sessionToken);
+  await disconnectMusic(userId, "apple");
+  await saveConnection(userId, "apple", { accessToken: token, expiresAt: 0 });
 }
 export async function syncPlaylists(
   userId: string,
@@ -429,8 +429,8 @@ export async function syncPlaylists(
     )
   )
     throw new AppError("Choose between one and five playlists.");
-  takeRateLimit("music-sync:" + userId, 6, 3600000);
-  const initial = one<{ consent_at: number }>(
+  await takeRateLimit("music-sync:" + userId, 6, 3600000);
+  const initial = await one<{ consent_at: number }>(
     "SELECT consent_at FROM music_connections WHERE user_id=? AND provider=?",
     userId,
     provider,
@@ -537,26 +537,26 @@ export async function syncPlaylists(
     playlists,
     partial || tracks.length > 500,
   );
-  transaction(() => {
-    const active = one<{ consent_at: number }>(
+  await transaction(async () => {
+    const active = await one<{ consent_at: number }>(
       "SELECT consent_at FROM music_connections WHERE user_id=? AND provider=?",
       userId,
       provider,
     );
     if (!active || active.consent_at !== initial.consent_at)
       throw new AppError("Your connection changed. Please try again.", 409);
-    saveMusicProfile(userId, profile);
+    await saveMusicProfile(userId, profile);
   });
   return profile;
 }
-function assertActiveSession(userId: string, sessionToken: string) {
+async function assertActiveSession(userId: string, sessionToken: string) {
   if (
-    !one(
+    !(await one(
       "SELECT token_hash FROM sessions WHERE token_hash=? AND user_id=? AND expires_at>?",
       tokenHash(sessionToken),
       userId,
       Date.now(),
-    )
+    ))
   )
     throw new AppError("Your session expired. Sign in and connect again.", 401);
 }

@@ -19,7 +19,7 @@ export default async function TicketPage({
   const { id } = await params;
   const user = await currentUser();
   if (!user) redirect("/login?next=" + encodeURIComponent("/tickets/" + id));
-  let booking = bookingById(id);
+  let booking = await bookingById(id);
   if (!booking || booking.userId !== user.id) notFound();
   let paymentError = false;
   try {
@@ -27,7 +27,7 @@ export default async function TicketPage({
   } catch {
     paymentError = true;
   }
-  const event = getEvent(booking.eventId)!;
+  const event = (await getEvent(booking.eventId))!;
   return (
     <main id="main" className="container section page-main">
       <div className="ticket-detail">

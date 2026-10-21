@@ -6,7 +6,7 @@ export async function currentUser() {
   const token = (await cookies()).get(sessionCookie)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   return publicUser(
-    one<Record<string, unknown>>(
+    await one<Record<string, unknown>>(
       "SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?",
       tokenHash(token),
       Date.now(),
@@ -27,10 +27,10 @@ export async function requireVerifiedUser() {
 export async function createSession(userId: string) {
   const jar = await cookies();
   const old = jar.get(sessionCookie)?.value;
-  if (old) run("DELETE FROM sessions WHERE token_hash=?", tokenHash(old));
-  run("DELETE FROM sessions WHERE expires_at<?", Date.now());
+  if (old) await run("DELETE FROM sessions WHERE token_hash=?", tokenHash(old));
+  await run("DELETE FROM sessions WHERE expires_at<?", Date.now());
   const token = randomToken();
-  run(
+  await run(
     "INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)",
     tokenHash(token),
     userId,
@@ -47,6 +47,6 @@ export async function createSession(userId: string) {
 export async function endSession() {
   const jar = await cookies();
   const token = jar.get(sessionCookie)?.value;
-  if (token) run("DELETE FROM sessions WHERE token_hash=?", tokenHash(token));
+  if (token) await run("DELETE FROM sessions WHERE token_hash=?", tokenHash(token));
   jar.delete(sessionCookie);
 }

@@ -18,6 +18,7 @@ export type Event = {
   capacity: number;
   available: number;
   image: string;
+  coverImage?: string;
   host: string;
   sample: boolean;
   artists?: string[];

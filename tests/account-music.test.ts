@@ -32,9 +32,9 @@ import { buildMusicProfile, matchMusic } from "../src/lib/music-matching.ts";
 import { seedEvents } from "../src/lib/catalog.ts";
 import { recommend } from "../src/lib/recommendations.ts";
 import { previewMailEnabled, emailDeliveryMode } from "../src/lib/mail.ts";
+import { prepareTestDatabase } from "./database.ts";
 
-process.env.DATABASE_PATH = ":memory:";
-process.env.SEED_DEMO = "false";
+await prepareTestDatabase("account_music");
 process.env.APP_URL = "http://127.0.0.1:3100";
 process.env.MUSIC_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
 process.env.SPOTIFY_CLIENT_ID = "fixture-client";
@@ -69,9 +69,9 @@ test("mail delivery clearly distinguishes live setup, missing settings and local
     }
   }
 });
-function user() {
+async function user() {
   const id = randomUUID();
-  run(
+  await run(
     "INSERT INTO users(id,name,email,password_hash,created_at) VALUES(?,?,?,?,?)",
     id,
     "Test Person",
@@ -81,10 +81,10 @@ function user() {
   );
   return id;
 }
-function session(id: string) {
+async function session(id: string) {
   const token = "a".repeat(64);
-  run(
-    "INSERT OR REPLACE INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)",
+  await run(
+    "INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?) ON CONFLICT(token_hash) DO UPDATE SET user_id=EXCLUDED.user_id,expires_at=EXCLUDED.expires_at",
     tokenHash(token),
     id,
     Date.now() + 600000,
@@ -97,8 +97,8 @@ const playlist = {
   owner: { id: "listener" },
   items: { total: 2 },
 };
-function spotify(id: string, expired = false) {
-  saveConnection(id, "spotify", {
+async function spotify(id: string, expired = false) {
+  await saveConnection(id, "spotify", {
     accessToken: "fixture-access",
     refreshToken: "fixture-refresh",
     expiresAt: Date.now() + (expired ? -1000 : 3600000),
@@ -106,48 +106,48 @@ function spotify(id: string, expired = false) {
   });
 }
 test("email verification links are hashed, single-use, purpose-bound and expire", async () => {
-  const id = user(),
-    first = issueAccountToken(id, "verify");
+  const id = await user(),
+    first = await issueAccountToken(id, "verify");
   assert.equal(
-    one("SELECT * FROM account_tokens WHERE token_hash=?", first),
+    await one("SELECT * FROM account_tokens WHERE token_hash=?", first),
     undefined,
   );
-  const reset = issueAccountToken(id, "reset");
-  assert.throws(() => verifyEmail(reset), /invalid or expired/);
-  const current = issueAccountToken(id, "verify");
-  assert.throws(() => verifyEmail(first), /invalid or expired/);
-  assert.equal(verifyEmail(current), id);
-  assert.equal(userById(id)?.emailVerified, true);
-  assert.throws(() => verifyEmail(current), /invalid or expired/);
-  const expired = issueAccountToken(id, "verify");
-  run(
+  const reset = await issueAccountToken(id, "reset");
+  await assert.rejects(verifyEmail(reset), /invalid or expired/);
+  const current = await issueAccountToken(id, "verify");
+  await assert.rejects(verifyEmail(first), /invalid or expired/);
+  assert.equal(await verifyEmail(current), id);
+  assert.equal((await userById(id))?.emailVerified, true);
+  await assert.rejects(verifyEmail(current), /invalid or expired/);
+  const expired = await issueAccountToken(id, "verify");
+  await run(
     "UPDATE account_tokens SET expires_at=? WHERE token_hash=?",
     Date.now() - 1,
     tokenHash(expired),
   );
-  assert.throws(() => verifyEmail(expired), /invalid or expired/);
+  await assert.rejects(verifyEmail(expired), /invalid or expired/);
 });
 test("password reset verifies mailbox ownership and revokes all sessions and tokens", async () => {
-  const id = user();
-  session(id);
-  issueAccountToken(id, "verify");
-  const token = issueAccountToken(id, "reset");
+  const id = await user();
+  await session(id);
+  await issueAccountToken(id, "verify");
+  const token = await issueAccountToken(id, "reset");
   await assert.rejects(resetPassword(token, "short"), /10 and 128/);
   await resetPassword(token, "A-new-secure-password!");
-  assert.equal(userById(id)?.emailVerified, true);
+  assert.equal((await userById(id))?.emailVerified, true);
   assert.equal(
     await checkPassword(
       "A-new-secure-password!",
-      one<{ password_hash: string }>(
+      (await one<{ password_hash: string }>(
         "SELECT password_hash FROM users WHERE id=?",
         id,
-      )!.password_hash,
+      ))!.password_hash,
     ),
     true,
   );
-  assert.equal(one("SELECT * FROM sessions WHERE user_id=?", id), undefined);
+  assert.equal(await one("SELECT * FROM sessions WHERE user_id=?", id), undefined);
   assert.equal(
-    one("SELECT * FROM account_tokens WHERE user_id=?", id),
+    await one("SELECT * FROM account_tokens WHERE user_id=?", id),
     undefined,
   );
   await assert.rejects(
@@ -158,7 +158,7 @@ test("password reset verifies mailbox ownership and revokes all sessions and tok
 test("Resend delivery uses the configured origin and cleans up a rejected token", async (t) => {
   process.env.RESEND_API_KEY = "re_fixture";
   process.env.EMAIL_FROM = "Evently <hello@example.test>";
-  const id = user();
+    const id = await user();
   let seen = false;
   const mocked = t.mock.method(
     globalThis,
@@ -166,7 +166,7 @@ test("Resend delivery uses the configured origin and cleans up a rejected token"
     async (input: string | URL | Request, init?: RequestInit) => {
       assert.equal(String(input), "https://api.resend.com/emails");
       const body = JSON.parse(String(init?.body));
-      assert.deepEqual(body.to, [userById(id)?.email]);
+      assert.deepEqual(body.to, [(await userById(id))?.email]);
       assert.match(body.text, /http:\/\/127.0.0.1:3100\/verify-email\?token=/);
       assert.equal(
         new Headers(init?.headers).get("Authorization"),
@@ -179,7 +179,7 @@ test("Resend delivery uses the configured origin and cleans up a rejected token"
   await assert.rejects(deliverAccountToken(id, "verify"), /couldn’t send/);
   assert.equal(seen, true);
   assert.equal(
-    one("SELECT * FROM account_tokens WHERE user_id=?", id),
+    await one("SELECT * FROM account_tokens WHERE user_id=?", id),
     undefined,
   );
   mocked.mock.restore();
@@ -187,7 +187,7 @@ test("Resend delivery uses the configured origin and cleans up a rejected token"
 test("a verification email is addressed to the registered account through Resend", async (t) => {
   process.env.RESEND_API_KEY = "re_fixture";
   process.env.EMAIL_FROM = "Evently <hello@example.test>";
-  const id = user();
+  const id = await user();
   let verification = "";
   t.mock.method(
     globalThis,
@@ -195,7 +195,7 @@ test("a verification email is addressed to the registered account through Resend
     async (input: string | URL | Request, init?: RequestInit) => {
       assert.equal(String(input), "https://api.resend.com/emails");
       const message = JSON.parse(String(init?.body));
-      assert.deepEqual(message.to, [userById(id)!.email]);
+      assert.deepEqual(message.to, [(await userById(id))!.email]);
       assert.equal(message.from, "Evently <hello@example.test>");
       assert.match(message.subject, /Verify your email/);
       verification = message.text.match(/token=([a-f0-9]{64})/)[1];
@@ -203,8 +203,8 @@ test("a verification email is addressed to the registered account through Resend
     },
   );
   await deliverAccountToken(id, "verify");
-  assert.equal(userById(id)?.emailVerified, false);
-  assert.equal(verifyEmail(verification), id);
+  assert.equal((await userById(id))?.emailVerified, false);
+  assert.equal(await verifyEmail(verification), id);
 });
 test("production email preview cannot be enabled on a public origin", () => {
   process.env.EMAIL_DELIVERY = "preview";
@@ -229,23 +229,23 @@ test("music credentials are encrypted and bound to their owner and provider", ()
     /Reconnect/,
   );
 });
-test("Spotify stays disabled without approval or a local connection test; PKCE state is session-bound and one-time", () => {
+test("Spotify stays disabled without approval or a local connection test; PKCE state is session-bound and one-time", async () => {
   delete process.env.SPOTIFY_APPROVED_USE_CASE;
   assert.equal(providerAvailability("spotify").available, false);
   process.env.SPOTIFY_APPROVED_USE_CASE = "true";
-  const id = user(),
-    token = session(id),
-    url = new URL(startSpotify(id, token));
+  const id = await user();
+  const token = await session(id);
+  const url = new URL(await startSpotify(id, token));
   const state = url.searchParams.get("state")!;
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.equal(
     url.searchParams.get("redirect_uri"),
     "http://127.0.0.1:3100/api/music/spotify/callback",
   );
-  assert.throws(() => consumeSpotifyState(id, "wrong", state), /expired/);
-  assert.throws(() => consumeSpotifyState(user(), token, state), /expired/);
-  assert.ok(consumeSpotifyState(id, token, state).length >= 43);
-  assert.throws(() => consumeSpotifyState(id, token, state), /expired/);
+  await assert.rejects(consumeSpotifyState(id, "wrong", state), /expired/);
+  await assert.rejects(consumeSpotifyState(await user(), token, state), /expired/);
+  assert.ok((await consumeSpotifyState(id, token, state)).length >= 43);
+  await assert.rejects(consumeSpotifyState(id, token, state), /expired/);
 });
 test("local Spotify connection test allows authorization and playlist listing but blocks imports and retained recommendation profiles", async (t) => {
   const before = {
@@ -263,9 +263,9 @@ test("local Spotify connection test allows authorization and playlist listing bu
       providerAvailability("spotify").recommendationsAvailable,
       false,
     );
-    const id = user(),
-      sessionToken = session(id);
-    const url = new URL(startSpotify(id, sessionToken));
+    const id = await user();
+    const sessionToken = await session(id);
+    const url = new URL(await startSpotify(id, sessionToken));
     const calls: string[] = [];
     t.mock.method(
       globalThis,
@@ -292,7 +292,7 @@ test("local Spotify connection test allows authorization and playlist listing bu
       url.searchParams.get("state")!,
       "fixture-code",
     );
-    assert.equal(connection(id, "spotify")?.accountId, "listener");
+    assert.equal((await connection(id, "spotify"))?.accountId, "listener");
     assert.equal(
       (await listMusicPlaylists(id, "spotify")).playlists[0].name,
       "Favorites",
@@ -303,8 +303,8 @@ test("local Spotify connection test allows authorization and playlist listing bu
       /testing only/,
     );
     assert.equal(calls.length, callsBeforeImport);
-    assert.deepEqual(musicProfiles(id), []);
-    saveMusicProfile(
+    assert.deepEqual(await musicProfiles(id), []);
+    await saveMusicProfile(
       id,
       buildMusicProfile(
         "spotify",
@@ -312,7 +312,7 @@ test("local Spotify connection test allows authorization and playlist listing bu
         [],
       ),
     );
-    saveMusicProfile(
+    await saveMusicProfile(
       id,
       buildMusicProfile(
         "manual",
@@ -321,19 +321,19 @@ test("local Spotify connection test allows authorization and playlist listing bu
       ),
     );
     assert.deepEqual(
-      musicProfiles(id).map((p) => p.source),
+      (await musicProfiles(id)).map((p) => p.source),
       ["manual"],
     );
     process.env.APP_URL = "https://events.example.test";
     assert.equal(providerAvailability("spotify").available, false);
-    assert.throws(() => startSpotify(id, sessionToken), /isn’t available/);
+    await assert.rejects(startSpotify(id, sessionToken), /isn’t available/);
     process.env.APP_URL = "http://localhost:3100";
     assert.equal(providerAvailability("spotify").available, false);
     process.env.APP_URL = before.APP_URL;
     delete process.env.SPOTIFY_CLIENT_ID;
     assert.equal(providerAvailability("spotify").available, false);
-    disconnectMusic(id, "spotify");
-    assert.equal(connection(id, "spotify"), null);
+    await disconnectMusic(id, "spotify");
+    assert.equal(await connection(id, "spotify"), null);
   } finally {
     for (const [name, value] of Object.entries(before)) {
       if (value === undefined) delete process.env[name];
@@ -341,7 +341,7 @@ test("local Spotify connection test allows authorization and playlist listing bu
     }
   }
 });
-test("music matching uses exact artist names, deduplicates songs, ignores stale tastes and keeps booking exclusions", () => {
+test("music matching uses exact artist names, deduplicates songs, ignores stale tastes and keeps booking exclusions", async () => {
   const profile = buildMusicProfile(
     "apple",
     [
@@ -369,16 +369,16 @@ test("music matching uses exact artist names, deduplicates songs, ignores stale 
     recommend([target], [], [], [target.id], Date.now(), profile).length,
     0,
   );
-  const id = user();
-  saveMusicProfile(id, profile);
-  spotify(id);
-  disconnectMusic(id, "apple");
-  assert.equal(musicProfiles(id).length, 0);
-  assert.ok(connection(id, "spotify"));
+  const id = await user();
+  await saveMusicProfile(id, profile);
+  await spotify(id);
+  await disconnectMusic(id, "apple");
+  assert.equal((await musicProfiles(id)).length, 0);
+  assert.ok(await connection(id, "spotify"));
 });
 test("Spotify reads 2026 playlist items, filters inaccessible lists and refreshes expired authorization", async (t) => {
-  const id = user();
-  spotify(id, true);
+  const id = await user();
+  await spotify(id, true);
   const urls: string[] = [];
   t.mock.method(
     globalThis,
@@ -428,22 +428,22 @@ test("Spotify reads 2026 playlist items, filters inaccessible lists and refreshe
   assert.equal(profile.trackCount, 1);
   assert.equal(profile.artists[0].name, "Test Artist");
   assert.ok(urls.some((u) => u.includes("/playlists/playlist1/items?")));
-  assert.equal(connection(id, "spotify")?.accessToken, "renewed");
+  assert.equal((await connection(id, "spotify"))?.accessToken, "renewed");
 });
 test("disconnecting during refresh or playlist sync cannot recreate retained data", async (t) => {
-  const id = user();
-  spotify(id, true);
+  const id = await user();
+  await spotify(id, true);
   const mocked = t.mock.method(globalThis, "fetch", async () => {
-    disconnectMusic(id, "spotify");
+    await disconnectMusic(id, "spotify");
     return Response.json({ access_token: "obsolete", expires_in: 3600 });
   });
   await assert.rejects(listMusicPlaylists(id, "spotify"), /disconnected/);
-  assert.equal(connection(id, "spotify"), null);
+  assert.equal(await connection(id, "spotify"), null);
   mocked.mock.restore();
-  spotify(id);
+  await spotify(id);
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     if (String(input).includes("/items?")) {
-      disconnectMusic(id, "spotify");
+      await disconnectMusic(id, "spotify");
       return Response.json({
         items: [{ item: { id: "song", artists: [{ name: "Singer" }] } }],
         next: null,
@@ -455,7 +455,7 @@ test("disconnecting during refresh or playlist sync cannot recreate retained dat
     syncPlaylists(id, "spotify", ["playlist1"]),
     /connection changed/,
   );
-  assert.deepEqual(musicProfiles(id), []);
+  assert.deepEqual(await musicProfiles(id), []);
 });
 test("Apple signs a short-lived origin-restricted token and imports only selected library songs", async (t) => {
   const keys = generateKeyPairSync("ec", { namedCurve: "P-256" });
@@ -478,8 +478,8 @@ test("Apple signs a short-lived origin-restricted token and imports only selecte
     ),
     true,
   );
-  const id = user(),
-    token = session(id);
+  const id = await user();
+  const token = await session(id);
   const calls: string[] = [];
   t.mock.method(
     globalThis,

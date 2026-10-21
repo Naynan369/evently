@@ -16,7 +16,7 @@ export default async function CreateEvent({
         encodeURIComponent("/create-event" + (edit ? "?edit=" + edit : "")),
     );
   if (!user.emailVerified) redirect("/verify-email");
-  const initial = edit ? getEvent(edit) : undefined;
+  const initial = edit ? await getEvent(edit) : undefined;
   if (edit && (!initial || initial.ownerId !== user.id)) notFound();
   return (
     <main id="main" className="container page-main">

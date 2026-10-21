@@ -103,21 +103,21 @@ async function webhook(request: Request) {
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     const session = event.data.object;
-    if (session.metadata?.booking_id) confirmPayment(session, event.account);
+    if (session.metadata?.booking_id) await confirmPayment(session, event.account);
   } else if (
     event.type === "checkout.session.expired" ||
     event.type === "checkout.session.async_payment_failed"
   ) {
     const session = event.data.object;
     const booking = session.client_reference_id
-      ? bookingById(session.client_reference_id)
+      ? await bookingById(session.client_reference_id)
       : undefined;
     if (booking && booking.stripeAccount === event.account)
-      expireBooking(session.id, booking.id);
+      await expireBooking(session.id, booking.id);
   } else if (event.type === "charge.refunded") {
     const charge = event.data.object;
     const booking = charge.metadata?.booking_id
-      ? bookingById(charge.metadata.booking_id)
+      ? await bookingById(charge.metadata.booking_id)
       : undefined;
     if (
       booking &&
@@ -125,7 +125,7 @@ async function webhook(request: Request) {
       charge.refunded &&
       charge.amount_refunded >= booking.total
     )
-      run(
+      await run(
         "UPDATE bookings SET status='refunded' WHERE id=? AND status='confirmed'",
         booking.id,
       );
@@ -142,10 +142,10 @@ async function handle(request: Request, context: Context) {
     if (method !== "GET") sameOrigin(request);
     if (route === "session" && method === "GET") {
       const user = await currentUser();
-      return json({ user, saved: user ? savedIds(user.id) : [] });
+      return json({ user, saved: user ? await savedIds(user.id) : [] });
     }
     if (route === "events" && method === "GET")
-      return json({ events: listEvents() });
+      return json({ events: await listEvents() });
     if (route === "auth/register" && method === "POST") {
       const registered = await registerAccount(await body(request));
       await createSession(registered.user.id);
@@ -158,8 +158,8 @@ async function handle(request: Request, context: Context) {
         typeof input.password === "string" && input.password.length <= 128
           ? input.password
           : "";
-      takeRateLimit("login:" + tokenHash(email), 10);
-      const row = one<Record<string, unknown>>(
+      await takeRateLimit("login:" + tokenHash(email), 10);
+      const row = await one<Record<string, unknown>>(
         "SELECT * FROM users WHERE email=?",
         email,
       );
@@ -170,17 +170,17 @@ async function handle(request: Request, context: Context) {
       );
       if (!row || !valid)
         throw new AppError("Email or password is incorrect.", 401);
-      run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
+      await run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
       const user = publicUser(row)!;
       await createSession(user.id);
-      return json({ user, saved: savedIds(user.id) });
+      return json({ user, saved: await savedIds(user.id) });
     }
     if (route === "auth/logout" && method === "POST") {
       await endSession();
       return json({ ok: true });
     }
     if (route === "auth/verify-email" && method === "POST") {
-      const userId = verifyEmail((await body(request)).token);
+      const userId = await verifyEmail((await body(request)).token);
       const signedIn = await currentUser();
       if (signedIn?.id === userId) await createSession(userId);
       return json({ user: await currentUser() });
@@ -189,8 +189,8 @@ async function handle(request: Request, context: Context) {
       const unverified = await requireUser();
       if (!unverified.emailVerified) {
         assertEmailConfigured();
-        takeRateLimit("verify-minute:" + unverified.id, 1, 60000);
-        takeRateLimit("verify-hour:" + unverified.id, 6, 3600000);
+        await takeRateLimit("verify-minute:" + unverified.id, 1, 60000);
+        await takeRateLimit("verify-hour:" + unverified.id, 6, 3600000);
         await deliverAccountToken(unverified.id, "verify");
       }
       return json({ ok: true, delivery: emailDeliveryMode() });
@@ -203,9 +203,9 @@ async function handle(request: Request, context: Context) {
         5,
         254,
       ).toLowerCase();
-      takeRateLimit("reset-minute:" + tokenHash(email), 1, 60000);
-      takeRateLimit("reset-hour:" + tokenHash(email), 5, 3600000);
-      const account = one<{ id: string }>(
+      await takeRateLimit("reset-minute:" + tokenHash(email), 1, 60000);
+      await takeRateLimit("reset-hour:" + tokenHash(email), 5, 3600000);
+      const account = await one<{ id: string }>(
         "SELECT id FROM users WHERE email=?",
         email,
       );
@@ -234,14 +234,14 @@ async function handle(request: Request, context: Context) {
       );
     if (route === "interests" && method === "PUT")
       return json({
-        user: updateInterests(user.id, (await body(request)).interests),
+        user: await updateInterests(user.id, (await body(request)).interests),
       });
     if (route === "saved" && method === "PUT") {
       const input = await body(request);
       if (typeof input.saved !== "boolean")
         throw new AppError("Choose a saved state.");
       return json({
-        saved: saveEvent(
+        saved: await saveEvent(
           user.id,
           textField(input.eventId, "Event"),
           input.saved,
@@ -251,7 +251,7 @@ async function handle(request: Request, context: Context) {
     if (route === "stripe/status" && method === "GET")
       return json(await accountStatus(user));
     if (route === "stripe/connect" && method === "POST") {
-      takeRateLimit("connect:" + user.id, 10);
+      await takeRateLimit("connect:" + user.id, 10);
       const input = await body(request);
       return json({
         url: (await connectAccount(user, textField(input.country, "Country")))
@@ -259,17 +259,17 @@ async function handle(request: Request, context: Context) {
       });
     }
     if (route === "events" && method === "POST") {
-      takeRateLimit("events:" + user.id, 20, 3600000);
+      await takeRateLimit("events:" + user.id, 20, 3600000);
       const input = await body(request);
       if (Number(input.price) > 0 && !(await accountStatus(user)).ready)
         throw new AppError(
           "Connect and activate your Stripe account in Organizer studio before publishing paid tickets.",
           409,
         );
-      return json({ event: createEvent(input, user) }, 201);
+      return json({ event: await createEvent(input, user) }, 201);
     }
     if (path[0] === "events" && path.length === 2 && method === "PUT") {
-      const original = getEvent(path[1]);
+      const original = await getEvent(path[1]);
       if (!original || original.ownerId !== user.id)
         throw new AppError("Event not found.", 404);
       const input = await body(request);
@@ -279,12 +279,16 @@ async function handle(request: Request, context: Context) {
           "Activate Stripe before publishing paid tickets.",
           409,
         );
-      const event = transaction(() => {
+      const event = await transaction(async () => {
+        await one<{ id: string }>(
+          "SELECT id FROM events WHERE id=? FOR UPDATE",
+          original.id,
+        );
         const reserved =
-          one<{ n: number }>(
+          (await one<{ n: number }>(
             "SELECT COALESCE(SUM(quantity),0) AS n FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
             original.id,
-          )?.n || 0;
+          ))?.n || 0;
         if (updated.capacity < reserved)
           throw new AppError(
             "Capacity cannot be below the number of reserved tickets.",
@@ -306,7 +310,7 @@ async function handle(request: Request, context: Context) {
           id: original.id,
           slug: original.slug,
         };
-        run(
+        await run(
           "UPDATE events SET data=? WHERE id=?",
           JSON.stringify(value),
           original.id,
@@ -316,9 +320,9 @@ async function handle(request: Request, context: Context) {
       return json({ event });
     }
     if (route === "checkout" && method === "POST") {
-      takeRateLimit("checkout:" + user.id, 30);
+      await takeRateLimit("checkout:" + user.id, 30);
       const input = await body(request);
-      const event = getEvent(textField(input.eventId, "Event"));
+      const event = await getEvent(textField(input.eventId, "Event"));
       if (!event) throw new AppError("Event not found.", 404);
       if (!event.sample && event.price > 0) {
         if (!paymentConfigured())
@@ -328,7 +332,7 @@ async function handle(request: Request, context: Context) {
           );
         const owner = event.ownerId
           ? publicUser(
-              one<Record<string, unknown>>(
+              await one<Record<string, unknown>>(
                 "SELECT * FROM users WHERE id=?",
                 event.ownerId,
               ),
@@ -339,16 +343,18 @@ async function handle(request: Request, context: Context) {
             "The organizer has not activated payments yet.",
             409,
           );
-        const expired = all<{ id: string }>(
+        const expired = await all<{ id: string }>(
           "SELECT id FROM bookings WHERE event_id=? AND status='pending' AND session_id IS NOT NULL AND expires_at<? LIMIT 10",
           event.id,
           Date.now() / 1000,
         );
         await Promise.all(
-          expired.map((b) => reconcileBooking(bookingById(b.id)!)),
+          expired.map(async (b) =>
+            reconcileBooking((await bookingById(b.id))!),
+          ),
         );
       }
-      const booking = reserveBooking(
+      const booking = await reserveBooking(
         user.id,
         event.id,
         input.quantity as number,
@@ -367,25 +373,25 @@ async function handle(request: Request, context: Context) {
       );
     }
     if (route === "tickets" && method === "GET")
-      return json({ tickets: listTickets(user.id) });
+      return json({ tickets: await listTickets(user.id) });
     if (path[0] === "tickets" && path.length >= 2 && path.length <= 3) {
-      let booking = bookingById(path[1]);
+      let booking = await bookingById(path[1]);
       if (!booking || booking.userId !== user.id)
         throw new AppError("Ticket not found.", 404);
-      const event = getEvent(booking.eventId)!;
+      const event = (await getEvent(booking.eventId))!;
       if (path.length === 2 && method === "GET") {
         booking = await reconcileBooking(booking);
         return json({ booking, event });
       }
       if (path[2] === "cancel" && method === "POST") {
         if (booking.mode === "stripe") await cancelCheckout(booking);
-        else cancelFreeBooking(booking.id, user.id);
+        else await cancelFreeBooking(booking.id, user.id);
         return json({ ok: true });
       }
       if (path[2] === "resume" && method === "POST")
         return json(await startCheckout(booking, event, user));
       if (path[2] === "refund-request" && method === "POST")
-        return json({ booking: requestRefund(booking.id, user.id) });
+        return json({ booking: await requestRefund(booking.id, user.id) });
       if (booking.status !== "confirmed")
         throw new AppError("Your ticket is available after confirmation.", 409);
       if (path[2] === "qr" && method === "GET") {
@@ -445,19 +451,19 @@ async function handle(request: Request, context: Context) {
       }
     }
     if (route === "organizer" && method === "GET")
-      return json(organizerData(user.id));
+      return json(await organizerData(user.id));
     if (route === "organizer/check-in" && method === "POST") {
-      takeRateLimit("checkin:" + user.id, 100);
+      await takeRateLimit("checkin:" + user.id, 100);
       const input = await body(request);
       return json(
-        checkIn(textField(input.code, "Ticket code").toUpperCase(), user.id),
+        await checkIn(textField(input.code, "Ticket code").toUpperCase(), user.id),
       );
     }
     if (route === "organizer/refund" && method === "POST") {
-      const booking = bookingById(
+      const booking = await bookingById(
         textField((await body(request)).bookingId, "Booking"),
       );
-      if (!booking || getEvent(booking.eventId)?.ownerId !== user.id)
+      if (!booking || (await getEvent(booking.eventId))?.ownerId !== user.id)
         throw new AppError("Booking not found.", 404);
       return json({ status: await refundBooking(booking) });
     }

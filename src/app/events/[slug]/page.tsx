@@ -19,7 +19,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const event = getEvent(slug);
+  const event = await getEvent(slug);
   return {
     title: event?.title || "Event not found",
     description: event?.description.slice(0, 155),
@@ -40,10 +40,10 @@ export default async function EventDetail({
     entertainment: "arts",
   };
   if (aliases[slug]) redirect("/events?category=" + aliases[slug]);
-  const event = getEvent(slug);
+  const event = await getEvent(slug);
   if (!event) notFound();
-  const { now } = discoveryData();
-  const related = listEvents()
+  const { now } = await discoveryData();
+  const related = (await listEvents())
     .filter(
       (e) =>
         e.id !== event.id &&

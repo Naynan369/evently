@@ -26,7 +26,7 @@ export default async function MusicPage({
         </p>
       </div>
       <MusicConnections
-        initial={musicStatus(user?.id)}
+        initial={await musicStatus(user?.id)}
         connectionResult={connection}
       />
     </main>

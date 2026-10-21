@@ -6,7 +6,7 @@ export const metadata = { title: "For you" };
 export default async function ForYou() {
   const user = await currentUser();
   const booked = user
-    ? listTickets(user.id)
+    ? (await listTickets(user.id))
         .filter((b) => b.status === "confirmed")
         .map((b) => b.eventId)
     : [];
@@ -21,9 +21,9 @@ export default async function ForYou() {
         </p>
       </div>
       <Recommendations
-        events={listEvents()}
+        events={await listEvents()}
         booked={booked}
-        profiles={user ? musicProfiles(user.id) : []}
+        profiles={user ? await musicProfiles(user.id) : []}
       />
     </main>
   );

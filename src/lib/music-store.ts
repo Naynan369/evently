@@ -55,8 +55,8 @@ export type Credentials = {
   expiresAt: number;
   accountId?: string;
 };
-export function connection(userId: string, provider: MusicProvider) {
-  const row = one<{ credentials: string; consent_at: number }>(
+export async function connection(userId: string, provider: MusicProvider) {
+  const row = await one<{ credentials: string; consent_at: number }>(
     "SELECT credentials,consent_at FROM music_connections WHERE user_id=? AND provider=?",
     userId,
     provider,
@@ -70,12 +70,12 @@ export function connection(userId: string, provider: MusicProvider) {
       }
     : null;
 }
-export function saveConnection(
+export async function saveConnection(
   userId: string,
   provider: MusicProvider,
   value: Credentials,
 ) {
-  run(
+  await run(
     "INSERT INTO music_connections(user_id,provider,credentials,consent_at) VALUES(?,?,?,?) ON CONFLICT(user_id,provider) DO UPDATE SET credentials=excluded.credentials",
     userId,
     provider,
@@ -83,8 +83,8 @@ export function saveConnection(
     Date.now(),
   );
 }
-export function saveMusicProfile(userId: string, profile: MusicProfile) {
-  run(
+export async function saveMusicProfile(userId: string, profile: MusicProfile) {
+  await run(
     "INSERT INTO music_profiles(user_id,provider,data,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id,provider) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at",
     userId,
     profile.source,
@@ -92,15 +92,15 @@ export function saveMusicProfile(userId: string, profile: MusicProfile) {
     profile.updatedAt,
   );
 }
-export function musicProfiles(userId: string) {
-  run(
+export async function musicProfiles(userId: string) {
+  await run(
     "DELETE FROM music_profiles WHERE updated_at<?",
     Date.now() - 30 * 86400000,
   );
-  return all<{ data: string }>(
+  return (await all<{ data: string }>(
     "SELECT data FROM music_profiles WHERE user_id=? ORDER BY updated_at DESC",
     userId,
-  )
+  ))
     .map((r) => JSON.parse(r.data) as MusicProfile)
     .filter(
       (profile) =>
@@ -108,40 +108,40 @@ export function musicProfiles(userId: string) {
         process.env.SPOTIFY_APPROVED_USE_CASE === "true",
     );
 }
-export function disconnectMusic(userId: string, provider: MusicSource) {
-  transaction(() => {
-    run(
+export async function disconnectMusic(userId: string, provider: MusicSource) {
+  return transaction(async () => {
+    await run(
       "DELETE FROM music_connections WHERE user_id=? AND provider=?",
       userId,
       provider,
     );
-    run(
+    await run(
       "DELETE FROM music_profiles WHERE user_id=? AND provider=?",
       userId,
       provider,
     );
     if (provider === "spotify")
-      run("DELETE FROM oauth_states WHERE user_id=?", userId);
+      await run("DELETE FROM oauth_states WHERE user_id=?", userId);
   });
 }
-export function disconnectIfCurrent(
+export async function disconnectIfCurrent(
   userId: string,
   provider: MusicProvider,
   consentAt: number,
 ) {
-  transaction(() => {
-    const active = one<{ consent_at: number }>(
+  return transaction(async () => {
+    const active = await one<{ consent_at: number }>(
       "SELECT consent_at FROM music_connections WHERE user_id=? AND provider=?",
       userId,
       provider,
     );
     if (active?.consent_at === consentAt) {
-      run(
+      await run(
         "DELETE FROM music_connections WHERE user_id=? AND provider=?",
         userId,
         provider,
       );
-      run(
+      await run(
         "DELETE FROM music_profiles WHERE user_id=? AND provider=?",
         userId,
         provider,

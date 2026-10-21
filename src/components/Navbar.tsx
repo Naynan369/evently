@@ -177,27 +177,27 @@ export default function Navbar() {
       }}
     >
       <div className="container header-inner">
-        <div onClick={close}>
+        <div className="header-brand" onClick={close}>
           <Brand />
         </div>
-        <nav className="desktop-nav" aria-label="Main navigation">
+        <nav className="desktop-nav" aria-label="Primary navigation">
           <div className="nav-disclosure">
             <button
               ref={discoverButton}
               className={
                 "nav-trigger" +
                 (activePath(path, "/events") ||
-                path === "/categories" ||
-                path === "/music"
+                activePath(path, "/categories") ||
+                activePath(path, "/music")
                   ? " active"
                   : "")
               }
-              aria-label="Discover menu"
+              aria-label="Explore events and categories"
               aria-expanded={panel === "discover"}
               aria-controls="discovery-nav"
               onClick={() => setPanel(panel === "discover" ? null : "discover")}
             >
-              Discover <FiChevronDown aria-hidden="true" />
+              Explore <FiChevronDown aria-hidden="true" />
             </button>
             {panel === "discover" && (
               <div className="nav-popover discovery-popover" id="discovery-nav">
@@ -226,82 +226,86 @@ export default function Navbar() {
           <Link
             href="/for-you"
             onClick={close}
-            aria-current={path === "/for-you" ? "page" : undefined}
+            aria-current={activePath(path, "/for-you") ? "page" : undefined}
           >
-            Recommendations
+            For you
           </Link>
           <Link
             href="/organizer"
             onClick={close}
             aria-current={
-              path === "/organizer" || path === "/create-event"
+              activePath(path, "/organizer") ||
+              activePath(path, "/create-event")
                 ? "page"
                 : undefined
             }
           >
-            Organizers
+            For organizers
           </Link>
         </nav>
         <div className="header-actions">
-          <button
-            className="icon-button theme-toggle"
-            aria-label="Switch between light and dark theme"
-            onClick={() => {
-              close();
-              setTheme(resolvedTheme === "dark" ? "light" : "dark");
-            }}
-          >
-            <FiMoon className="moon" />
-            <FiSun className="sun" />
-          </button>
-          {user ? (
-            <div className="nav-disclosure account-disclosure">
-              <button
-                ref={accountButton}
-                className="account-trigger"
-                aria-label="Account menu"
-                aria-expanded={panel === "account"}
-                aria-controls="account-nav"
-                onClick={() => setPanel(panel === "account" ? null : "account")}
-              >
-                <span className="account-avatar" aria-hidden="true">
-                  {user.name.trim().slice(0, 1).toUpperCase()}
-                </span>
-                <span className="account-trigger-label">My account</span>
-                <FiChevronDown aria-hidden="true" />
-              </button>
-              {panel === "account" && (
-                <nav
-                  className="nav-popover account-popover"
-                  id="account-nav"
-                  aria-label="Account navigation"
+          <div className="header-utility">
+            <button
+              className="icon-button theme-toggle"
+              aria-label="Toggle light and dark appearance"
+              title="Toggle appearance"
+              onClick={() => {
+                close();
+                setTheme(resolvedTheme === "dark" ? "light" : "dark");
+              }}
+            >
+              <FiMoon className="moon" aria-hidden="true" />
+              <FiSun className="sun" aria-hidden="true" />
+            </button>
+            {user ? (
+              <div className="nav-disclosure account-disclosure">
+                <button
+                  ref={accountButton}
+                  className="account-trigger"
+                  aria-label="Account menu"
+                  aria-expanded={panel === "account"}
+                  aria-controls="account-nav"
+                  onClick={() => setPanel(panel === "account" ? null : "account")}
                 >
-                  <div className="nav-popover-heading">
-                    <span className="menu-eyebrow">YOUR EVENTLY</span>
-                    <strong className="account-menu-name">{user.name}</strong>
-                  </div>
-                  {personal.map((item) => (
-                    <MenuLink
-                      key={item.href}
-                      item={item}
-                      path={path}
-                      onNavigate={close}
-                    />
-                  ))}
-                  <div className="account-menu-bottom">
-                    <Link href="/help" onClick={close}>
-                      <FiHelpCircle aria-hidden="true" /> Help center
-                    </Link>
-                    <AccountActions compact onSignOut={close} />
-                  </div>
-                </nav>
-              )}
-            </div>
-          ) : (
-            <Link href="/login" className="account-link" onClick={close}>
-              Sign in
-            </Link>
-          )}
+                  <span className="account-avatar" aria-hidden="true">
+                    {user.name.trim().slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="account-trigger-label">My account</span>
+                  <FiChevronDown aria-hidden="true" />
+                </button>
+                {panel === "account" && (
+                  <nav
+                    className="nav-popover account-popover"
+                    id="account-nav"
+                    aria-label="Account navigation"
+                  >
+                    <div className="nav-popover-heading">
+                      <span className="menu-eyebrow">YOUR EVENTLY</span>
+                      <strong className="account-menu-name">{user.name}</strong>
+                    </div>
+                    {personal.map((item) => (
+                      <MenuLink
+                        key={item.href}
+                        item={item}
+                        path={path}
+                        onNavigate={close}
+                      />
+                    ))}
+                    <div className="account-menu-bottom">
+                      <Link href="/help" onClick={close}>
+                        <FiHelpCircle aria-hidden="true" /> Help center
+                      </Link>
+                      <AccountActions compact onSignOut={close} />
+                    </div>
+                  </nav>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="account-link" onClick={close}>
+                Sign in
+              </Link>
+            )}
+          </div>
           <Link
             href={user ? "/create-event" : "/register"}
             className="button button-dark header-create"
@@ -367,15 +371,14 @@ export default function Navbar() {
                 About Evently <FiArrowUpRight aria-hidden="true" />
               </Link>
             </div>
-            {!user && (
-              <Link
-                href="/register"
-                className="button button-primary button-wide mobile-menu-join"
-                onClick={close}
-              >
-                Create an account <FiArrowRight aria-hidden="true" />
-              </Link>
-            )}
+            <Link
+              href={user ? "/create-event" : "/register"}
+              className="button button-dark button-wide mobile-menu-join"
+              onClick={close}
+            >
+              {user ? "Create an event" : "Get started"}
+              <FiArrowUpRight aria-hidden="true" />
+            </Link>
           </div>
         </nav>
       )}

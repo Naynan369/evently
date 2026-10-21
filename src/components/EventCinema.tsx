@@ -1,154 +1,81 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import {
-  FiArrowUpRight,
-  FiArrowRight,
-  FiPause,
-  FiPlay,
-  FiVolumeX,
-} from "react-icons/fi";
+import { useState } from "react";
+import { FiArrowUpRight, FiArrowRight, FiPause, FiPlay } from "react-icons/fi";
 import { SearchForm } from "./SearchForm";
+import MusicVisualizer from "./MusicVisualizer";
+
 const collection = [
   {
-    label: "Live nights",
-    title: "Feel every beat.",
-    description: "The crowd. The lights. That one unforgettable chorus.",
-    video: "live-nights",
-    poster: "music",
-    href: "/events?category=music",
+    label: "Club nights",
+    title: "Lose yourself in the lights.",
+    description: "Lights down, bass up. Find your way to the floor.",
   },
   {
     label: "Good company",
     title: "Find your people.",
     description: "Shared tables, new faces and stories that stay with you.",
-    video: "good-company",
-    poster: "culture",
-    href: "/events?category=food",
   },
   {
     label: "Open horizons",
     title: "Make room for more.",
     description: "Fresh air, fresh ideas. A little outside your everyday.",
-    video: "open-horizons",
-    poster: "outdoors",
-    href: "/events?category=wellness",
   },
 ];
-function subscribeMotion(callback: () => void) {
-  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-  query.addEventListener("change", callback);
-  return () => query.removeEventListener("change", callback);
-}
-function reducedSnapshot() {
-  return (
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-    Boolean(
-      (navigator as Navigator & { connection?: { saveData?: boolean } })
-        .connection?.saveData,
-    )
-  );
-}
+
 export default function EventCinema() {
-  const [index, setIndex] = useState(0),
-    [playing, setPlaying] = useState(true),
-    [override, setOverride] = useState(false),
-    [failed, setFailed] = useState(false);
-  const reduced = useSyncExternalStore(
-    subscribeMotion,
-    reducedSnapshot,
-    () => true,
-  );
-  const video = useRef<HTMLVideoElement | null>(null),
-    slide = collection[index];
-  const active = playing && (!reduced || override) && !failed;
-  useEffect(() => {
-    const player = video.current;
-    if (!player) return;
-    const update = () => {
-      if (active && !document.hidden)
-        void player.play().catch(() => setPlaying(false));
-      else player.pause();
-    };
-    update();
-    document.addEventListener("visibilitychange", update);
-    return () => {
-      document.removeEventListener("visibilitychange", update);
-      player.pause();
-    };
-  }, [active, index]);
-  function select(value: number) {
-    setIndex(value);
-    setFailed(false);
-  }
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const slide = collection[index];
+
   return (
     <section className="event-cinema" aria-label="Event collection">
-      <div
-        className="cinema-media"
-        style={{ backgroundImage: "url(/images/" + slide.poster + ".jpg)" }}
-      >
-        {!failed && (
-          <video
-            ref={video}
-            key={slide.video}
-            src={"/videos/" + slide.video + ".mp4"}
-            poster={"/images/" + slide.poster + ".jpg"}
-            muted
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-            tabIndex={-1}
-            onEnded={() => {
-              if (active) select((index + 1) % collection.length);
-            }}
-            onError={() => setFailed(true)}
-          />
-        )}
+      <div className="cinema-media">
+        <MusicVisualizer mode={index} playing={playing} />
       </div>
       <div className="cinema-shade" />
       <div className="container cinema-content">
         <div className="cinema-eyebrow">
-          <span className="live-dot" /> GO OUT. FEEL SOMETHING.
+          <span className="live-dot" /> EVENTLY / LIVE EXPERIENCES
         </div>
         <h1>
-          Life happens.
+          Events worth
           <br />
-          <em>Be there.</em>
+          <em>being there for.</em>
         </h1>
         <p className="cinema-intro">
-          The music that moves you. The people you haven’t met.
-          <br className="desktop-break" /> A whole collection of reasons to go.
+          Explore live music, culture, food and experiences worth making time
+          for.
         </p>
         <div className="cinema-ctas">
           <Link className="button button-primary" href="/events">
-            Find your next moment <FiArrowUpRight />
+            Explore events <FiArrowUpRight />
           </Link>
-          <Link className="cinema-music-link" href="/music">
-            Bring your music taste <FiArrowRight />
+          <Link className="cinema-music-link" href="/for-you">
+            See recommendations <FiArrowRight />
           </Link>
         </div>
         <div className="cinema-bottom">
-          <div className="collection-label">
+          <div className="collection-label" aria-live="polite">
             <span>THE EVENTLY COLLECTION / 0{index + 1}</span>
             <h2>{slide.title}</h2>
             <p>{slide.description}</p>
           </div>
           <div className="cinema-controls">
-            <span className="muted-video">
-              <FiVolumeX /> A silent collection
+            <span className="visualizer-status">
+              <span className="visualizer-status-dot" />
+              Generative music visualizer
             </span>
             <button
               className="cinema-play"
               aria-label={
-                active ? "Pause event slideshow" : "Play event slideshow"
+                playing ? "Pause background animation" : "Play background animation"
               }
-              onClick={() => {
-                setOverride(true);
-                setPlaying(!active);
-              }}
-              disabled={failed}
+              aria-pressed={playing}
+              onClick={() => setPlaying((value) => !value)}
             >
-              {active ? <FiPause /> : <FiPlay />}
+              {playing ? <FiPause /> : <FiPlay />}
             </button>
           </div>
         </div>
@@ -160,18 +87,12 @@ export default function EventCinema() {
           {collection.map((item, i) => (
             <button
               key={item.label}
-              onClick={() => select(i)}
+              onClick={() => setIndex(i)}
               aria-pressed={i === index}
             >
               <span>0{i + 1}</span>
               {item.label}
-              <span
-                className={
-                  active && i === index
-                    ? "collection-progress animating"
-                    : "collection-progress"
-                }
-              />
+              <span className="collection-progress" />
             </button>
           ))}
         </div>
@@ -179,7 +100,7 @@ export default function EventCinema() {
       <div className="container cinema-search">
         <SearchForm />
         <div className="popular-searches">
-          <span>Your kind of out there:</span>
+          <span>Popular searches</span>
           <Link href="/events?category=music">Live music</Link>
           <Link href="/events?price=free">Free things to do</Link>
           <Link href="/for-you">Picked for you ↗</Link>

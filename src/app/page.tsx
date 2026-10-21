@@ -1,17 +1,40 @@
 import Link from "next/link";
-import { FiArrowUpRight, FiArrowRight, FiCheck } from "react-icons/fi";
+import {
+  FiArrowUpRight,
+  FiArrowRight,
+  FiCreditCard,
+  FiLayout,
+  FiUsers,
+} from "react-icons/fi";
 import EventCard from "@/components/EventCard";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import EventCinema from "@/components/EventCinema";
 import { categories } from "@/lib/catalog";
 import { discoveryData } from "@/lib/db";
-export default function Home() {
-  const events = discoveryData().events;
+
+const organizerTools = [
+  {
+    label: "Branded event pages",
+    description: "Present each experience with your own identity.",
+    icon: FiLayout,
+  },
+  {
+    label: "Secure ticket checkout",
+    description: "Give guests a clear, protected way to book.",
+    icon: FiCreditCard,
+  },
+  {
+    label: "Live guest management",
+    description: "Keep attendee details organized as bookings arrive.",
+    icon: FiUsers,
+  },
+];
+
+export default async function Home() {
+  const events = (await discoveryData()).events;
   const featured = [
     ...events.filter((e) => !e.sample),
-    ...events.filter((e) =>
-      ["sample-1", "sample-2", "sample-3"].includes(e.id),
-    ),
+    ...events.filter((e) => e.sample),
   ].slice(0, 3);
   return (
     <main id="main" className="home-cinema">
@@ -20,22 +43,21 @@ export default function Home() {
         <div className="container section">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">
-                PUT SOMETHING GOOD ON THE CALENDAR
-              </span>
-              <h2>Worth showing up for.</h2>
+              <span className="eyebrow">FEATURED EXPERIENCES</span>
+              <h2>Worth making time for.</h2>
             </div>
             <Link href="/events" className="text-link">
               Explore all events <FiArrowUpRight />
             </Link>
           </div>
           {featured.length ? (
-            <div className="featured-grid">
+            <div className="featured-grid" data-count={featured.length}>
               {featured.map((event, index) => (
                 <EventCard
                   key={event.id}
                   event={event}
-                  variant={index === 0 ? "featured" : "compact"}
+                  variant="compact"
+                  sequence={index}
                 />
               ))}
             </div>
@@ -57,8 +79,8 @@ export default function Home() {
       <section className="container section category-section">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">FOLLOW YOUR CURIOSITY</span>
-            <h2>What’s your kind of good time?</h2>
+            <span className="eyebrow">EXPLORE BY CATEGORY</span>
+            <h2>Find the right experience.</h2>
           </div>
         </div>
         <div className="category-grid">
@@ -88,48 +110,46 @@ export default function Home() {
             <span>✹</span>
           </div>
           <div>
-            <span className="eyebrow">A LITTLE MORE YOU</span>
-            <h2>Your interests. Your next adventure.</h2>
+            <span className="eyebrow">PERSONALIZED DISCOVERY</span>
+            <h2>A more relevant way to discover.</h2>
             <p>
-              Tell us what you love. We’ll connect the dots between your
-              interests, saved events and something you might just love next.
+              Set a few interests and save what catches your eye. Evently will
+              bring related experiences together in one useful shortlist.
             </p>
             <Link href="/for-you" className="button button-dark">
-              Find my kind of events <FiArrowRight />
+              View recommendations <FiArrowRight />
             </Link>
           </div>
         </div>
       </section>
       <section className="container organizer-banner">
-        <div>
-          <span className="eyebrow">BRING YOUR IDEA TO LIFE</span>
-          <h2>
-            Good things happen
-            <br />
-            when you bring people together.
-          </h2>
+        <div className="organizer-intro">
+          <span className="eyebrow organizer-label">
+            <span className="organizer-label-dot" aria-hidden="true" />
+            BUILT FOR ORGANIZERS
+          </span>
+          <h2>A smoother way to run events.</h2>
           <p>
-            Create your event, sell tickets and welcome your community.
-            <br />
-            We’ll help with the details.
+            Give your team one place to prepare an event and keep plans moving
+            through event day.
           </p>
           <Link className="button button-primary" href="/create-event">
-            Let’s make it happen <FiArrowUpRight />
+            Start organizing <FiArrowUpRight />
           </Link>
         </div>
-        <div className="organizer-points">
-          {[
-            "A beautiful page for your event",
-            "Secure checkout with Stripe",
-            "Your guest list, all in one place",
-          ].map((text, i) => (
-            <div key={text}>
-              <span>0{i + 1}</span>
-              <strong>{text}</strong>
-              <FiCheck />
-            </div>
+        <ul className="organizer-points" aria-label="Organizer tools">
+          {organizerTools.map(({ label, description, icon: Icon }) => (
+            <li key={label}>
+              <span className="organizer-tool-icon" aria-hidden="true">
+                <Icon />
+              </span>
+              <span className="organizer-tool-copy">
+                <strong>{label}</strong>
+                <span>{description}</span>
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </main>
   );

@@ -86,7 +86,7 @@ export async function connectAccount(user: User, country: string) {
       { idempotencyKey: "evently-account-" + user.id },
     );
     accountId = account.id;
-    run("UPDATE users SET stripe_account=? WHERE id=?", accountId, user.id);
+    await run("UPDATE users SET stripe_account=? WHERE id=?", accountId, user.id);
   }
   return client.accountLinks.create({
     account: accountId,
@@ -113,11 +113,11 @@ export async function startCheckout(
       { stripeAccount: booking.stripeAccount },
     );
     if (session.payment_status === "paid") {
-      confirmPayment(session, booking.stripeAccount);
+      await confirmPayment(session, booking.stripeAccount);
       return { bookingId: booking.id, url: "/tickets/" + booking.id };
     }
     if (session.status === "expired") {
-      expireBooking(session.id, booking.id);
+      await expireBooking(session.id, booking.id);
       throw new AppError("This checkout expired. Start a new booking.", 409);
     }
     if (session.url) return { bookingId: booking.id, url: session.url };
@@ -161,7 +161,7 @@ export async function startCheckout(
       idempotencyKey: "evently-checkout-" + booking.id,
     },
   );
-  attachCheckout(booking.id, session.id, session.url);
+  await attachCheckout(booking.id, session.id, session.url);
   if (!session.url)
     throw new AppError("Checkout is unavailable. Please try again.", 502);
   return { bookingId: booking.id, url: session.url };
@@ -180,9 +180,9 @@ export async function reconcileBooking(booking: Booking) {
     { stripeAccount: booking.stripeAccount },
   );
   if (session.payment_status === "paid")
-    confirmPayment(session, booking.stripeAccount);
-  else if (session.status === "expired") expireBooking(session.id, booking.id);
-  return bookingById(booking.id)!;
+    await confirmPayment(session, booking.stripeAccount);
+  else if (session.status === "expired") await expireBooking(session.id, booking.id);
+  return (await bookingById(booking.id))!;
 }
 export async function cancelCheckout(booking: Booking) {
   if (booking.status !== "pending")
@@ -197,7 +197,7 @@ export async function cancelCheckout(booking: Booking) {
     {},
     { stripeAccount: booking.stripeAccount },
   );
-  if (session.status === "expired") expireBooking(session.id, booking.id);
+  if (session.status === "expired") await expireBooking(session.id, booking.id);
 }
 export async function refundBooking(booking: Booking) {
   if (
@@ -227,6 +227,6 @@ export async function refundBooking(booking: Booking) {
     },
   );
   if (refund.status === "succeeded")
-    run("UPDATE bookings SET status='refunded' WHERE id=?", booking.id);
+    await run("UPDATE bookings SET status='refunded' WHERE id=?", booking.id);
   return refund.status;
 }

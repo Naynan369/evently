@@ -4,9 +4,9 @@ import { randomUUID } from "node:crypto";
 import { registerAccount } from "../src/lib/registration.ts";
 import { one } from "../src/lib/db.ts";
 import { checkPassword } from "../src/lib/security.ts";
+import { prepareTestDatabase } from "./database.ts";
 
-process.env.DATABASE_PATH = ":memory:";
-process.env.SEED_DEMO = "false";
+await prepareTestDatabase("registration");
 process.env.APP_URL = "http://127.0.0.1:3100";
 process.env.EMAIL_DELIVERY = "resend";
 delete process.env.RESEND_API_KEY;
@@ -31,17 +31,17 @@ test("registration works without email configuration, saves a hashed password an
   assert.equal(result.verificationSent, false);
   assert.equal(result.user.emailVerified, false);
   assert.equal(result.user.email, input.email);
-  const row = one<{ password_hash: string }>(
+  const row = (await one<{ password_hash: string }>(
     "SELECT password_hash FROM users WHERE id=?",
     result.user.id,
-  )!;
+  ))!;
   assert.notEqual(row.password_hash, input.password);
   assert.equal(await checkPassword(input.password, row.password_hash), true);
   assert.equal(
-    one<{ n: number }>(
+    (await one<{ n: number }>(
       "SELECT count(*) n FROM account_tokens WHERE user_id=?",
       result.user.id,
-    )?.n,
+    ))?.n,
     0,
   );
   await assert.rejects(registerAccount(input), { status: 409 });
@@ -64,10 +64,10 @@ test("an email provider failure preserves the new account without claiming that 
     assert.equal(result.verificationSent, false);
     assert.equal(result.user.emailVerified, false);
     assert.equal(
-      one<{ n: number }>(
+      (await one<{ n: number }>(
         "SELECT count(*) n FROM account_tokens WHERE user_id=?",
         result.user.id,
-      )?.n,
+      ))?.n,
       0,
     );
   } finally {
@@ -88,7 +88,7 @@ test("signup continues to reject invalid details with email delivery unavailable
     status: 400,
   });
   assert.equal(
-    one("SELECT id FROM users WHERE email=?", input.email),
+    await one("SELECT id FROM users WHERE email=?", input.email),
     undefined,
   );
 });

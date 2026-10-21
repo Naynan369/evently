@@ -1,94 +1,252 @@
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID, randomBytes } from "node:crypto";
+import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 import { categories, imageOptions, seedEvents } from "./catalog.ts";
 import { AppError, integer, textField } from "./security.ts";
 import type { Booking, Event, User, Category, Ticket } from "./types.ts";
 
-let connection: DatabaseSync | undefined;
-export function db() {
-  if (connection) return connection;
-  const file = process.env.DATABASE_PATH || resolve("data/evently.sqlite");
-  if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true });
-  connection = new DatabaseSync(file);
-  connection.exec(
-    "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
+type SqlValue = string | number | boolean | Date | Buffer | null;
+type RuntimeState = typeof globalThis & {
+  __eventlyPostgresPool?: Pool;
+  __eventlyPostgresReady?: Promise<void>;
+};
+const runtime = globalThis as RuntimeState;
+const transactionClient = new AsyncLocalStorage<PoolClient>();
+let savepointNumber = 0;
+
+// Keep timestamp/count values as JavaScript numbers, matching the old SQLite API.
+types.setTypeParser(20, Number);
+
+const schema = `
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL, interests TEXT NOT NULL DEFAULT '[]',
+    stripe_account TEXT, created_at BIGINT NOT NULL,
+    email_verified_at BIGINT NOT NULL DEFAULT 0
   );
-  connection.exec(`
-    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, interests TEXT NOT NULL DEFAULT '[]', stripe_account TEXT, created_at INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, owner_id TEXT REFERENCES users(id), data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS saved (user_id TEXT REFERENCES users(id), event_id TEXT REFERENCES events(id), PRIMARY KEY(user_id,event_id));
-    CREATE TABLE IF NOT EXISTS bookings (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), event_id TEXT NOT NULL REFERENCES events(id), quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 10), total INTEGER NOT NULL CHECK(total >= 0), currency TEXT NOT NULL, status TEXT NOT NULL, mode TEXT NOT NULL, code TEXT NOT NULL UNIQUE, session_id TEXT UNIQUE, checkout_url TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, checked_in INTEGER NOT NULL DEFAULT 0, request_key TEXT NOT NULL UNIQUE, stripe_account TEXT);
-    CREATE INDEX IF NOT EXISTS bookings_event_status ON bookings(event_id,status);
-    CREATE INDEX IF NOT EXISTS bookings_user ON bookings(user_id);
-    CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, resets_at INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS account_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, purpose TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
-    CREATE INDEX IF NOT EXISTS account_tokens_user ON account_tokens(user_id,purpose);
-    CREATE TABLE IF NOT EXISTS music_connections (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, provider TEXT NOT NULL, credentials TEXT NOT NULL, consent_at INTEGER NOT NULL, PRIMARY KEY(user_id,provider));
-    CREATE TABLE IF NOT EXISTS music_profiles (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, provider TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id,provider));
-    CREATE TABLE IF NOT EXISTS oauth_states (state_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, session_hash TEXT NOT NULL, verifier TEXT NOT NULL, expires_at INTEGER NOT NULL);
-  `);
-  if (
-    !all<{ name: string }>("PRAGMA table_info(users)").some(
-      (column) => column.name === "email_verified_at",
-    )
-  )
-    connection.exec(
-      "ALTER TABLE users ADD COLUMN email_verified_at INTEGER NOT NULL DEFAULT 0",
-    );
-  if (
-    !all<{ name: string }>("PRAGMA table_info(bookings)").some(
-      (column) => column.name === "refund_requested",
-    )
-  ) {
-    connection.exec(
-      "ALTER TABLE bookings ADD COLUMN refund_requested INTEGER NOT NULL DEFAULT 0",
-    );
+  CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
+    expires_at BIGINT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
+    owner_id TEXT REFERENCES users(id), data TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS saved (
+    user_id TEXT REFERENCES users(id), event_id TEXT REFERENCES events(id),
+    PRIMARY KEY(user_id,event_id)
+  );
+  CREATE TABLE IF NOT EXISTS bookings (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
+    event_id TEXT NOT NULL REFERENCES events(id),
+    quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 10),
+    total BIGINT NOT NULL CHECK(total >= 0), currency TEXT NOT NULL,
+    status TEXT NOT NULL, mode TEXT NOT NULL, code TEXT NOT NULL UNIQUE,
+    session_id TEXT UNIQUE, checkout_url TEXT, expires_at BIGINT NOT NULL,
+    created_at BIGINT NOT NULL, checked_in BIGINT NOT NULL DEFAULT 0,
+    request_key TEXT NOT NULL UNIQUE, stripe_account TEXT,
+    refund_requested BIGINT NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS bookings_event_status ON bookings(event_id,status);
+  CREATE INDEX IF NOT EXISTS bookings_user ON bookings(user_id);
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY, count INTEGER NOT NULL, resets_at BIGINT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS account_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose TEXT NOT NULL, expires_at BIGINT NOT NULL, created_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS account_tokens_user ON account_tokens(user_id,purpose);
+  CREATE TABLE IF NOT EXISTS music_connections (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL, credentials TEXT NOT NULL, consent_at BIGINT NOT NULL,
+    PRIMARY KEY(user_id,provider)
+  );
+  CREATE TABLE IF NOT EXISTS music_profiles (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL, data TEXT NOT NULL, updated_at BIGINT NOT NULL,
+    PRIMARY KEY(user_id,provider)
+  );
+  CREATE TABLE IF NOT EXISTS oauth_states (
+    state_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_hash TEXT NOT NULL, verifier TEXT NOT NULL, expires_at BIGINT NOT NULL
+  );
+`;
+
+function pool() {
+  if (!process.env.DATABASE_URL)
+    throw new Error("DATABASE_URL is required to connect Evently to PostgreSQL.");
+  if (!runtime.__eventlyPostgresPool) {
+    const schemaName = process.env.DATABASE_SCHEMA;
+    if (schemaName && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schemaName))
+      throw new Error("DATABASE_SCHEMA contains invalid characters.");
+    runtime.__eventlyPostgresPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: Number(process.env.DATABASE_POOL_SIZE || 10),
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+      allowExitOnIdle: true,
+      options: schemaName
+        ? "-c search_path=" + schemaName + ",public"
+        : undefined,
+    });
   }
-  if (
-    process.env.SEED_DEMO !== "false" &&
-    !one<{ n: number }>("SELECT COUNT(*) AS n FROM events")?.n
-  ) {
-    for (const event of seedEvents())
-      run(
-        "INSERT INTO events(id,slug,owner_id,data) VALUES(?,?,?,?)",
-        event.id,
-        event.slug,
-        null,
-        JSON.stringify(event),
-      );
-  }
-  return connection;
+  return runtime.__eventlyPostgresPool;
 }
-export function one<T>(sql: string, ...values: SQLInputValue[]) {
-  const row = db()
-    .prepare(sql)
-    .get(...values);
-  // node:sqlite rows have a null prototype; React server-to-client props must be plain objects.
+
+async function initialize() {
+  const client = await pool().connect();
+  let locked = false;
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [71834219]);
+    locked = true;
+    if (process.env.DATABASE_SCHEMA) {
+      const schemaName = process.env.DATABASE_SCHEMA;
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schemaName))
+        throw new Error("DATABASE_SCHEMA contains invalid characters.");
+      await client.query('CREATE SCHEMA IF NOT EXISTS "' + schemaName + '"');
+    }
+    await client.query(schema);
+    await client.query(
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at BIGINT NOT NULL DEFAULT 0",
+    );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_requested BIGINT NOT NULL DEFAULT 0",
+    );
+    if (process.env.SEED_DEMO !== "false") {
+      const count = await client.query<{ n: number }>(
+        "SELECT COUNT(*)::integer AS n FROM events",
+      );
+      if (!count.rows[0]?.n) {
+        for (const event of seedEvents())
+          await client.query(
+            "INSERT INTO events(id,slug,owner_id,data) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING",
+            [event.id, event.slug, null, JSON.stringify(event)],
+          );
+      }
+      const currentSamples = new Map(
+        seedEvents().map((event) => [event.id, event]),
+      );
+      const rows = await client.query<{ id: string; data: string }>(
+        "SELECT id,data FROM events",
+      );
+      for (const row of rows.rows) {
+        const event = JSON.parse(row.data) as Event;
+        const currentSample = currentSamples.get(event.id);
+        if (!event.sample || !currentSample) continue;
+        const refreshDate = Date.parse(event.startsAt) <= Date.now();
+        const refreshCover =
+          currentSample.coverImage &&
+          currentSample.coverImage !== event.coverImage;
+        if (refreshDate || refreshCover)
+          await client.query("UPDATE events SET data=$1 WHERE id=$2", [
+            JSON.stringify({
+              ...event,
+              startsAt: refreshDate ? currentSample.startsAt : event.startsAt,
+              endsAt: refreshDate ? currentSample.endsAt : event.endsAt,
+              coverImage: currentSample.coverImage ?? event.coverImage,
+            }),
+            row.id,
+          ]);
+      }
+    }
+  } finally {
+    if (locked)
+      await client
+        .query("SELECT pg_advisory_unlock($1)", [71834219])
+        .catch(() => {});
+    client.release();
+  }
+}
+
+export function initializeDatabase() {
+  if (!runtime.__eventlyPostgresReady) {
+    runtime.__eventlyPostgresReady = initialize().catch((error) => {
+      runtime.__eventlyPostgresReady = undefined;
+      throw error;
+    });
+  }
+  return runtime.__eventlyPostgresReady;
+}
+
+export async function resetDatabaseForTests() {
+  if (process.env.EVENTLY_TEST_MODE !== "true")
+    throw new Error("Test database reset requires EVENTLY_TEST_MODE=true.");
+  await initializeDatabase();
+  await pool().query(
+    "TRUNCATE TABLE oauth_states,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,users CASCADE",
+  );
+}
+
+export async function closeDatabase() {
+  if (!runtime.__eventlyPostgresPool) return;
+  await runtime.__eventlyPostgresPool.end();
+  runtime.__eventlyPostgresPool = undefined;
+  runtime.__eventlyPostgresReady = undefined;
+}
+
+function postgresParameters(sql: string) {
+  let index = 0;
+  return sql.replace(/\?/g, () => "$" + ++index);
+}
+
+async function query<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  values: SqlValue[],
+) {
+  await initializeDatabase();
+  const client = transactionClient.getStore();
+  return client
+    ? client.query<T>(postgresParameters(sql), values)
+    : pool().query<T>(postgresParameters(sql), values);
+}
+
+export async function one<T>(sql: string, ...values: SqlValue[]) {
+  const result = await query(sql, values);
+  const row = result.rows[0];
   return row ? ({ ...row } as T) : undefined;
 }
-export function all<T>(sql: string, ...values: SQLInputValue[]) {
-  return db()
-    .prepare(sql)
-    .all(...values)
-    .map((row) => ({ ...row }) as T);
+export async function all<T>(sql: string, ...values: SqlValue[]) {
+  const result = await query(sql, values);
+  return result.rows.map((row) => ({ ...row }) as T);
 }
-export function run(sql: string, ...values: SQLInputValue[]) {
-  return db()
-    .prepare(sql)
-    .run(...values);
+export async function run(sql: string, ...values: SqlValue[]) {
+  const result = await query(sql, values);
+  return { changes: result.rowCount || 0 };
 }
-export function transaction<T>(fn: () => T): T {
-  db().exec("BEGIN IMMEDIATE");
+export async function transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+  const active = transactionClient.getStore();
+  if (active) {
+    const savepoint = "evently_nested_" + ++savepointNumber;
+    await active.query("SAVEPOINT " + savepoint);
+    try {
+      const result = await fn();
+      await active.query("RELEASE SAVEPOINT " + savepoint);
+      return result;
+    } catch (error) {
+      await active.query("ROLLBACK TO SAVEPOINT " + savepoint).catch(() => {});
+      await active.query("RELEASE SAVEPOINT " + savepoint).catch(() => {});
+      throw error;
+    }
+  }
+  await initializeDatabase();
+  const client = await pool().connect();
   try {
-    const result = fn();
-    db().exec("COMMIT");
-    return result;
-  } catch (error) {
-    db().exec("ROLLBACK");
-    throw error;
+    await client.query("BEGIN");
+    return await transactionClient.run(client, async () => {
+      try {
+        const result = await fn();
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      }
+    });
+  } finally {
+    client.release();
   }
 }
 export function publicUser(
@@ -104,65 +262,66 @@ export function publicUser(
     emailVerified: Boolean(row.email_verified_at),
   };
 }
-export function userById(id: string) {
+export async function userById(id: string) {
   return publicUser(
-    one<Record<string, unknown>>("SELECT * FROM users WHERE id = ?", id),
+    await one<Record<string, unknown>>("SELECT * FROM users WHERE id = ?", id),
   );
 }
-function hydrateEvent(row: { data: string }): Event {
+async function hydrateEvent(row: { data: string }): Promise<Event> {
   const event = JSON.parse(row.data) as Event;
   if (event.sample && event.id === "sample-1" && !event.genres)
     event.genres = ["Electronic", "House"];
   const reserved =
-    one<{ quantity: number }>(
+    (await one<{ quantity: number }>(
       "SELECT COALESCE(SUM(quantity),0) AS quantity FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
       event.id,
-    )?.quantity || 0;
+    ))?.quantity || 0;
   return { ...event, available: Math.max(0, event.capacity - reserved) };
 }
-export function listEvents() {
-  return all<{ data: string }>("SELECT data FROM events")
-    .map(hydrateEvent)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+export async function listEvents() {
+  const events = await Promise.all(
+    (await all<{ data: string }>("SELECT data FROM events")).map(hydrateEvent),
+  );
+  return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
-export function getEvent(id: string) {
-  const row = one<{ data: string }>(
+export async function getEvent(id: string) {
+  const row = await one<{ data: string }>(
     "SELECT data FROM events WHERE id=? OR slug=?",
     id,
     id,
   );
-  return row ? hydrateEvent(row) : null;
+  return row ? await hydrateEvent(row) : null;
 }
-export function savedIds(userId: string) {
-  return all<{ event_id: string }>(
+export async function savedIds(userId: string) {
+  return (await all<{ event_id: string }>(
     "SELECT event_id FROM saved WHERE user_id=?",
     userId,
-  ).map((r) => r.event_id);
+  )).map((r) => r.event_id);
 }
-export function saveEvent(userId: string, eventId: string, saved: boolean) {
-  if (!getEvent(eventId)) throw new AppError("Event not found.", 404);
+export async function saveEvent(userId: string, eventId: string, saved: boolean) {
+  if (!(await getEvent(eventId))) throw new AppError("Event not found.", 404);
   if (saved)
-    run(
-      "INSERT OR IGNORE INTO saved(user_id,event_id) VALUES(?,?)",
+    await run(
+      "INSERT INTO saved(user_id,event_id) VALUES(?,?) ON CONFLICT(user_id,event_id) DO NOTHING",
       userId,
       eventId,
     );
-  else run("DELETE FROM saved WHERE user_id=? AND event_id=?", userId, eventId);
-  return savedIds(userId);
+  else await run("DELETE FROM saved WHERE user_id=? AND event_id=?", userId, eventId);
+  return await savedIds(userId);
 }
-export function updateInterests(userId: string, value: unknown) {
+export async function updateInterests(userId: string, value: unknown) {
   if (
     !Array.isArray(value) ||
     value.some((v) => !categories.some((c) => c.id === v))
   )
     throw new AppError("Choose valid interests.");
   const interests = [...new Set(value)];
-  run(
+  await run(
     "UPDATE users SET interests=? WHERE id=?",
     JSON.stringify(interests),
     userId,
   );
-  return userById(userId)!;
+  return (await userById(userId))!;
 }
 export function validateEvent(
   input: Record<string, unknown>,
@@ -230,7 +389,7 @@ export function parseTags(value: unknown, label: string, max: number) {
     throw new AppError("Use up to " + max + " " + label.toLowerCase() + ".");
   return [...new Set(values.map((entry) => textField(entry, label, 1, 80)))];
 }
-export function createEvent(input: Record<string, unknown>, owner: User) {
+export async function createEvent(input: Record<string, unknown>, owner: User) {
   const content = validateEvent(input, owner);
   const id = randomUUID();
   const slug =
@@ -242,7 +401,7 @@ export function createEvent(input: Record<string, unknown>, owner: User) {
     "-" +
     id.slice(0, 8);
   const event: Event = { ...content, id, slug };
-  run(
+  await run(
     "INSERT INTO events(id,slug,owner_id,data) VALUES(?,?,?,?)",
     id,
     slug,
@@ -252,33 +411,45 @@ export function createEvent(input: Record<string, unknown>, owner: User) {
   return event;
 }
 const bookingColumns =
-  "id, user_id AS userId, event_id AS eventId, quantity, total, currency, status, mode, code, session_id AS sessionId, checkout_url AS checkoutUrl, expires_at AS expiresAt, created_at AS createdAt, checked_in AS checkedIn, request_key AS requestKey, stripe_account AS stripeAccount, refund_requested AS refundRequested";
-export function bookingById(id: string) {
+  'id, user_id AS "userId", event_id AS "eventId", quantity, total, currency, status, mode, code, session_id AS "sessionId", checkout_url AS "checkoutUrl", expires_at AS "expiresAt", created_at AS "createdAt", checked_in AS "checkedIn", request_key AS "requestKey", stripe_account AS "stripeAccount", refund_requested AS "refundRequested"';
+export async function bookingById(id: string) {
   return one<Booking>(
     "SELECT " + bookingColumns + " FROM bookings WHERE id=?",
     id,
   );
 }
-export function listTickets(userId: string): Ticket[] {
-  return all<Booking>(
+export async function listTickets(userId: string): Promise<Ticket[]> {
+  const bookings = await all<Booking>(
     "SELECT " +
       bookingColumns +
       " FROM bookings WHERE user_id=? ORDER BY created_at DESC",
     userId,
-  ).map((b) => ({ ...b, event: getEvent(b.eventId)! }));
+  );
+  return Promise.all(
+    bookings.map(async (booking) => ({
+      ...booking,
+      event: (await getEvent(booking.eventId))!,
+    })),
+  );
 }
-export function reserveBooking(
+export async function reserveBooking(
   userId: string,
   eventId: string,
   quantity: number,
   nonce: string,
-): Booking {
+): Promise<Booking> {
   integer(quantity, "Quantity", 1, 10);
   if (!/^[a-zA-Z0-9-]{16,80}$/.test(nonce))
     throw new AppError("Invalid booking request. Refresh and try again.");
-  return transaction(() => {
+  return transaction(async () => {
+    const lockedEvent = await one<{ id: string }>(
+      "SELECT id FROM events WHERE id=? OR slug=? FOR UPDATE",
+      eventId,
+      eventId,
+    );
+    if (!lockedEvent) throw new AppError("Event not found.", 404);
     const key = userId + ":" + nonce;
-    const existing = one<Booking>(
+    const existing = await one<Booking>(
       "SELECT " + bookingColumns + " FROM bookings WHERE request_key=?",
       key,
     );
@@ -287,7 +458,7 @@ export function reserveBooking(
         throw new AppError("This booking request has already been used.", 409);
       return existing;
     }
-    const pending = one<Booking>(
+    const pending = await one<Booking>(
       "SELECT " +
         bookingColumns +
         " FROM bookings WHERE user_id=? AND event_id=? AND status='pending'",
@@ -302,7 +473,7 @@ export function reserveBooking(
         );
       return pending;
     }
-    const event = getEvent(eventId);
+    const event = await getEvent(eventId);
     if (!event) throw new AppError("Event not found.", 404);
     if (Date.parse(event.startsAt) <= Date.now())
       throw new AppError("Booking has closed for this event.", 409);
@@ -334,10 +505,10 @@ export function reserveBooking(
       refundRequested: 0,
       requestKey: key,
       stripeAccount: event.ownerId
-        ? userById(event.ownerId)?.stripeAccount || null
+        ? (await userById(event.ownerId))?.stripeAccount || null
         : null,
     };
-    run(
+    await run(
       "INSERT INTO bookings(id,user_id,event_id,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
       booking.id,
       userId,
@@ -356,12 +527,12 @@ export function reserveBooking(
     return booking;
   });
 }
-export function attachCheckout(
+export async function attachCheckout(
   id: string,
   sessionId: string,
   url: string | null,
 ) {
-  run(
+  return await run(
     "UPDATE bookings SET session_id=?, checkout_url=? WHERE id=? AND (session_id IS NULL OR session_id=?)",
     sessionId,
     url,
@@ -369,7 +540,7 @@ export function attachCheckout(
     sessionId,
   );
 }
-export function confirmPayment(
+export async function confirmPayment(
   session: {
     id: string;
     client_reference_id: string | null;
@@ -381,9 +552,12 @@ export function confirmPayment(
   account: string | undefined,
 ) {
   if (session.payment_status !== "paid") return;
-  transaction(() => {
+  return await transaction(async () => {
     const booking = session.client_reference_id
-      ? bookingById(session.client_reference_id)
+      ? await one<Booking>(
+          "SELECT " + bookingColumns + " FROM bookings WHERE id=? FOR UPDATE",
+          session.client_reference_id,
+        )
       : undefined;
     if (!booking || booking.mode !== "stripe")
       throw new AppError("Payment does not match a booking.", 400);
@@ -400,58 +574,58 @@ export function confirmPayment(
     if (booking.status === "confirmed" || booking.status === "refunded") return;
     if (booking.status !== "pending")
       throw new AppError("Booking is no longer pending.", 409);
-    run(
+    await run(
       "UPDATE bookings SET status='confirmed',session_id=? WHERE id=?",
       session.id,
       booking.id,
     );
   });
 }
-export function expireBooking(sessionId: string, bookingId?: string) {
-  run(
+export async function expireBooking(sessionId: string, bookingId?: string) {
+  return await run(
     "UPDATE bookings SET status='expired',session_id=COALESCE(session_id,?) WHERE status='pending' AND (session_id=? OR (id=? AND session_id IS NULL))",
     sessionId,
     sessionId,
     bookingId || "",
   );
 }
-export function cancelFreeBooking(id: string, userId: string) {
-  const booking = bookingById(id);
+export async function cancelFreeBooking(id: string, userId: string) {
+  const booking = await bookingById(id);
   if (!booking || booking.userId !== userId)
     throw new AppError("Booking not found.", 404);
   if (booking.mode === "stripe")
     throw new AppError("Paid bookings are refunded by the organizer.");
   if (booking.checkedIn)
     throw new AppError("A checked-in booking cannot be cancelled.", 409);
-  if (Date.parse(getEvent(booking.eventId)!.startsAt) <= Date.now())
+  if (Date.parse((await getEvent(booking.eventId))!.startsAt) <= Date.now())
     throw new AppError("This event has already started.", 409);
-  run(
+  await run(
     "UPDATE bookings SET status='cancelled' WHERE id=? AND status='confirmed'",
     id,
   );
 }
-export function checkIn(code: string, ownerId: string) {
-  return transaction(() => {
-    const booking = one<Booking>(
-      "SELECT " + bookingColumns + " FROM bookings WHERE code=?",
+export async function checkIn(code: string, ownerId: string) {
+  return transaction(async () => {
+    const booking = await one<Booking>(
+      "SELECT " + bookingColumns + " FROM bookings WHERE code=? FOR UPDATE",
       code,
     );
-    if (!booking || getEvent(booking.eventId)?.ownerId !== ownerId)
+    if (!booking || (await getEvent(booking.eventId))?.ownerId !== ownerId)
       throw new AppError("Ticket not found for one of your events.", 404);
     if (booking.status !== "confirmed")
       throw new AppError("This ticket is not valid for entry.", 409);
     if (booking.checkedIn)
       throw new AppError("This booking has already been checked in.", 409);
-    run("UPDATE bookings SET checked_in=? WHERE id=?", Date.now(), booking.id);
+    await run("UPDATE bookings SET checked_in=? WHERE id=?", Date.now(), booking.id);
     return {
       quantity: booking.quantity,
-      event: getEvent(booking.eventId)!.title,
-      name: userById(booking.userId)!.name,
+      event: (await getEvent(booking.eventId))!.title,
+      name: (await userById(booking.userId))!.name,
     };
   });
 }
-export function requestRefund(id: string, userId: string) {
-  const booking = bookingById(id);
+export async function requestRefund(id: string, userId: string) {
+  const booking = await bookingById(id);
   if (!booking || booking.userId !== userId)
     throw new AppError("Booking not found.", 404);
   if (booking.mode !== "stripe" || booking.status !== "confirmed")
@@ -459,29 +633,32 @@ export function requestRefund(id: string, userId: string) {
       "Only confirmed paid bookings can request a refund.",
       409,
     );
-  run(
+  await run(
     "UPDATE bookings SET refund_requested=? WHERE id=? AND refund_requested=0",
     Date.now(),
     id,
   );
-  return bookingById(id)!;
+  return (await bookingById(id))!;
 }
-export function organizerData(userId: string) {
-  const events = listEvents().filter((e) => e.ownerId === userId);
-  const bookings = all<Booking & { name: string; email: string }>(
+export async function organizerData(userId: string) {
+  const [allEvents, bookings] = await Promise.all([
+    listEvents(),
+    all<Booking & { name: string; email: string }>(
     "SELECT " +
       bookingColumns
         .split(", ")
         .map((c) => "b." + c)
         .join(", ") +
       ",u.name,u.email FROM bookings b JOIN users u ON u.id=b.user_id JOIN events e ON e.id=b.event_id WHERE e.owner_id=? ORDER BY b.created_at DESC",
-    userId,
-  );
+      userId,
+    ),
+  ]);
+  const events = allEvents.filter((event) => event.ownerId === userId);
   return { events, bookings };
 }
-export function takeRateLimit(key: string, max: number, duration = 900000) {
+export async function takeRateLimit(key: string, max: number, duration = 900000) {
   const now = Date.now();
-  const result = one<{ count: number }>(
+  const result = await one<{ count: number }>(
     "INSERT INTO rate_limits(key,count,resets_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN resets_at <= ? THEN 1 ELSE count+1 END, resets_at=CASE WHEN resets_at <= ? THEN ? ELSE resets_at END RETURNING count",
     key,
     now + duration,
@@ -496,10 +673,10 @@ export function takeRateLimit(key: string, max: number, duration = 900000) {
     );
 }
 
-export function discoveryData() {
+export async function discoveryData() {
   const now = Date.now();
   return {
     now,
-    events: listEvents().filter((e) => Date.parse(e.startsAt) > now),
+    events: (await listEvents()).filter((e) => Date.parse(e.startsAt) > now),
   };
 }

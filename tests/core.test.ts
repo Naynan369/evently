@@ -22,9 +22,9 @@ import {
   savedIds,
   requestRefund,
 } from "../src/lib/db.ts";
+import { prepareTestDatabase } from "./database.ts";
 import type { User } from "../src/lib/types.ts";
-process.env.DATABASE_PATH = ":memory:";
-process.env.SEED_DEMO = "false";
+await prepareTestDatabase("core");
 const owner: User = {
   id: "owner",
   name: "Organizer",
@@ -42,7 +42,7 @@ const guest: User = {
   emailVerified: true,
 };
 for (const user of [owner, guest])
-  run(
+  await run(
     "INSERT INTO users(id,name,email,password_hash,stripe_account,created_at) VALUES(?,?,?,?,?,?)",
     user.id,
     user.name,
@@ -119,49 +119,49 @@ test("recommendations rank interests and exclude booked and past events", () => 
     0,
   );
 });
-test("reservation totals are server-derived, idempotent and cannot oversell", () => {
-  const event = createEvent(eventInput(0, 2), owner);
+test("reservation totals are server-derived, idempotent and cannot oversell", async () => {
+  const event = await createEvent(eventInput(0, 2), owner);
   const nonce = randomUUID();
-  const booking = reserveBooking(guest.id, event.id, 2, nonce);
+  const booking = await reserveBooking(guest.id, event.id, 2, nonce);
   assert.equal(booking.status, "confirmed");
   assert.equal(booking.total, 0);
-  assert.equal(reserveBooking(guest.id, event.id, 2, nonce).id, booking.id);
-  assert.equal(getEvent(event.id)?.available, 0);
-  assert.throws(
-    () => reserveBooking(owner.id, event.id, 1, randomUUID()),
+  assert.equal((await reserveBooking(guest.id, event.id, 2, nonce)).id, booking.id);
+  assert.equal((await getEvent(event.id))?.available, 0);
+  await assert.rejects(
+    reserveBooking(owner.id, event.id, 1, randomUUID()),
     /not enough/,
   );
-  assert.throws(
-    () => reserveBooking(guest.id, event.id, 1, nonce),
+  await assert.rejects(
+    reserveBooking(guest.id, event.id, 1, nonce),
     /already been used/,
   );
-  assert.throws(
-    () => reserveBooking(guest.id, event.id, -1, randomUUID()),
+  await assert.rejects(
+    reserveBooking(guest.id, event.id, -1, randomUUID()),
     /invalid/,
   );
 });
-test("cancelling free reservations releases capacity and respects ownership", () => {
-  const event = createEvent(eventInput(0, 2), owner);
-  const booking = reserveBooking(guest.id, event.id, 2, randomUUID());
-  assert.throws(() => cancelFreeBooking(booking.id, owner.id), /not found/);
-  cancelFreeBooking(booking.id, guest.id);
-  assert.equal(getEvent(event.id)?.available, 2);
-  assert.equal(bookingById(booking.id)?.status, "cancelled");
+test("cancelling free reservations releases capacity and respects ownership", async () => {
+  const event = await createEvent(eventInput(0, 2), owner);
+  const booking = await reserveBooking(guest.id, event.id, 2, randomUUID());
+  await assert.rejects(cancelFreeBooking(booking.id, owner.id), /not found/);
+  await cancelFreeBooking(booking.id, guest.id);
+  assert.equal((await getEvent(event.id))?.available, 2);
+  assert.equal((await bookingById(booking.id))?.status, "cancelled");
   assert.equal(
-    Object.getPrototypeOf(bookingById(booking.id)),
+    Object.getPrototypeOf(await bookingById(booking.id)),
     Object.prototype,
   );
   assert.equal(
-    Object.getPrototypeOf(organizerData(owner.id).bookings[0]),
+    Object.getPrototypeOf((await organizerData(owner.id)).bookings[0]),
     Object.prototype,
   );
 });
-test("paid bookings require matching payment amount, account and metadata", () => {
-  const event = createEvent(eventInput(1250, 3), owner);
-  const booking = reserveBooking(guest.id, event.id, 2, randomUUID());
+test("paid bookings require matching payment amount, account and metadata", async () => {
+  const event = await createEvent(eventInput(1250, 3), owner);
+  const booking = await reserveBooking(guest.id, event.id, 2, randomUUID());
   assert.equal(booking.total, 2500);
   assert.equal(booking.status, "pending");
-  assert.equal(getEvent(event.id)?.available, 1);
+  assert.equal((await getEvent(event.id))?.available, 1);
   const session = {
     id: "cs_test_" + booking.id,
     client_reference_id: booking.id,
@@ -170,43 +170,43 @@ test("paid bookings require matching payment amount, account and metadata", () =
     payment_status: "paid",
     metadata: { booking_id: booking.id },
   };
-  assert.throws(
-    () => confirmPayment({ ...session, amount_total: 1 }, owner.stripeAccount!),
+  await assert.rejects(
+    confirmPayment({ ...session, amount_total: 1 }, owner.stripeAccount!),
     /does not match/,
   );
-  assert.throws(
-    () => confirmPayment(session, "acct_other"),
+  await assert.rejects(
+    confirmPayment(session, "acct_other"),
     /account does not match/,
   );
-  confirmPayment(
+  await confirmPayment(
     { ...session, payment_status: "unpaid" },
     owner.stripeAccount!,
   );
-  assert.equal(bookingById(booking.id)?.status, "pending");
-  confirmPayment(session, owner.stripeAccount!);
-  confirmPayment(session, owner.stripeAccount!);
-  assert.equal(bookingById(booking.id)?.status, "confirmed");
-  assert.equal(getEvent(event.id)?.available, 1);
-  assert.throws(() => checkIn(booking.code, guest.id), /not found/);
-  assert.equal(checkIn(booking.code, owner.id).quantity, 2);
-  assert.throws(
-    () => checkIn(booking.code, owner.id),
+  assert.equal((await bookingById(booking.id))?.status, "pending");
+  await confirmPayment(session, owner.stripeAccount!);
+  await confirmPayment(session, owner.stripeAccount!);
+  assert.equal((await bookingById(booking.id))?.status, "confirmed");
+  assert.equal((await getEvent(event.id))?.available, 1);
+  await assert.rejects(checkIn(booking.code, guest.id), /not found/);
+  assert.equal((await checkIn(booking.code, owner.id)).quantity, 2);
+  await assert.rejects(
+    checkIn(booking.code, owner.id),
     /already been checked in/,
   );
 });
-test("Stripe expiry releases only pending holds", () => {
-  const event = createEvent(eventInput(1000, 1), owner);
-  const booking = reserveBooking(guest.id, event.id, 1, randomUUID());
-  expireBooking("cs_expired", booking.id);
-  assert.equal(bookingById(booking.id)?.status, "expired");
-  assert.equal(getEvent(event.id)?.available, 1);
+test("Stripe expiry releases only pending holds", async () => {
+  const event = await createEvent(eventInput(1000, 1), owner);
+  const booking = await reserveBooking(guest.id, event.id, 1, randomUUID());
+  await expireBooking("cs_expired", booking.id);
+  assert.equal((await bookingById(booking.id))?.status, "expired");
+  assert.equal((await getEvent(event.id))?.available, 1);
 });
-test("refund requests require ownership and a confirmed payment and preserve ticket validity", () => {
-  const event = createEvent(eventInput(1000, 1), owner);
-  const booking = reserveBooking(guest.id, event.id, 1, randomUUID());
-  assert.throws(() => requestRefund(booking.id, owner.id), /not found/);
-  assert.throws(() => requestRefund(booking.id, guest.id), /confirmed paid/);
-  confirmPayment(
+test("refund requests require ownership and a confirmed payment and preserve ticket validity", async () => {
+  const event = await createEvent(eventInput(1000, 1), owner);
+  const booking = await reserveBooking(guest.id, event.id, 1, randomUUID());
+  await assert.rejects(requestRefund(booking.id, owner.id), /not found/);
+  await assert.rejects(requestRefund(booking.id, guest.id), /confirmed paid/);
+  await confirmPayment(
     {
       id: "cs_refund_" + booking.id,
       client_reference_id: booking.id,
@@ -217,29 +217,29 @@ test("refund requests require ownership and a confirmed payment and preserve tic
     },
     owner.stripeAccount!,
   );
-  const requested = requestRefund(booking.id, guest.id);
+  const requested = await requestRefund(booking.id, guest.id);
   assert.ok(requested.refundRequested > 0);
   assert.equal(requested.status, "confirmed");
   assert.equal(
-    requestRefund(booking.id, guest.id).refundRequested,
+    (await requestRefund(booking.id, guest.id)).refundRequested,
     requested.refundRequested,
   );
-  assert.equal(getEvent(event.id)?.available, 0);
+  assert.equal((await getEvent(event.id))?.available, 0);
   assert.equal(
-    organizerData(owner.id).bookings.find((b) => b.id === booking.id)
+    (await organizerData(owner.id)).bookings.find((b) => b.id === booking.id)
       ?.refundRequested,
     requested.refundRequested,
   );
 });
-test("saved lists and organizer data are scoped to their owners", () => {
-  const event = createEvent(eventInput(), owner);
-  saveEvent(guest.id, event.id, true);
-  assert.deepEqual(savedIds(owner.id), []);
-  assert.equal(savedIds(guest.id).includes(event.id), true);
-  saveEvent(guest.id, event.id, false);
-  assert.equal(savedIds(guest.id).includes(event.id), false);
-  assert.equal(organizerData(guest.id).events.length, 0);
-  assert.ok(organizerData(owner.id).events.length > 0);
+test("saved lists and organizer data are scoped to their owners", async () => {
+  const event = await createEvent(eventInput(), owner);
+  await saveEvent(guest.id, event.id, true);
+  assert.deepEqual(await savedIds(owner.id), []);
+  assert.equal((await savedIds(guest.id)).includes(event.id), true);
+  await saveEvent(guest.id, event.id, false);
+  assert.equal((await savedIds(guest.id)).includes(event.id), false);
+  assert.equal((await organizerData(guest.id)).events.length, 0);
+  assert.ok((await organizerData(owner.id)).events.length > 0);
 });
 test("Stripe rejects forged, modified and stale webhook signatures", () => {
   const stripe = new Stripe("sk_test_local_fixture_only");

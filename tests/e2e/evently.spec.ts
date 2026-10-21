@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
-import { DatabaseSync } from "node:sqlite";
+import { Pool } from "pg";
 import { resolve } from "node:path";
 import { readdir, readFile } from "node:fs/promises";
 const origin = "http://127.0.0.1:3100";
@@ -287,14 +287,15 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     ).status(),
   ).toBe(400);
   // Insert a pending fixture only in the isolated test database; no Stripe network call or charge is made.
-  const database = new DatabaseSync(resolve("test-results/e2e.sqlite"));
+  const database = new Pool({
+    connectionString: process.env.TEST_DATABASE_URL,
+    options: "-c search_path=evently_test_e2e,public",
+  });
   const paidId = randomUUID();
   const user = (await (await guest.get("/api/session")).json()).user;
-  database
-    .prepare(
-      "INSERT INTO bookings(id,user_id,event_id,quantity,total,currency,status,mode,code,session_id,expires_at,created_at,request_key,stripe_account) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-    )
-    .run(
+  await database.query(
+    "INSERT INTO bookings(id,user_id,event_id,quantity,total,currency,status,mode,code,session_id,expires_at,created_at,request_key,stripe_account) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+    [
       paidId,
       user.id,
       event.id,
@@ -309,7 +310,9 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
       Date.now(),
       randomUUID(),
       "acct_fixture",
-    );
+    ],
+  );
+  await database.end();
   const stripe = new Stripe("sk_test_local_fixture_only");
   const object = {
     id: "cs_local_fixture",
@@ -352,10 +355,11 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
       })
     ).status(),
   ).toBe(200);
-  expect(
-    database.prepare("SELECT status FROM bookings WHERE id=?").get(paidId)
-      ?.status,
-  ).toBe("confirmed");
+  const paidBooking = await database.query(
+    "SELECT status FROM bookings WHERE id=$1",
+    [paidId],
+  );
+  expect(paidBooking.rows[0]?.status).toBe("confirmed");
   expect(
     (
       await outsider.post("/api/tickets/" + paidId + "/refund-request", {
@@ -376,7 +380,7 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     organizerBookings.find((b: { id: string }) => b.id === paidId)
       .refundRequested,
   ).toBeGreaterThan(0);
-  database.close();
+  await database.end();
   await owner.dispose();
   await guest.dispose();
   await outsider.dispose();

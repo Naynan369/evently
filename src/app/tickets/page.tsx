@@ -9,7 +9,7 @@ export const metadata = { title: "My tickets" };
 export default async function Tickets() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/tickets");
-  const tickets = listTickets(user.id);
+  const tickets = await listTickets(user.id);
   return (
     <main id="main" className="container page-main">
       <div className="page-heading">

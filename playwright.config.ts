@@ -1,5 +1,9 @@
 import { defineConfig } from "@playwright/test";
 import { resolve } from "node:path";
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+if (!process.env.TEST_DATABASE_URL)
+  throw new Error("Set TEST_DATABASE_URL to an isolated PostgreSQL test database.");
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -18,7 +22,8 @@ export default defineConfig({
     timeout: 60000,
     env: {
       APP_URL: "http://127.0.0.1:3100",
-      DATABASE_PATH: resolve("test-results/e2e.sqlite"),
+      DATABASE_URL: process.env.TEST_DATABASE_URL,
+      DATABASE_SCHEMA: "evently_test_e2e",
       SEED_DEMO: "true",
       EMAIL_DELIVERY: process.env.EVENTLY_E2E_EMAIL_DISABLED
         ? "resend"

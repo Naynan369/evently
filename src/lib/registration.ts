@@ -16,11 +16,11 @@ export async function registerAccount(input: Record<string, unknown>) {
     input.password.length > 128
   )
     throw new AppError("Use a password between 10 and 128 characters.");
-  takeRateLimit("register:" + tokenHash(email), 5);
+  await takeRateLimit("register:" + tokenHash(email), 5);
   const password = await hashPassword(input.password);
   const id = randomUUID();
   try {
-    run(
+    await run(
       "INSERT INTO users(id,name,email,password_hash,created_at) VALUES(?,?,?,?,?)",
       id,
       name,
@@ -29,7 +29,13 @@ export async function registerAccount(input: Record<string, unknown>) {
       Date.now(),
     );
   } catch (error) {
-    if (String(error).includes("UNIQUE"))
+    if (
+      (typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "23505") ||
+      String(error).includes("UNIQUE")
+    )
       throw new AppError(
         "An account already exists for this email. Sign in or reset your password below.",
         409,
@@ -47,7 +53,7 @@ export async function registerAccount(input: Record<string, unknown>) {
     }
   }
   return {
-    user: userById(id)!,
+    user: (await userById(id))!,
     saved: [],
     verificationSent: verificationDelivery === "resend",
     verificationDelivery,

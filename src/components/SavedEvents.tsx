@@ -18,7 +18,7 @@ export default function SavedEvents({ events }: { events: Event[] }) {
       <FiBookmark />
       <h3>Keep your next good idea here.</h3>
       <p>
-        Tap the heart on an event to save it. Your collection will be waiting
+        Save an event from its details page and your collection will be waiting
         whenever you’re ready to make a plan.
       </p>
       <Link className="button button-primary" href="/events">

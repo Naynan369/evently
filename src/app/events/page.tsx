@@ -1,4 +1,5 @@
 import Explore from "@/components/Explore";
+import ExploreVisualizer from "@/components/ExploreVisualizer";
 import { discoveryData } from "@/lib/db";
 export const metadata = { title: "Discover events" };
 export default async function EventsPage({
@@ -16,7 +17,8 @@ export default async function EventsPage({
     price: read("price"),
   };
   return (
-    <main id="main" className="container page-main">
+    <main id="main" className="container page-main explore-page">
+      <ExploreVisualizer />
       <div className="page-heading">
         <span className="eyebrow">LESS ORDINARY. MORE YOU.</span>
         <h1>Find your next good story.</h1>
@@ -28,7 +30,7 @@ export default async function EventsPage({
       <Explore
         key={JSON.stringify(initial)}
         initial={initial}
-        events={discoveryData().events}
+        events={(await discoveryData()).events}
       />
     </main>
   );

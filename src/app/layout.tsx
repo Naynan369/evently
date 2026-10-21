@@ -8,11 +8,12 @@ import { AppProvider } from "@/components/AppProvider";
 import { currentUser } from "@/lib/auth";
 import { savedIds } from "@/lib/db";
 import "./globals.css";
-const inter = localFont({
-  src: "../../public/fonts/inter-variable.woff2",
+import "./professional.css";
+const jetBrainsMono = localFont({
+  src: "../../public/fonts/jetbrains-mono-variable.ttf",
   variable: "--font-interface",
   display: "swap",
-  weight: "100 900",
+  weight: "100 800",
 });
 export const metadata: Metadata = {
   title: {
@@ -31,11 +32,11 @@ export default async function RootLayout({
   const user = await currentUser();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.variable}>
+      <body className={jetBrainsMono.variable}>
         <ThemeProvider>
           <AppProvider
             initialUser={user}
-            initialSaved={user ? savedIds(user.id) : []}
+            initialSaved={user ? await savedIds(user.id) : []}
           >
             <a className="skip-link" href="#main">
               Skip to content

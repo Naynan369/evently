@@ -12,7 +12,7 @@ export default async function Saved() {
         <h1>Your saved plans.</h1>
         <p>A little collection of things you don’t want to miss.</p>
       </div>
-      <SavedEvents events={listEvents()} />
+      <SavedEvents events={await listEvents()} />
     </main>
   );
 }

@@ -119,8 +119,13 @@ export default function Explore({
       </div>
       {filtered.length ? (
         <div className={"event-grid" + (view === "list" ? " event-list" : "")}>
-          {filtered.map((event) => (
-            <EventCard event={event} key={event.id} />
+          {filtered.map((event, index) => (
+            <EventCard
+              event={event}
+              key={`${category || "all"}:${event.id}`}
+              sequence={index % 3}
+              showThreeMotion
+            />
           ))}
         </div>
       ) : (

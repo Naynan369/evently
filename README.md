@@ -1,10 +1,10 @@
 # Evently
 
-A working event discovery and ticketing application built with Next.js, React, SQLite and Stripe Connect.
+A working event discovery and ticketing application built with Next.js, React, PostgreSQL and Stripe Connect.
 
 ## What works
 
-- A cinematic homepage with three local MP4 event collections, pause/select controls, reduced-motion support, neutral charcoal dark mode and responsive discovery pages.
+- A cinematic homepage with a procedural Three.js music visualizer, pause/select controls, reduced-motion support, neutral charcoal dark mode and responsive discovery pages.
 - Featured events arranged as one lead card and a shortlist; discovery supports grid and list layouts.
 - Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Inter typography.
 - City/text search, category/date/price filters and saved events.
@@ -20,15 +20,18 @@ The included listings are fictional examples. Sample bookings never charge money
 
 ## Run locally
 
-Use **Node.js 22.13 or newer** (Node 24 LTS is suitable). SQLite uses Node's built-in `node:sqlite` module.
+Use **Node.js 22.13 or newer** (Node 24 LTS is suitable) and a PostgreSQL database.
 
 ```sh
 npm ci
 cp .env.example .env.local
+npm run db:migrate
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Configure Resend below to send verification messages, or use local preview email delivery. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords. Existing accounts remain in SQLite and must verify their email before booking, publishing or connecting music.
+Create an empty PostgreSQL database first, then set `DATABASE_URL` in `.env.local` to its connection string. Evently initializes the schema on first use; `npm run db:migrate` can also prepare it explicitly. Open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Configure Resend below to send verification messages, or use local preview email delivery. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords.
+
+To bring over an existing SQLite installation, keep its database file as a backup and run `npm run db:import:sqlite -- data/evently.sqlite` after setting `DATABASE_URL`. The importer copies users, events, bookings, sessions, saved events, tokens and music connections into PostgreSQL without overwriting rows already there. It does not delete or alter the SQLite source file.
 
 The development command loads `.env.local` and starts on the exact hostname and port in `APP_URL`. The terminal's Local address therefore matches your forms, cookies and email/music links. If the port is already occupied, stop the previous server; Evently will not silently move to another port. Conflicting port/hostname overrides are rejected with a setup message.
 
@@ -56,7 +59,7 @@ Set `APP_URL` to the exact application origin, including its port. In developmen
 
 For an initial test before verifying a domain, set `EMAIL_FROM="Evently <onboarding@resend.dev>"`. Resend only permits this sender to email the address used for your Resend account. Register with that same address to test verification; sending to other registered addresses requires a verified sending domain. For local testing, use `APP_URL=http://127.0.0.1:3000` and open the emailed link on the computer running the app. [Resend test sender restrictions](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
 
-Verification links expire after 24 hours. Reset links expire after 30 minutes. Only hashes of one-use tokens are stored in SQLite; a new request replaces the previous token. Opening a link does not consume it; explicit confirmation prevents email scanners from accidentally activating it. Resetting a password also confirms mailbox ownership and revokes all sessions and pending account tokens. Unverified sessions can access verification and account pages but cannot perform booking, organizer or music actions.
+Verification links expire after 24 hours. Reset links expire after 30 minutes. Only hashes of one-use tokens are stored in PostgreSQL; a new request replaces the previous token. Opening a link does not consume it; explicit confirmation prevents email scanners from accidentally activating it. Resetting a password also confirms mailbox ownership and revokes all sessions and pending account tokens. Unverified sessions can access verification and account pages but cannot perform booking, organizer or music actions.
 
 Resend delivery failures leave the account unverified and offer resend. Password recovery returns the same generic response for existing and unknown emails. Resend messages include plain text and HTML. No real email is sent without your credentials.
 
@@ -128,12 +131,13 @@ Refund requests appear in the organizer's guest list. They do not cancel tickets
 
 ## Deployment and data
 
-This edition is designed for **one Node.js server with persistent storage**. Do not deploy its SQLite file to an ephemeral/serverless filesystem or run independent replicas against different local files. A multi-instance deployment needs a shared database and associated concurrency testing.
+This edition uses PostgreSQL as shared persistent storage and can run behind multiple Node.js instances. Configure every instance with the same private `DATABASE_URL`, use a suitably sized connection pool, and test concurrency limits for your hosting provider.
 
-- Set `DATABASE_PATH` to a persistent, private filesystem location.
+- Restrict network access to PostgreSQL and use TLS when required by your provider.
+- Set `DATABASE_POOL_SIZE` to fit the database connection limit across all application instances.
 - Set `SEED_DEMO=false` before the first run with a fresh production database. This setting does not delete samples from an existing database.
 - Use HTTPS and set the correct `APP_URL`; session cookies are secure when that URL uses HTTPS.
-- Back up SQLite using a consistent SQLite backup, including handling its WAL state. Do not copy only the main file while it is being written.
+- Back up PostgreSQL with regular, tested `pg_dump` snapshots and protect the backup location.
 - Keep credentials, databases and backups out of Git. Do not copy development databases into production.
 - Put the app behind a reverse proxy with request-size limits and abuse controls. App rate limits are supplementary.
 - Configure monitoring for application errors and Stripe webhook delivery failures.
@@ -149,7 +153,7 @@ npm run test:e2e
 
 The tests cover password hashing, one-use/expired verification and reset tokens, session revocation, Resend failure cleanup, music encryption, OAuth state, Spotify refresh/import contracts, Apple JWT signing/import contracts, disconnect races, recommendation exclusions, capacity, idempotency, ownership and signed payment webhooks.
 
-The end-to-end suite includes browser discovery/account flows and API organizer/security flows with an isolated SQLite database and local email outbox. It uses **fixture secrets**, not a real Stripe account, and does not charge money. Tests default to installed Google Chrome. To use Playwright Chromium, install it with `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium`. Build before running the suite.
+The unit and end-to-end suites use PostgreSQL. Set `TEST_DATABASE_URL` to a separate disposable database; tests isolate their tables in dedicated schemas. Never point it at production data. The end-to-end suite also writes to a local email outbox. It uses **fixture secrets**, not a real Stripe account, and does not charge money. Tests default to installed Google Chrome. To use Playwright Chromium, install it with `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium`. Build before running the suite.
 
 Run only the API flow with:
 
@@ -174,7 +178,7 @@ Event photos are local copies from Unsplash, used as illustrative imagery:
 - Outdoors: `photo-1500530855697-b586d89ba3ee`
 - Community: `photo-1511988617509-a57c8a288659`
 
-The three local 720p MP4 files in `public/videos` are silent slow-pan/crossfade montages made from the photos above, not recordings of the sample events. Replace them with your own licensed footage using the same filenames, or change the collection list in `src/components/EventCinema.tsx`. Keep a poster image for each clip. Clips pause when the tab is hidden; reduced-motion/data-saving preferences start with a still image.
+The homepage background is drawn procedurally with Three.js and uses no video or poster image. Each collection has its own visualizer: a pulsing equalizer for Club Nights, softly orbiting clay-like forms for Good Company, and slow horizon waves for Open Horizons. The event cover photos remain local files and are used by listings, forms and account screens.
 
 Source images: `https://images.unsplash.com/IMAGE_IDENTIFIER`. Manrope is bundled locally under the SIL Open Font License; see `public/fonts/OFL.txt`. Icons use React Icons / Feather. Fonts and event images do not require a third-party request at runtime.
 

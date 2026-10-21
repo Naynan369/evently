@@ -9,7 +9,7 @@ export default async function Organizer() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/organizer");
   if (!user.emailVerified) redirect("/verify-email");
-  const data = organizerData(user.id);
+  const data = await organizerData(user.id);
   return (
     <main id="main" className="container page-main">
       <div className="page-heading studio-top">

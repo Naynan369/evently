@@ -18,7 +18,7 @@ export function SearchForm({
           id="event-query"
           name="q"
           defaultValue={query}
-          placeholder="What are you into?"
+          placeholder="Search events or venues"
         />
       </div>
       <div className="search-city">
@@ -30,7 +30,7 @@ export function SearchForm({
           id="event-city"
           name="city"
           defaultValue={city}
-          placeholder="Any city"
+          placeholder="City"
           list="suggested-cities"
         />
         <datalist id="suggested-cities">
@@ -41,7 +41,7 @@ export function SearchForm({
         </datalist>
       </div>
       <button className="button button-primary" type="submit">
-        Find events <FiArrowRight />
+        Search <FiArrowRight />
       </button>
     </form>
   );
