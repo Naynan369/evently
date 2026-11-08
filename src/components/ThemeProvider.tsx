@@ -10,8 +10,8 @@ export default function ThemeProvider({
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="dark"
-      storageKey="evently-theme-v2"
+      defaultTheme="light"
+      storageKey="evently-theme-v3"
       enableSystem={false}
     >
       {children}

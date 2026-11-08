@@ -1,52 +1,56 @@
+"use client";
+
 import Link from "next/link";
 import { Brand } from "./Brand";
 import { FiArrowUpRight } from "react-icons/fi";
+import { useApp } from "./AppProvider";
 export default function Footer() {
+  const { t } = useApp();
   return (
     <footer className="site-footer">
       <div className="container footer-top">
         <div>
           <Brand light />
           <p>
-            Less scrolling.
+            {t("footer.taglineOne")}
             <br />
-            More being there.
+            {t("footer.taglineTwo")}
           </p>
         </div>
         <div className="footer-links">
           <div>
-            <span>Discover</span>
-            <Link href="/events">Explore events</Link>
-            <Link href="/for-you">Recommendations</Link>
-            <Link href="/music">Music preferences</Link>
-            <Link href="/categories">Browse categories</Link>
+            <span>{t("footer.discover")}</span>
+            <Link href="/events">{t("nav.discovery.events")}</Link>
+            <Link href="/for-you">{t("nav.discovery.recommendations")}</Link>
+            <Link href="/categories">{t("nav.discovery.categories")}</Link>
           </div>
           <div>
-            <span>Your account</span>
-            <Link href="/tickets">Tickets & bookings</Link>
-            <Link href="/saved">Saved events</Link>
-            <Link href="/account">Account overview</Link>
+            <span>{t("footer.account")}</span>
+            <Link href="/account">{t("nav.personal.account")}</Link>
+            <Link href="/tickets">{t("nav.personal.tickets")}</Link>
+            <Link href="/saved">{t("nav.personal.saved")}</Link>
+            <Link href="/music">{t("nav.discovery.music")}</Link>
           </div>
           <div>
-            <span>Organizers</span>
-            <Link href="/create-event">Create an event</Link>
-            <Link href="/organizer">Organizer dashboard</Link>
+            <span>{t("footer.organizers")}</span>
+            <Link href="/create-event">{t("nav.organize.create")}</Link>
+            <Link href="/organizer">{t("nav.organize.dashboard")}</Link>
           </div>
           <div>
-            <span>Support</span>
+            <span>{t("footer.support")}</span>
             <Link href="/about">
-              About Evently <FiArrowUpRight />
+              {t("nav.about")} <FiArrowUpRight />
             </Link>
-            <Link href="/help">Help center</Link>
+            <Link href="/help">{t("nav.help")}</Link>
           </div>
         </div>
       </div>
       <div className="container footer-bottom">
         <span>
-          © {new Date().getFullYear()} Evently. Make room for real life.
+          © {new Date().getFullYear()} {t("footer.copyright")}
         </span>
         <span>
-          Made for moments that matter <span aria-hidden="true">✳</span>
+          {t("footer.madeFor")} <span aria-hidden="true">✳</span>
         </span>
       </div>
     </footer>

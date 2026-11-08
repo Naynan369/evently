@@ -1,21 +1,161 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { FiArrowUpRight, FiCheck } from "react-icons/fi";
-import { categories, imageOptions } from "@/lib/catalog";
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiArrowUpRight,
+  FiCheck,
+} from "react-icons/fi";
+import { categories, categoryName, imageOptions } from "@/lib/catalog";
 import { localDateTime, zonedToIso } from "@/lib/dates";
 import { api } from "@/lib/client";
-import type { Event } from "@/lib/types";
-export default function EventForm({ initial }: { initial?: Event }) {
+import type { BusinessProfile, Event, Venue } from "@/lib/types";
+import { useApp } from "./AppProvider";
+import type { TranslationKey } from "@/lib/i18n";
+
+const wizardSteps = [
+  { title: "create.step1", summary: "create.step1Summary" },
+  { title: "create.step2", summary: "create.step2Summary" },
+  { title: "create.step3", summary: "create.step3Summary" },
+  { title: "create.step4", summary: "create.step4Summary" },
+] as const;
+const coverLabels: Record<string, TranslationKey> = {
+  festival: "create.coverFestival",
+  music: "create.coverMusic",
+  culture: "create.coverCulture",
+  technology: "create.coverTechnology",
+  outdoors: "create.coverOutdoors",
+  community: "create.coverCommunity",
+};
+
+export default function EventForm({
+  initial,
+  venues,
+  organizerProfiles,
+  venueProfiles,
+  demoMode = false,
+}: {
+  initial?: Event;
+  venues: Venue[];
+  organizerProfiles: BusinessProfile[];
+  venueProfiles: BusinessProfile[];
+  demoMode?: boolean;
+}) {
+  const { language, t } = useApp();
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const confirmIntentRef = useRef(false);
   const [image, setImage] = useState(initial?.image || "festival");
+  const initialVenue = venues.find((venue) => venue.id === initial?.venueId);
+  const [venueId, setVenueId] = useState(initialVenue?.id || "");
+  const [venueName, setVenueName] = useState(
+    initialVenue?.name || initial?.venue || "",
+  );
+  const [venueCity, setVenueCity] = useState(
+    initialVenue?.city || initial?.city || "",
+  );
+  const [venueAddress, setVenueAddress] = useState(
+    initialVenue
+      ? initialVenue.address + ", " + initialVenue.postalCode
+      : initial?.address || "",
+  );
+  const [capacity, setCapacity] = useState(
+    String(initial?.capacity || initialVenue?.capacity || 100),
+  );
+  const [eventTimezone, setEventTimezone] = useState(
+    initial?.timezone || initialVenue?.timezone || "Europe/Rome",
+  );
+  const [organizerProfileId, setOrganizerProfileId] = useState(
+    initial?.organizerProfileId || organizerProfiles[0]?.id || "",
+  );
+  const [activeStep, setActiveStep] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const timezone = initial?.timezone || "Europe/London";
+  const selectedVenue = venues.find((venue) => venue.id === venueId);
+  const selectedVenueProfile = venueProfiles.find(
+    (profile) => profile.id === selectedVenue?.hostProfileId,
+  );
+
+  function chooseVenue(nextVenueId: string) {
+    const nextVenue = venues.find((venue) => venue.id === nextVenueId);
+    setVenueId(nextVenue?.id || "");
+    if (!nextVenue) {
+      setVenueName("");
+      setVenueCity("");
+      setVenueAddress("");
+      setCapacity("100");
+      setEventTimezone("Europe/Rome");
+      return;
+    }
+    setVenueName(nextVenue.name);
+    setVenueCity(nextVenue.city);
+    setVenueAddress(nextVenue.address + ", " + nextVenue.postalCode);
+    setCapacity(String(nextVenue.capacity));
+    setEventTimezone(nextVenue.timezone);
+  }
+
+  function validateStep(stepIndex: number) {
+    const form = formRef.current;
+    const section = form?.querySelector<HTMLElement>(
+      '[data-wizard-step="' + stepIndex + '"]',
+    );
+    if (!form || !section) return false;
+
+    if (stepIndex === 2) {
+      const start = form.elements.namedItem("start") as HTMLInputElement;
+      const end = form.elements.namedItem("end") as HTMLInputElement;
+      end.setCustomValidity(
+        start.value && end.value && end.value <= start.value
+          ? language === "it"
+            ? "L'orario di fine deve essere successivo all'orario di inizio."
+            : "The end time must be after the start time."
+          : "",
+      );
+    }
+
+    const fields = section.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >("input, select, textarea");
+    for (const field of fields) {
+      if (!field.checkValidity()) {
+        field.reportValidity();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function continueToNextStep() {
+    if (!validateStep(activeStep)) return;
+    setError("");
+    setActiveStep((step) => Math.min(step + 1, wizardSteps.length - 1));
+  }
+
+  function goBack() {
+    setError("");
+    setReviewOpen(false);
+    setActiveStep((step) => Math.max(step - 1, 0));
+  }
+
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (activeStep < wizardSteps.length - 1) {
+      continueToNextStep();
+      return;
+    }
+    if (!validateStep(activeStep)) {
+      confirmIntentRef.current = false;
+      return;
+    }
+    if (!confirmIntentRef.current) {
+      setReviewOpen(true);
+      return;
+    }
+    confirmIntentRef.current = false;
     setBusy(true);
     setError("");
     const data = Object.fromEntries(new FormData(e.currentTarget));
@@ -25,6 +165,11 @@ export default function EventForm({ initial }: { initial?: Event }) {
         image,
         price: Math.round(Number(data.price) * 100),
         capacity: Number(data.capacity),
+        vipCapacity: Number(data.vipCapacity || 0),
+        vipPrice:
+          String(data.vipPrice || "").trim() === ""
+            ? null
+            : Math.round(Number(data.vipPrice) * 100),
         startsAt: zonedToIso(String(data.start), String(data.timezone)),
         endsAt: zonedToIso(String(data.end), String(data.timezone)),
       };
@@ -40,282 +185,516 @@ export default function EventForm({ initial }: { initial?: Event }) {
       setBusy(false);
     }
   }
+
+  function confirmPublish() {
+    confirmIntentRef.current = true;
+    formRef.current?.requestSubmit();
+  }
+
   return (
-    <div className="form-layout">
-      <form className="panel" onSubmit={submit}>
-        <section className="form-section">
-          <h2>01. Give it a little personality.</h2>
-          <p>
-            A clear title and a thoughtful description help the right people
-            find you.
-          </p>
-          <div className="form-stack">
-            <div className="field">
-              <label htmlFor="title">Event title</label>
+    <div className="form-layout event-form-layout">
+      <form
+        className="panel event-wizard"
+        noValidate
+        onSubmit={submit}
+        ref={formRef}
+      >
+        <div className="event-wizard-progress">
+          <div className="event-wizard-progress-heading">
+            <span className="eyebrow">
+              {language === "it" ? "PASSAGGIO" : "STEP"} {String(activeStep + 1).padStart(2, "0")} {language === "it" ? "DI" : "OF"}{" "}
+              {String(wizardSteps.length).padStart(2, "0")}
+            </span>
+            <span>{t(wizardSteps[activeStep].summary)}</span>
+          </div>
+          <ol
+            aria-label={language === "it" ? "Avanzamento creazione evento" : "Event creation progress"}
+            className="event-wizard-steps"
+          >
+            {wizardSteps.map((step, index) => {
+              const complete = index < activeStep;
+              const current = index === activeStep;
+              return (
+                <li
+                  aria-current={current ? "step" : undefined}
+                  className={
+                    "event-wizard-step" +
+                    (current ? " current" : "") +
+                    (complete ? " complete" : "")
+                  }
+                  key={step.title}
+                >
+                  <span aria-hidden="true" className="event-wizard-step-mark">
+                    {complete ? <FiCheck /> : index + 1}
+                  </span>
+                  <span className="event-wizard-step-title">{t(step.title)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <section
+          aria-labelledby="event-step-one-title"
+          className="form-section event-wizard-panel"
+          data-wizard-step="0"
+          hidden={activeStep !== 0}
+        >
+          <h2 id="event-step-one-title">{t("create.essentials")}</h2>
+          <p>{t("create.profileIntro")}</p>
+          <div className="form-stack event-basics-grid">
+            <div className="field event-field-full">
+              <label htmlFor="title">{t("create.title")}</label>
               <input
-                id="title"
-                name="title"
+                autoComplete="off"
                 defaultValue={initial?.title}
-                placeholder="Something worth showing up for"
-                minLength={5}
+                id="title"
                 maxLength={100}
+                minLength={5}
+                name="title"
+                placeholder={t("create.titlePlaceholder")}
                 required
               />
             </div>
             <div className="field">
-              <label htmlFor="category">Category</label>
+              <label htmlFor="organizer-profile">{t("create.organizerProfile")}</label>
               <select
+                id="organizer-profile"
+                name="organizerProfileId"
+                onChange={(event) => setOrganizerProfileId(event.target.value)}
+                required
+                value={organizerProfileId}
+              >
+                {organizerProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+              <small>
+                {t("create.organizerOwnership")}{" "}
+                <Link href="/business-profiles" target="_blank" rel="noreferrer">
+                  {t("create.manageProfiles")}
+                </Link>
+              </small>
+            </div>
+            <div className="field">
+              <label htmlFor="category">{t("create.category")}</label>
+              <select
+                defaultValue={initial?.category || "music"}
                 id="category"
                 name="category"
-                defaultValue={initial?.category || "music"}
               >
-                {categories.map((c) => (
-                  <option value={c.id} key={c.id}>
-                    {c.name}
+                {categories.map((category) => (
+                  <option value={category.id} key={category.id}>
+                    {categoryName(category.id, language)}
                   </option>
                 ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="description">Tell people what to expect</label>
+            <div className="field event-field-full">
+              <label htmlFor="description">{t("create.description")}</label>
               <textarea
-                id="description"
-                name="description"
                 defaultValue={initial?.description}
-                minLength={40}
+                id="description"
                 maxLength={8000}
-                placeholder="The experience, the atmosphere, who it’s for, and anything guests should bring…"
+                minLength={40}
+                name="description"
+                placeholder={t("create.descriptionPlaceholder")}
                 required
               />
               <small>
-                At least 40 characters. Include accessibility, age restrictions
-                and refund arrangements where relevant.
-              </small>
-            </div>
-            <div className="field">
-              <label htmlFor="artists">Performers / artist lineup</label>
-              <input
-                id="artists"
-                name="artists"
-                defaultValue={initial?.artists?.join(", ")}
-                placeholder="Artist names, separated by commas"
-                maxLength={2000}
-              />
-              <small>
-                Use accurate artist names so fans can find events featuring the
-                people they listen to.
-              </small>
-            </div>
-            <div className="field">
-              <label htmlFor="genres">Music genres</label>
-              <input
-                id="genres"
-                name="genres"
-                defaultValue={initial?.genres?.join(", ")}
-                placeholder="For example: Electronic, House, Jazz"
-                maxLength={800}
-              />
-              <small>
-                Optional. Include only genres represented at your event.
+                {t("create.descriptionHelp")}
               </small>
             </div>
           </div>
         </section>
-        <section className="form-section">
-          <h2>02. Set the scene.</h2>
-          <p>Choose a cover from our image collection.</p>
-          <div className="cover-options" role="group" aria-label="Event cover">
-            {imageOptions.map((i) => (
+
+        <section
+          aria-labelledby="event-step-two-title"
+          className="form-section event-wizard-panel"
+          data-wizard-step="1"
+          hidden={activeStep !== 1}
+        >
+          <h2 id="event-step-two-title">{t("create.scene")}</h2>
+          <p>{t("create.coverIntro")}</p>
+          <div className="cover-options" role="group" aria-label={t("create.cover")}>
+            {imageOptions.map((option) => (
               <button
-                key={i.id}
+                aria-pressed={image === option.id}
+                className={
+                  "cover-option" + (image === option.id ? " active" : "")
+                }
+                key={option.id}
+                onClick={() => setImage(option.id)}
                 type="button"
-                className={"cover-option" + (image === i.id ? " active" : "")}
-                aria-pressed={image === i.id}
-                onClick={() => setImage(i.id)}
               >
                 <Image
-                  src={"/images/" + i.id + ".jpg"}
                   alt=""
                   fill
                   sizes="160px"
+                  src={"/images/" + option.id + ".jpg"}
                 />
                 <span>
-                  {i.name}
-                  {image === i.id ? " ✓" : ""}
+                  {t(coverLabels[option.id])}
+                  {image === option.id ? " ✓" : ""}
                 </span>
               </button>
             ))}
           </div>
+          <div className="form-stack event-lineup-fields">
+            <div className="field">
+              <label htmlFor="artists">{t("create.performers")}</label>
+              <input
+                defaultValue={initial?.artists?.join(", ")}
+                id="artists"
+                maxLength={2000}
+                name="artists"
+                placeholder={t("create.performersPlaceholder")}
+              />
+              <small>{t("create.performersHelp")}</small>
+            </div>
+            <div className="field">
+              <label htmlFor="genres">{t("create.genres")}</label>
+              <input
+                defaultValue={initial?.genres?.join(", ")}
+                id="genres"
+                maxLength={800}
+                name="genres"
+                placeholder={t("create.genresPlaceholder")}
+              />
+              <small>{t("create.genresHelp")}</small>
+            </div>
+          </div>
         </section>
-        <section className="form-section">
-          <h2>03. A time and a place.</h2>
-          <p>
-            All dates below use the selected timezone, including daylight
-            saving.
-          </p>
+
+        <section
+          aria-labelledby="event-step-three-title"
+          className="form-section event-wizard-panel"
+          data-wizard-step="2"
+          hidden={activeStep !== 2}
+        >
+          <h2 id="event-step-three-title">{t("create.place")}</h2>
+          <p>{t("create.placeIntro")}</p>
           <div className="form-grid">
             <div className="field span-full">
-              <label htmlFor="timezone">Event timezone</label>
-              <select id="timezone" name="timezone" defaultValue={timezone}>
+              <label htmlFor="venue-select">{t("create.venueProfile")}</label>
+              <select
+                id="venue-select"
+                name="venueId"
+                onChange={(event) => chooseVenue(event.target.value)}
+                value={venueId}
+              >
+                <option value="">{t("create.enterVenue")}</option>
+                {venues
+                  .filter((venue) => venue.active || venue.id === initial?.venueId)
+                  .map((venue) => (
+                    <option key={venue.id} value={venue.id}>
+                      {venue.name} · {venue.city}
+                      {!venue.active ? " · " + t("create.hidden") : ""}
+                    </option>
+                  ))}
+              </select>
+              <small>
+                {venues.length ? (
+                  <>
+                    {t("create.savedVenueHelp")}{" "}
+                    <Link href="/venues" target="_blank" rel="noreferrer">
+                      {t("create.manageVenues")}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {t("create.createVenueHelp")}{" "}
+                    <Link href="/venues" target="_blank" rel="noreferrer">
+                      {t("create.venues")}
+                    </Link>
+                    {t("create.orContinueLocation")}
+                  </>
+                )}
+              </small>
+              {selectedVenue && (
+                <small className="event-venue-owner">
+                  {t("create.venueHost")} {selectedVenueProfile?.name || t("create.venueProfile")}
+                </small>
+              )}
+            </div>
+            <div className="field span-full">
+              <label htmlFor="timezone">{t("create.timezone")}</label>
+              <select
+                id="timezone"
+                name="timezone"
+                onChange={(event) => setEventTimezone(event.target.value)}
+                value={eventTimezone}
+              >
                 {[
-                  "Europe/London",
                   "Europe/Rome",
                   "Europe/Paris",
+                  "Europe/London",
                   "America/New_York",
                   "America/Los_Angeles",
                   "Asia/Tokyo",
                   "Australia/Sydney",
                   "UTC",
-                ].map((t) => (
-                  <option key={t}>{t}</option>
+                ].map((value) => (
+                  <option key={value}>{value}</option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="start">Starts</label>
+              <label htmlFor="start">{t("create.starts")}</label>
               <input
+                defaultValue={
+                  initial ? localDateTime(initial.startsAt, eventTimezone) : ""
+                }
                 id="start"
                 name="start"
-                type="datetime-local"
-                defaultValue={
-                  initial ? localDateTime(initial.startsAt, timezone) : ""
-                }
                 required
+                type="datetime-local"
               />
             </div>
             <div className="field">
-              <label htmlFor="end">Ends</label>
+              <label htmlFor="end">{t("create.ends")}</label>
               <input
+                defaultValue={
+                  initial ? localDateTime(initial.endsAt, eventTimezone) : ""
+                }
                 id="end"
                 name="end"
-                type="datetime-local"
-                defaultValue={
-                  initial ? localDateTime(initial.endsAt, timezone) : ""
-                }
                 required
+                type="datetime-local"
               />
             </div>
             <div className="field">
-              <label htmlFor="venue">Venue name</label>
+              <label htmlFor="venue">{t("create.venueName")}</label>
               <input
                 id="venue"
-                name="venue"
-                defaultValue={initial?.venue}
-                placeholder="The perfect place"
-                minLength={2}
                 maxLength={120}
+                minLength={2}
+                name="venue"
+                onChange={(event) => setVenueName(event.target.value)}
+                placeholder={t("create.venuePlaceholder")}
+                readOnly={Boolean(venueId)}
                 required
+                value={venueName}
               />
             </div>
             <div className="field">
-              <label htmlFor="city">City</label>
+              <label htmlFor="city">{t("create.city")}</label>
               <input
                 id="city"
-                name="city"
-                defaultValue={initial?.city}
-                placeholder="London"
-                minLength={2}
                 maxLength={80}
+                minLength={2}
+                name="city"
+                onChange={(event) => setVenueCity(event.target.value)}
+                placeholder={t("create.cityPlaceholder")}
+                readOnly={Boolean(venueId)}
                 required
+                value={venueCity}
               />
             </div>
             <div className="field span-full">
-              <label htmlFor="address">Full address</label>
+              <label htmlFor="address">{t("create.address")}</label>
               <input
                 id="address"
-                name="address"
-                defaultValue={initial?.address}
-                placeholder="Street, postcode and country"
-                minLength={5}
                 maxLength={300}
+                minLength={5}
+                name="address"
+                onChange={(event) => setVenueAddress(event.target.value)}
+                placeholder={t("create.addressPlaceholder")}
+                readOnly={Boolean(venueId)}
                 required
+                value={venueAddress}
               />
             </div>
           </div>
         </section>
-        <section className="form-section">
-          <h2>04. Save them a place.</h2>
-          <p>
-            One clear general-admission ticket. Set the price to zero for a free
-            event.
-          </p>
+
+        <section
+          aria-labelledby="event-step-four-title"
+          className="form-section event-wizard-panel"
+          data-wizard-step="3"
+          hidden={activeStep !== 3}
+        >
+          <h2 id="event-step-four-title">{t("create.savePlace")}</h2>
+          <p>{language === "it"
+            ? "Imposta il biglietto Standard e, se vuoi, aggiungi un numero limitato di biglietti VIP. I posti VIP rientrano nella capienza totale."
+            : "Set a Standard ticket and optionally add a limited VIP allocation. VIP places count toward your total capacity."}</p>
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="capacity">Total capacity</label>
+              <label htmlFor="capacity">{t("create.capacity")}</label>
               <input
+                max={selectedVenue?.capacity || 100000}
+                onChange={(event) => setCapacity(event.target.value)}
                 id="capacity"
-                name="capacity"
-                type="number"
                 min={1}
-                max={100000}
-                defaultValue={initial?.capacity || 100}
+                name="capacity"
                 required
+                type="number"
+                value={capacity}
               />
             </div>
             <div className="field">
-              <label htmlFor="currency">Currency</label>
+              <label htmlFor="currency">{t("create.currency")}</label>
               <select
+                defaultValue={initial?.currency || "eur"}
                 id="currency"
                 name="currency"
-                defaultValue={initial?.currency || "gbp"}
               >
-                <option value="gbp">GBP — British pound</option>
+                <option value="gbp">GBP — {language === "it" ? "Sterlina britannica" : "British pound"}</option>
                 <option value="eur">EUR — Euro</option>
-                <option value="usd">USD — US dollar</option>
+                <option value="usd">USD — {language === "it" ? "Dollaro statunitense" : "US dollar"}</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="price">Price per ticket</label>
+              <label htmlFor="price">{t("create.standardPrice")}</label>
               <input
-                id="price"
-                name="price"
-                type="number"
-                min={0}
-                max={10000}
-                step="0.01"
                 defaultValue={initial ? initial.price / 100 : 0}
+                id="price"
+                max={10000}
+                min={0}
+                name="price"
                 required
+                step="0.01"
+                type="number"
               />
             </div>
+            <div className="field">
+              <label htmlFor="vipCapacity">{t("create.vipAllocation")}</label>
+              <input
+                defaultValue={initial?.vipCapacity || ""}
+                id="vipCapacity"
+                max={capacity}
+                min={1}
+                name="vipCapacity"
+                placeholder={t("create.vipPlaceholder")}
+                type="number"
+              />
+              <small>{t("create.vipAllocationHelp")}</small>
+            </div>
+            <div className="field">
+              <label htmlFor="vipPrice">{t("create.vipPrice")}</label>
+              <input
+                defaultValue={
+                  initial?.vipPrice !== undefined ? initial.vipPrice / 100 : ""
+                }
+                id="vipPrice"
+                max={10000}
+                min={0}
+                name="vipPrice"
+                placeholder={t("create.vipPricePlaceholder")}
+                step="0.01"
+                type="number"
+              />
+              <small>{t("create.vipPriceHelp")}</small>
+            </div>
           </div>
-          <div className="notice">
-            Paid tickets require an active Stripe account.{" "}
-            <Link href="/organizer">Connect payouts in Organizer studio</Link>.
-            Evently adds no platform fee; Stripe’s processing fees apply.
-          </div>
+          {demoMode ? (
+            <div className="notice notice-warm">
+              {language === "it"
+                ? "Le vendite non sono ancora disponibili. I prezzi vengono salvati per la pianificazione."
+                : "Ticket sales are not available yet. Prices are saved for planning."}
+            </div>
+          ) : (
+            <div className="notice">
+              {t("create.stripeNotice")}{" "}
+              <Link href="/organizer">{t("create.connectPayouts")}</Link>.{" "}
+              {t("create.stripeFees")}
+            </div>
+          )}
+          <p className="event-compliance-note">
+            {t("create.taxNote")}
+          </p>
         </section>
+
         {error && (
           <div className="error-box" role="alert">
             {error}
           </div>
         )}
-        <button disabled={busy} className="button button-primary button-wide">
-          {busy
-            ? "Saving your event…"
-            : initial
-              ? "Save event changes"
-              : "Publish my event"}
-          {initial ? <FiCheck /> : <FiArrowUpRight />}
-        </button>
-        <p className="form-note" style={{ marginTop: 15 }}>
-          Publishing makes this event visible on Evently. Dates and prices
-          cannot change once tickets are reserved.
-        </p>
+
+        <div className="event-wizard-actions">
+          {activeStep > 0 ? (
+            <button
+              className="button button-outline"
+              disabled={busy}
+              onClick={goBack}
+              type="button"
+            >
+              <FiArrowLeft /> {t("create.back")}
+            </button>
+          ) : (
+            <span />
+          )}
+          {activeStep < wizardSteps.length - 1 ? (
+            <button
+              className="button button-primary"
+              disabled={busy}
+              key="continue-step"
+              onClick={continueToNextStep}
+              type="button"
+            >
+              {t("create.continue")} <FiArrowRight />
+            </button>
+          ) : (
+            <button
+              className="button button-primary event-wizard-submit"
+              disabled={busy}
+              key="publish-event"
+              onClick={() => setReviewOpen(true)}
+              type="button"
+            >
+              {demoMode ? (language === "it" ? "Rivedi la bozza" : "Review draft") : initial ? t("create.reviewChanges") : t("create.reviewEvent")}
+              <FiArrowRight />
+            </button>
+          )}
+        </div>
+        {reviewOpen && activeStep === wizardSteps.length - 1 && (
+          <div className="event-wizard-confirm" role="group" aria-label={t("create.reviewHeading")}>
+            <div>
+              <strong>{t("create.reviewHeading")}</strong>
+              <p>{demoMode
+                ? (language === "it" ? "La bozza resterà privata e potrai modificarla in seguito." : "Your draft stays private and you can edit it later.")
+                : initial ? t("create.editIntro") : t("create.publishedNote")}</p>
+            </div>
+            <div className="event-wizard-confirm-actions">
+              <button
+                className="button button-outline"
+                disabled={busy}
+                onClick={() => setReviewOpen(false)}
+                type="button"
+              >
+                {t("create.keepEditing")}
+              </button>
+              <button
+                className="button button-primary"
+                disabled={busy}
+                onClick={confirmPublish}
+                type="button"
+              >
+                {busy
+                  ? t("create.saving")
+                  : initial
+                    ? t("create.saveChanges")
+                    : demoMode
+                      ? language === "it" ? "Salva bozza" : "Save draft"
+                      : t("create.publish")}
+                {initial ? <FiCheck /> : <FiArrowUpRight />}
+              </button>
+            </div>
+          </div>
+        )}
+        {!reviewOpen && (
+          <p className="form-note event-wizard-note">
+            {activeStep === wizardSteps.length - 1
+              ? demoMode
+                ? (language === "it" ? "Questa bozza è visibile solo a te." : "This draft is visible only to you.")
+                : t("create.publishedNote")
+              : t("create.progressNote")}
+          </p>
+        )}
       </form>
-      <aside className="panel form-sidebar">
-        <span className="eyebrow">SMALL DETAILS, GREAT EXPERIENCES</span>
-        <h3 style={{ marginTop: 15 }}>Make it easy to say yes.</h3>
-        <ul>
-          <li>Give your event a specific, memorable name.</li>
-          <li>Tell guests exactly what their ticket includes.</li>
-          <li>Include arrival details and accessibility information.</li>
-          <li>Set a realistic capacity. Every reservation counts.</li>
-          <li>Manage guests and check-in from your studio.</li>
-        </ul>
-        <Link className="text-link" href="/help">
-          A little help along the way <FiArrowUpRight />
-        </Link>
-      </aside>
+
     </div>
   );
 }

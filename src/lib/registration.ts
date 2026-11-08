@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { run, takeRateLimit, userById } from "./db.ts";
 import { AppError, hashPassword, textField, tokenHash } from "./security.ts";
-import { deliverAccountToken } from "./account-tokens.ts";
+import {
+  deliverAccountToken,
+  deliverVerificationCode,
+} from "./account-tokens.ts";
 import { emailDeliveryMode } from "./mail.ts";
 import type { EmailDeliveryMode } from "./types.ts";
 
@@ -47,7 +50,9 @@ export async function registerAccount(input: Record<string, unknown>) {
   let verificationDelivery: EmailDeliveryMode | "failed" = emailDeliveryMode();
   if (verificationDelivery !== "unavailable") {
     try {
-      await deliverAccountToken(id, "verify");
+      if (verificationDelivery === "gmail")
+        await deliverVerificationCode(id);
+      else await deliverAccountToken(id, "verify");
     } catch {
       verificationDelivery = "failed";
     }
@@ -55,7 +60,8 @@ export async function registerAccount(input: Record<string, unknown>) {
   return {
     user: (await userById(id))!,
     saved: [],
-    verificationSent: verificationDelivery === "resend",
+    verificationSent:
+      verificationDelivery === "gmail" || verificationDelivery === "resend",
     verificationDelivery,
   };
 }

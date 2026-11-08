@@ -16,80 +16,75 @@ import {
   FiCalendar,
   FiUser,
   FiHelpCircle,
-  FiPlusCircle,
   FiBarChart2,
   FiMenu,
   FiX,
   FiMoon,
   FiSun,
+  FiGlobe,
 } from "react-icons/fi";
 import { Brand } from "./Brand";
 import { useApp } from "./AppProvider";
 import AccountActions from "./AccountActions";
+import type { Language, TranslationKey } from "@/lib/i18n";
 
 type NavigationItem = {
   href: string;
-  label: string;
-  description: string;
+  label: TranslationKey;
+  description: TranslationKey;
   icon: IconType;
 };
 const discovery: NavigationItem[] = [
   {
     href: "/events",
-    label: "Explore events",
-    description: "Find your next experience",
+    label: "nav.discovery.events",
+    description: "nav.discovery.eventsDescription",
     icon: FiCompass,
   },
   {
     href: "/categories",
-    label: "Browse categories",
-    description: "Explore by interest",
+    label: "nav.discovery.categories",
+    description: "nav.discovery.categoriesDescription",
     icon: FiGrid,
   },
-  {
-    href: "/for-you",
-    label: "Recommendations",
-    description: "Events selected for you",
-    icon: FiStar,
-  },
-  {
-    href: "/music",
-    label: "Music preferences",
-    description: "Manage your music taste",
-    icon: FiMusic,
-  },
 ];
+const recommendations: NavigationItem = {
+  href: "/for-you",
+  label: "nav.discovery.recommendations",
+  description: "nav.discovery.recommendationsDescription",
+  icon: FiStar,
+};
 const personal: NavigationItem[] = [
   {
+    href: "/account",
+    label: "nav.personal.account",
+    description: "nav.personal.accountDescription",
+    icon: FiUser,
+  },
+  {
     href: "/tickets",
-    label: "Tickets & bookings",
-    description: "Manage your upcoming plans",
+    label: "nav.personal.tickets",
+    description: "nav.personal.ticketsDescription",
     icon: FiCalendar,
   },
   {
     href: "/saved",
-    label: "Saved events",
-    description: "Keep your shortlist together",
+    label: "nav.personal.saved",
+    description: "nav.personal.savedDescription",
     icon: FiBookmark,
   },
   {
-    href: "/account",
-    label: "Account overview",
-    description: "Your profile and preferences",
-    icon: FiUser,
+    href: "/music",
+    label: "nav.discovery.music",
+    description: "nav.discovery.musicDescription",
+    icon: FiMusic,
   },
 ];
 const organize: NavigationItem[] = [
   {
-    href: "/create-event",
-    label: "Create an event",
-    description: "Publish your next experience",
-    icon: FiPlusCircle,
-  },
-  {
     href: "/organizer",
-    label: "Organizer dashboard",
-    description: "Manage events and attendees",
+    label: "nav.organize.dashboard",
+    description: "nav.organize.dashboardDescription",
     icon: FiBarChart2,
   },
 ];
@@ -106,6 +101,7 @@ function MenuLink({
   onNavigate: () => void;
 }) {
   const Icon = item.icon;
+  const { t } = useApp();
   return (
     <Link
       href={item.href}
@@ -117,8 +113,8 @@ function MenuLink({
         <Icon aria-hidden="true" />
       </span>
       <span className="navigation-copy">
-        <strong>{item.label}</strong>
-        <span>{item.description}</span>
+        <strong>{t(item.label)}</strong>
+        <span>{t(item.description)}</span>
       </span>
       <FiArrowRight className="navigation-arrow" aria-hidden="true" />
     </Link>
@@ -126,16 +122,21 @@ function MenuLink({
 }
 export default function Navbar() {
   const path = usePathname();
-  const { user } = useApp();
+  const { user, language, setLanguage, t } = useApp();
   const { resolvedTheme, setTheme } = useTheme();
-  const [panel, setPanel] = useState<"discover" | "account" | "mobile" | null>(
-    null,
-  );
+  const [panel, setPanel] = useState<
+    "discover" | "account" | "language" | "mobile" | null
+  >(null);
   const header = useRef<HTMLElement>(null);
   const discoverButton = useRef<HTMLButtonElement>(null);
   const accountButton = useRef<HTMLButtonElement>(null);
+  const languageButton = useRef<HTMLButtonElement>(null);
   const mobileButton = useRef<HTMLButtonElement>(null);
   const close = () => setPanel(null);
+  const selectLanguage = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    close();
+  };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && panel) {
@@ -143,7 +144,9 @@ export default function Navbar() {
           ? discoverButton
           : panel === "account"
             ? accountButton
-            : mobileButton
+            : panel === "language"
+              ? languageButton
+              : mobileButton
         ).current?.focus();
         setPanel(null);
       }
@@ -180,30 +183,30 @@ export default function Navbar() {
         <div className="header-brand" onClick={close}>
           <Brand />
         </div>
-        <nav className="desktop-nav" aria-label="Primary navigation">
+        <nav className="desktop-nav" aria-label={t("nav.primary")}>
           <div className="nav-disclosure">
             <button
               ref={discoverButton}
               className={
                 "nav-trigger" +
-                (activePath(path, "/events") ||
-                activePath(path, "/categories") ||
-                activePath(path, "/music")
+                (activePath(path, "/events") || activePath(path, "/categories")
                   ? " active"
                   : "")
               }
-              aria-label="Explore events and categories"
+              aria-label={t("nav.exploreAria")}
               aria-expanded={panel === "discover"}
               aria-controls="discovery-nav"
               onClick={() => setPanel(panel === "discover" ? null : "discover")}
             >
-              Explore <FiChevronDown aria-hidden="true" />
+              {t("nav.explore")} <FiChevronDown aria-hidden="true" />
             </button>
             {panel === "discover" && (
               <div className="nav-popover discovery-popover" id="discovery-nav">
                 <div className="nav-popover-heading">
-                  <span className="menu-eyebrow">DISCOVER EVENTLY</span>
-                  <p>Find something worth going to.</p>
+                  <span className="menu-eyebrow">
+                    {t("nav.discoverEvently")}
+                  </span>
+                  <p>{t("nav.findSomething")}</p>
                 </div>
                 {discovery.map((item) => (
                   <MenuLink
@@ -213,13 +216,6 @@ export default function Navbar() {
                     onNavigate={close}
                   />
                 ))}
-                <Link
-                  className="nav-popover-footer"
-                  href="/events"
-                  onClick={close}
-                >
-                  View all events <FiArrowUpRight aria-hidden="true" />
-                </Link>
               </div>
             )}
           </div>
@@ -228,27 +224,67 @@ export default function Navbar() {
             onClick={close}
             aria-current={activePath(path, "/for-you") ? "page" : undefined}
           >
-            For you
+            {t("nav.forYou")}
           </Link>
           <Link
             href="/organizer"
             onClick={close}
-            aria-current={
-              activePath(path, "/organizer") ||
-              activePath(path, "/create-event")
-                ? "page"
-                : undefined
-            }
+            aria-current={activePath(path, "/organizer") ? "page" : undefined}
           >
-            For organizers
+            {t("nav.organizers")}
           </Link>
         </nav>
         <div className="header-actions">
           <div className="header-utility">
+            <div className="nav-disclosure language-disclosure">
+              <button
+                ref={languageButton}
+                type="button"
+                className="language-trigger"
+                aria-label={t("language.label")}
+                aria-expanded={panel === "language"}
+                aria-controls="language-menu"
+                onClick={() =>
+                  setPanel(panel === "language" ? null : "language")
+                }
+              >
+                <FiGlobe aria-hidden="true" />
+                <span>
+                  {t(
+                    language === "en" ? "language.english" : "language.italian",
+                  )}
+                </span>
+                <FiChevronDown aria-hidden="true" />
+              </button>
+              {panel === "language" && (
+                <div
+                  className="nav-popover language-popover"
+                  id="language-menu"
+                  role="group"
+                  aria-label={t("language.label")}
+                >
+                  <span className="menu-eyebrow">{t("language.label")}</span>
+                  <button
+                    type="button"
+                    aria-pressed={language === "en"}
+                    onClick={() => selectLanguage("en")}
+                  >
+                    {t("language.english")}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={language === "it"}
+                    onClick={() => selectLanguage("it")}
+                  >
+                    {t("language.italian")}
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="icon-button theme-toggle"
-              aria-label="Toggle light and dark appearance"
-              title="Toggle appearance"
+              aria-label={t("nav.theme")}
+              title={t("nav.toggleAppearance")}
               onClick={() => {
                 close();
                 setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -262,25 +298,31 @@ export default function Navbar() {
                 <button
                   ref={accountButton}
                   className="account-trigger"
-                  aria-label="Account menu"
+                  aria-label={t("nav.account")}
                   aria-expanded={panel === "account"}
                   aria-controls="account-nav"
-                  onClick={() => setPanel(panel === "account" ? null : "account")}
+                  onClick={() =>
+                    setPanel(panel === "account" ? null : "account")
+                  }
                 >
                   <span className="account-avatar" aria-hidden="true">
                     {user.name.trim().slice(0, 1).toUpperCase()}
                   </span>
-                  <span className="account-trigger-label">My account</span>
+                  <span className="account-trigger-label">
+                    {t("nav.account")}
+                  </span>
                   <FiChevronDown aria-hidden="true" />
                 </button>
                 {panel === "account" && (
                   <nav
                     className="nav-popover account-popover"
                     id="account-nav"
-                    aria-label="Account navigation"
+                    aria-label={t("nav.accountNavigation")}
                   >
                     <div className="nav-popover-heading">
-                      <span className="menu-eyebrow">YOUR EVENTLY</span>
+                      <span className="menu-eyebrow">
+                        {t("nav.yourEvently")}
+                      </span>
                       <strong className="account-menu-name">{user.name}</strong>
                     </div>
                     {personal.map((item) => (
@@ -293,7 +335,7 @@ export default function Navbar() {
                     ))}
                     <div className="account-menu-bottom">
                       <Link href="/help" onClick={close}>
-                        <FiHelpCircle aria-hidden="true" /> Help center
+                        <FiHelpCircle aria-hidden="true" /> {t("nav.help")}
                       </Link>
                       <AccountActions compact onSignOut={close} />
                     </div>
@@ -302,24 +344,25 @@ export default function Navbar() {
               </div>
             ) : (
               <Link href="/login" className="account-link" onClick={close}>
-                Sign in
+                {t("nav.signIn")}
               </Link>
             )}
           </div>
           <Link
-            href={user ? "/create-event" : "/register"}
+            href="/create-event"
             className="button button-dark header-create"
+            aria-current={
+              activePath(path, "/create-event") ? "page" : undefined
+            }
             onClick={close}
           >
-            {user ? "Create an event" : "Get started"}
+            {t("nav.createEvent")}
             <FiArrowUpRight aria-hidden="true" />
           </Link>
           <button
             ref={mobileButton}
             className="icon-button menu-button"
-            aria-label={
-              panel === "mobile" ? "Close navigation" : "Open navigation"
-            }
+            aria-label={panel === "mobile" ? t("nav.close") : t("nav.open")}
             aria-expanded={panel === "mobile"}
             aria-controls="mobile-nav"
             onClick={() => setPanel(panel === "mobile" ? null : "mobile")}
@@ -331,19 +374,20 @@ export default function Navbar() {
       {panel === "mobile" && (
         <nav
           id="mobile-nav"
-          aria-label="Mobile navigation"
+          aria-label={t("nav.primary")}
           className="mobile-nav"
         >
           <div className="container mobile-nav-inner">
-            <div className="mobile-menu-heading">
-              <span className="menu-eyebrow">EXPLORE EVENTLY</span>
-              <p>Your next experience starts here.</p>
-            </div>
             <div className="mobile-nav-groups">
               {[
-                { label: "Discover", items: discovery },
-                { label: "Your account", items: personal },
-                { label: "Organize", items: organize },
+                {
+                  label: t("nav.discover"),
+                  items: [...discovery, recommendations],
+                },
+                ...(user
+                  ? [{ label: t("nav.yourAccount"), items: personal }]
+                  : []),
+                { label: t("nav.organize"), items: organize },
               ].map((group) => (
                 <section
                   key={group.label}
@@ -365,18 +409,47 @@ export default function Navbar() {
             <div className="mobile-menu-footer">
               <Link href="/help" onClick={close}>
                 <FiHelpCircle aria-hidden="true" />
-                Help center
+                {t("nav.help")}
               </Link>
               <Link href="/about" onClick={close}>
-                About Evently <FiArrowUpRight aria-hidden="true" />
+                {t("nav.about")} <FiArrowUpRight aria-hidden="true" />
               </Link>
             </div>
+            <section
+              className="mobile-language"
+              aria-label={t("language.label")}
+            >
+              <div className="mobile-language-heading">
+                <FiGlobe aria-hidden="true" />
+                <span className="menu-eyebrow">{t("language.label")}</span>
+              </div>
+              <div
+                className="mobile-language-options"
+                role="group"
+                aria-label={t("language.label")}
+              >
+                <button
+                  type="button"
+                  aria-pressed={language === "en"}
+                  onClick={() => selectLanguage("en")}
+                >
+                  {t("language.english")}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={language === "it"}
+                  onClick={() => selectLanguage("it")}
+                >
+                  {t("language.italian")}
+                </button>
+              </div>
+            </section>
             <Link
-              href={user ? "/create-event" : "/register"}
+              href="/create-event"
               className="button button-dark button-wide mobile-menu-join"
               onClick={close}
             >
-              {user ? "Create an event" : "Get started"}
+              {t("nav.createEvent")}
               <FiArrowUpRight aria-hidden="true" />
             </Link>
           </div>

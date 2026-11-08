@@ -24,43 +24,58 @@ export default function MusicVisualizer({
   const startRef = useRef<(() => void) | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
 
-  modeRef.current = mode;
-  playingRef.current = playing;
-
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const host = canvas?.parentElement;
+    const section = canvas?.closest(".event-cinema");
+    if (!canvas || !host || !section) return;
 
     let renderer: THREE.WebGLRenderer;
     try {
+      const context = canvas.getContext("webgl2", {
+        alpha: true,
+        antialias: false,
+      });
+      if (!context) {
+        host.dataset.fallback = "true";
+        return;
+      }
       renderer = new THREE.WebGLRenderer({
         canvas,
+        context,
         alpha: true,
         antialias: false,
         powerPreference: "low-power",
       });
     } catch {
-      canvas.hidden = true;
+      host.dataset.fallback = "true";
       return;
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    let visuals: AnimatedScene[];
+    try {
+      visuals = [
+        createClubNightsScene(),
+        createGoodCompanyScene(),
+        createOpenHorizonsScene(),
+      ];
+    } catch {
+      renderer.dispose();
+      host.dataset.fallback = "true";
+      return;
+    }
+
+    host.dataset.fallback = "false";
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 12);
     camera.position.z = 4;
-
     scene.add(new THREE.HemisphereLight(0xf4f0e8, 0x353b40, 1.25));
     const keyLight = new THREE.DirectionalLight(0xf5e8d5, 2.1);
     keyLight.position.set(-2, 3, 4);
     scene.add(keyLight);
-
-    const visuals: AnimatedScene[] = [
-      createClubNightsScene(),
-      createGoodCompanyScene(),
-      createOpenHorizonsScene(),
-    ];
     visuals.forEach((visual) => {
       visual.group.visible = false;
       scene.add(visual.group);
@@ -71,7 +86,7 @@ export default function MusicVisualizer({
     let time = 0;
     let previousFrame = 0;
     let animationFrame = 0;
-    let visible = true;
+    let visible = false;
 
     const paint = () => {
       const activeIndex = normalizeMode(modeRef.current);
@@ -85,7 +100,7 @@ export default function MusicVisualizer({
 
     const draw = (now: number) => {
       animationFrame = 0;
-      if (!visible || reducedMotion.matches || !playingRef.current) {
+      if (!visible || document.hidden || reducedMotion.matches || !playingRef.current) {
         previousFrame = 0;
         paint();
         return;
@@ -102,7 +117,7 @@ export default function MusicVisualizer({
 
     const start = () => {
       if (animationFrame || !visible) return;
-      if (!playingRef.current || reducedMotion.matches) {
+      if (document.hidden || !playingRef.current || reducedMotion.matches) {
         paint();
         return;
       }
@@ -117,7 +132,7 @@ export default function MusicVisualizer({
     };
 
     const resize = () => {
-      const { width, height } = canvas.getBoundingClientRect();
+      const { width, height } = host.getBoundingClientRect();
       if (!width || !height) return;
 
       aspect = width / height;
@@ -133,14 +148,21 @@ export default function MusicVisualizer({
     startRef.current = start;
     stopRef.current = stop;
 
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(canvas);
-    const visibilityObserver = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      if (visible) start();
-      else stop();
-    });
-    visibilityObserver.observe(canvas);
+    const resizeObserver = "ResizeObserver" in window
+      ? new ResizeObserver(resize)
+      : null;
+    resizeObserver?.observe(host);
+    if (!resizeObserver) window.addEventListener("resize", resize);
+
+    const visibilityObserver = "IntersectionObserver" in window
+      ? new IntersectionObserver(([entry]) => {
+          visible = entry.isIntersecting;
+          if (visible) start();
+          else stop();
+        }, { rootMargin: "120px 0px" })
+      : null;
+    if (visibilityObserver) visibilityObserver.observe(section);
+    else visible = true;
 
     const onMotionChange = () => (reducedMotion.matches ? stop() : start());
     const onVisibilityChange = () => (document.hidden ? stop() : start());
@@ -154,8 +176,9 @@ export default function MusicVisualizer({
       if (animationFrame) cancelAnimationFrame(animationFrame);
       startRef.current = null;
       stopRef.current = null;
-      resizeObserver.disconnect();
-      visibilityObserver.disconnect();
+      resizeObserver?.disconnect();
+      if (!resizeObserver) window.removeEventListener("resize", resize);
+      visibilityObserver?.disconnect();
       reducedMotion.removeEventListener("change", onMotionChange);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       visuals.forEach((visual) => visual.dispose());
@@ -164,9 +187,15 @@ export default function MusicVisualizer({
   }, []);
 
   useEffect(() => {
+    modeRef.current = mode;
+    playingRef.current = playing;
     if (playing) startRef.current?.();
     else stopRef.current?.();
   }, [mode, playing]);
 
-  return <canvas ref={canvasRef} className="music-visualizer" aria-hidden="true" />;
+  return (
+    <div className="cinema-visualizer-layer" aria-hidden="true">
+      <canvas ref={canvasRef} />
+    </div>
+  );
 }

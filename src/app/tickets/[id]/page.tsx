@@ -7,6 +7,8 @@ import { bookingById, getEvent } from "@/lib/db";
 import { reconcileBooking } from "@/lib/payments";
 import { eventDate, eventTime, money } from "@/lib/format";
 import TicketActions from "@/components/TicketActions";
+import { getLanguage } from "@/lib/i18n-server";
+import { translate, type TranslationKey } from "@/lib/i18n";
 export const metadata = {
   title: "Your ticket",
   robots: { index: false, follow: false },
@@ -17,6 +19,9 @@ export default async function TicketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const language = await getLanguage();
+  const t = (key: TranslationKey, values?: Record<string, string | number>) =>
+    translate(language, key, values);
   const user = await currentUser();
   if (!user) redirect("/login?next=" + encodeURIComponent("/tickets/" + id));
   let booking = await bookingById(id);
@@ -32,26 +37,28 @@ export default async function TicketPage({
     <main id="main" className="container section page-main">
       <div className="ticket-detail">
         <Link href="/tickets" className="breadcrumb">
-          <FiArrowLeft /> All your tickets
+          <FiArrowLeft /> {t("ticket.back")}
         </Link>
-        {booking.mode === "sample" && (
+        {booking.demoGuestName ? (
           <div className="notice notice-warm">
-            <strong>This is a sample ticket.</strong> It demonstrates the
-            booking experience and does not grant admission to a real event. You
-            have not been charged.
+            <strong>{language === "it" ? "Biglietto di esempio" : "Sample ticket"}</strong>{" "}
+            {language === "it"
+              ? "Questo biglietto serve solo per provare la gestione degli ospiti e non è valido per l'ingresso."
+              : "This ticket is for reviewing guest management and is not valid for admission."}
+          </div>
+        ) : booking.mode === "sample" && (
+          <div className="notice notice-warm">
+            <strong>{t("ticket.sampleTitle")}</strong> {t("ticket.sampleBody")}
           </div>
         )}
         {paymentError && (
           <div className="notice">
-            We couldn’t check the payment service just now. Your booking is
-            saved; try checking its status again shortly.
+            {t("ticket.paymentCheckError")}
           </div>
         )}
         {booking.status === "pending" && (
           <div className="notice">
-            <strong>Awaiting payment confirmation.</strong> Your ticket will
-            become available after Stripe confirms a successful payment. Leaving
-            checkout does not automatically cancel the reservation.
+            <strong>{t("ticket.awaiting")}</strong> {t("ticket.awaitingBody")}
           </div>
         )}
         <article className="ticket-paper">
@@ -67,14 +74,14 @@ export default async function TicketPage({
           <div className="ticket-main">
             <div>
               <span className={"status status-" + booking.status}>
-                {booking.status}
-                {booking.checkedIn ? " · checked in" : ""}
+                {t(("tickets." + booking.status) as TranslationKey)}
+                {booking.checkedIn ? " · " + t("ticket.checkedIn") : ""}
               </span>
               <h1>{event.title}</h1>
               <p>
-                <strong>{eventDate(event.startsAt, event.timezone)}</strong>
+                <strong>{eventDate(event.startsAt, event.timezone, false, language)}</strong>
                 <br />
-                {eventTime(event.startsAt, event.timezone)} · {event.timezone}
+                {eventTime(event.startsAt, event.timezone, false, language)} · {event.timezone}
               </p>
               <p>
                 {event.venue}
@@ -82,8 +89,8 @@ export default async function TicketPage({
                 {event.address}
               </p>
               <p>
-                <strong>{user.name}</strong> · {booking.quantity}{" "}
-                {booking.quantity === 1 ? "guest" : "guests"}
+                <strong>{booking.demoGuestName || user.name}</strong> · {booking.quantity}{" "}
+                {booking.quantity === 1 ? t("ticket.guest") : t("ticket.guests")}
               </p>
             </div>
             <div className="ticket-qr">
@@ -91,40 +98,41 @@ export default async function TicketPage({
                 <>
                   <Image
                     src={"/api/tickets/" + booking.id + "/qr"}
-                    alt="Ticket QR code for organizer check-in"
+                    alt={t("ticket.qrAlt")}
                     width={150}
                     height={150}
                     unoptimized
                   />
                   <code className="ticket-code">{booking.code}</code>
-                  <span>One code admits your group of {booking.quantity}.</span>
+                  <span>{t("ticket.groupCode", { count: booking.quantity })}</span>
                 </>
               ) : (
                 <>
                   <span className={"status status-" + booking.status}>
-                    {booking.status}
+                    {t(("tickets." + booking.status) as TranslationKey)}
                   </span>
                   <p>
-                    Your entry code is only available for a confirmed booking.
+                    {t("ticket.confirmedOnly")}
                   </p>
                 </>
               )}
             </div>
           </div>
           <div className="ticket-footer">
-            <span>evently. · General admission</span>
+            <span>
+              evently. · {booking.ticketType === "vip" ? "VIP" : t("booking.standard")} {t("ticket.admission")}
+            </span>
             <strong>
               {booking.mode === "sample"
-                ? "Sample · no payment"
-                : money(booking.total, booking.currency)}
+                ? t("ticket.samplePayment")
+                : money(booking.total, booking.currency, language)}
             </strong>
           </div>
         </article>
         <TicketActions booking={booking} />
         {booking.mode === "stripe" && booking.status === "confirmed" && (
           <div className="notice">
-            Need a refund? Your organizer, <strong>{event.host}</strong>,
-            manages refunds through their organizer studio.
+            {t("ticket.refundHelp", { organizer: event.host })}
           </div>
         )}
       </div>

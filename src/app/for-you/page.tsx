@@ -11,15 +11,7 @@ export default async function ForYou() {
         .map((b) => b.eventId)
     : [];
   return (
-    <main id="main" className="container page-main">
-      <div className="page-heading">
-        <span className="eyebrow">FOLLOW YOUR OWN CURIOSITY</span>
-        <h1>A little more your thing.</h1>
-        <p>
-          Good recommendations start with you. Tell us what sparks your interest
-          and find a reason to get out there.
-        </p>
-      </div>
+    <main id="main" className="container page-main for-you-page">
       <Recommendations
         events={await listEvents()}
         booked={booked}

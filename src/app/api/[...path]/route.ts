@@ -19,7 +19,16 @@ import {
   savedIds,
   updateInterests,
   createEvent,
+  createBusinessProfile,
+  createVenue,
+  businessProfilesForOwner,
+  ensureBusinessProfile,
+  getOwnedVenue,
+  getOwnedBusinessProfile,
   validateEvent,
+  venuesForOwner,
+  updateVenue,
+  updateBusinessProfile,
   reserveBooking,
   bookingById,
   listTickets,
@@ -27,6 +36,8 @@ import {
   requestRefund,
   checkIn,
   organizerData,
+  addDemoGuest,
+  saveDemoFeedback,
   takeRateLimit,
   confirmPayment,
   expireBooking,
@@ -43,15 +54,18 @@ import {
   startCheckout,
   stripe,
 } from "@/lib/payments";
-import type { Event } from "@/lib/types";
+import type { Event, TicketType } from "@/lib/types";
 import { assertEmailConfigured, emailDeliveryMode } from "@/lib/mail";
 import {
   deliverAccountToken,
+  deliverVerificationCode,
   verifyEmail,
+  verifyEmailCode,
   resetPassword,
 } from "@/lib/account-tokens";
 import { registerAccount } from "@/lib/registration";
 import { musicApi } from "@/lib/music-api";
+import { eventIsPrivate, organizerDemoMode } from "@/lib/demo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +89,31 @@ async function body(request: Request) {
     throw new AppError("Invalid request body.");
   }
 }
+async function attachOwnedVenue(
+  input: Record<string, unknown>,
+  ownerId: string,
+  existingVenueId?: string,
+) {
+  const venueId =
+    typeof input.venueId === "string" ? input.venueId.trim() : "";
+  if (!venueId) {
+    input.venueId = "";
+    return;
+  }
+  const venue = await getOwnedVenue(venueId, ownerId);
+  if (!venue || (!venue.active && venue.id !== existingVenueId))
+    throw new AppError("Choose an active venue from your workspace.", 400);
+  const eventCapacity = Number(input.capacity);
+  if (Number.isFinite(eventCapacity) && eventCapacity > venue.capacity)
+    throw new AppError(
+      "Event ticket capacity cannot exceed the venue’s approved capacity.",
+      400,
+    );
+  input.venue = venue.name;
+  input.city = venue.city;
+  input.address = venue.address + ", " + venue.postalCode;
+  input.venueId = venue.id;
+}
 function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   const expected = process.env.APP_URL ? appUrl() : new URL(request.url).origin;
@@ -82,6 +121,8 @@ function sameOrigin(request: Request) {
     throw new AppError("Request origin is not allowed.", 403);
 }
 async function webhook(request: Request) {
+  if (organizerDemoMode())
+    throw new AppError("Payments are disabled during the organizer demo.", 503);
   if (!process.env.STRIPE_WEBHOOK_SECRET)
     throw new AppError("Webhook setup is incomplete.", 503);
   const signature = request.headers.get("stripe-signature");
@@ -180,7 +221,15 @@ async function handle(request: Request, context: Context) {
       return json({ ok: true });
     }
     if (route === "auth/verify-email" && method === "POST") {
-      const userId = await verifyEmail((await body(request)).token);
+      const input = await body(request);
+      if (typeof input.code === "string") {
+        const codeUser = await requireUser();
+        await takeRateLimit("verify-code:" + codeUser.id, 10, 15 * 60 * 1000);
+        const userId = await verifyEmailCode(input.code, codeUser.id);
+        await createSession(userId);
+        return json({ user: await currentUser() });
+      }
+      const userId = await verifyEmail(input.token);
       const signedIn = await currentUser();
       if (signedIn?.id === userId) await createSession(userId);
       return json({ user: await currentUser() });
@@ -191,7 +240,9 @@ async function handle(request: Request, context: Context) {
         assertEmailConfigured();
         await takeRateLimit("verify-minute:" + unverified.id, 1, 60000);
         await takeRateLimit("verify-hour:" + unverified.id, 6, 3600000);
-        await deliverAccountToken(unverified.id, "verify");
+        if (emailDeliveryMode() === "gmail")
+          await deliverVerificationCode(unverified.id);
+        else await deliverAccountToken(unverified.id, "verify");
       }
       return json({ ok: true, delivery: emailDeliveryMode() });
     }
@@ -248,33 +299,128 @@ async function handle(request: Request, context: Context) {
         ),
       });
     }
-    if (route === "stripe/status" && method === "GET")
-      return json(await accountStatus(user));
+    if (route === "business-profiles" && method === "GET")
+      return json({ profiles: await businessProfilesForOwner(user.id) });
+    if (route === "business-profiles" && method === "POST") {
+      await takeRateLimit("business-profiles:" + user.id, 20, 3600000);
+      return json(
+        { profile: await createBusinessProfile(await body(request), user) },
+        201,
+      );
+    }
+    if (
+      path[0] === "business-profiles" &&
+      path.length === 2 &&
+      method === "PUT"
+    ) {
+      await takeRateLimit("business-profiles:" + user.id, 40, 3600000);
+      return json({
+        profile: await updateBusinessProfile(path[1], user.id, await body(request)),
+      });
+    }
+    if (route === "stripe/status" && method === "GET") {
+      const profileId = new URL(request.url).searchParams.get("profileId");
+      const profile = profileId
+        ? await getOwnedBusinessProfile(profileId, user.id, "organizer")
+        : null;
+      if (profileId && !profile)
+        throw new AppError("Choose one of your organizer profiles.", 400);
+      return json(await accountStatus(user, profile || undefined));
+    }
+    if (route === "venues" && method === "GET")
+      return json({ venues: await venuesForOwner(user.id) });
+    if (route === "venues" && method === "POST") {
+      await takeRateLimit("venues:" + user.id, 20, 3600000);
+      return json({ venue: await createVenue(await body(request), user) }, 201);
+    }
+    if (path[0] === "venues" && path.length === 2 && method === "PUT") {
+      await takeRateLimit("venues:" + user.id, 40, 3600000);
+      return json({
+        venue: await updateVenue(path[1], user.id, await body(request)),
+      });
+    }
     if (route === "stripe/connect" && method === "POST") {
       await takeRateLimit("connect:" + user.id, 10);
       const input = await body(request);
+      const profile = input.profileId
+        ? await getOwnedBusinessProfile(
+            textField(input.profileId, "Organizer profile"),
+            user.id,
+            "organizer",
+          )
+        : await ensureBusinessProfile(user, "organizer");
+      if (!profile)
+        throw new AppError("Choose one of your organizer profiles.", 400);
       return json({
-        url: (await connectAccount(user, textField(input.country, "Country")))
+        url: (
+          await connectAccount(
+            user,
+            textField(input.country, "Country"),
+            profile,
+          )
+        )
           .url,
       });
     }
     if (route === "events" && method === "POST") {
       await takeRateLimit("events:" + user.id, 20, 3600000);
       const input = await body(request);
-      if (Number(input.price) > 0 && !(await accountStatus(user)).ready)
+      await attachOwnedVenue(input, user.id);
+      const organizerProfile = input.organizerProfileId
+        ? await getOwnedBusinessProfile(
+            textField(input.organizerProfileId, "Organizer profile"),
+            user.id,
+            "organizer",
+          )
+        : await ensureBusinessProfile(user, "organizer");
+      if (!organizerProfile)
+        throw new AppError("Choose one of your organizer profiles.", 400);
+      if (
+        !organizerDemoMode() &&
+        ((Number(input.price) > 0 &&
+          Number(input.capacity) > Number(input.vipCapacity || 0)) ||
+          (Number(input.vipCapacity) > 0 && Number(input.vipPrice) > 0)) &&
+        !(await accountStatus(user, organizerProfile)).ready
+      )
         throw new AppError(
           "Connect and activate your Stripe account in Organizer studio before publishing paid tickets.",
           409,
         );
-      return json({ event: await createEvent(input, user) }, 201);
+      return json({ event: await createEvent(input, user, organizerProfile) }, 201);
     }
     if (path[0] === "events" && path.length === 2 && method === "PUT") {
       const original = await getEvent(path[1]);
       if (!original || original.ownerId !== user.id)
         throw new AppError("Event not found.", 404);
       const input = await body(request);
-      const updated = validateEvent(input, user);
-      if (updated.price > 0 && !(await accountStatus(user)).ready)
+      await attachOwnedVenue(input, user.id, original.venueId);
+      const legacyDefaultOrganizerProfile = original.organizerProfileId
+        ? null
+        : await ensureBusinessProfile(user, "organizer");
+      const organizerProfile = input.organizerProfileId
+        ? await getOwnedBusinessProfile(
+            textField(input.organizerProfileId, "Organizer profile"),
+            user.id,
+            "organizer",
+          )
+        : original.organizerProfileId
+          ? await getOwnedBusinessProfile(
+              original.organizerProfileId,
+              user.id,
+              "organizer",
+            )
+          : legacyDefaultOrganizerProfile;
+      if (!organizerProfile)
+        throw new AppError("Choose one of your organizer profiles.", 400);
+      input.organizerProfileId = organizerProfile.id;
+      const updated = validateEvent(input, user, organizerProfile);
+      if (
+        !organizerDemoMode() &&
+        ((updated.price > 0 &&
+          updated.capacity > (updated.vipCapacity || 0)) ||
+          (updated.vipCapacity && (updated.vipPrice || 0) > 0)) &&
+        !(await accountStatus(user, organizerProfile)).ready
+      )
         throw new AppError(
           "Activate Stripe before publishing paid tickets.",
           409,
@@ -284,31 +430,60 @@ async function handle(request: Request, context: Context) {
           "SELECT id FROM events WHERE id=? FOR UPDATE",
           original.id,
         );
-        const reserved =
-          (await one<{ n: number }>(
-            "SELECT COALESCE(SUM(quantity),0) AS n FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
-            original.id,
-          ))?.n || 0;
-        if (updated.capacity < reserved)
+        const reserved = await one<{
+          n: number;
+          standard: number;
+          vip: number;
+        }>(
+          "SELECT COALESCE(SUM(quantity),0) AS n, COALESCE(SUM(quantity) FILTER (WHERE ticket_type='standard'),0) AS standard, COALESCE(SUM(quantity) FILTER (WHERE ticket_type='vip'),0) AS vip FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
+          original.id,
+        );
+        const reservedTotal = reserved?.n || 0;
+        const reservedStandard = reserved?.standard || 0;
+        const reservedVip = reserved?.vip || 0;
+        const previousOrganizerProfileId =
+          original.organizerProfileId || legacyDefaultOrganizerProfile?.id;
+        if (
+          reservedTotal > 0 &&
+          previousOrganizerProfileId !== organizerProfile.id
+        )
+          throw new AppError(
+            "An event’s organizer profile cannot change after tickets have been reserved.",
+            409,
+          );
+        if (updated.capacity < reservedTotal)
           throw new AppError(
             "Capacity cannot be below the number of reserved tickets.",
             409,
           );
+        if (updated.capacity - (updated.vipCapacity || 0) < reservedStandard)
+          throw new AppError(
+            "Standard capacity cannot be below the number of reserved standard tickets.",
+            409,
+          );
+        if ((updated.vipCapacity || 0) < reservedVip)
+          throw new AppError(
+            "VIP capacity cannot be below the number of reserved VIP tickets.",
+            409,
+          );
         if (
-          reserved &&
+          reservedTotal &&
           (updated.price !== original.price ||
+            updated.vipPrice !== original.vipPrice ||
+            (updated.vipCapacity || 0) !== (original.vipCapacity || 0) ||
             updated.currency !== original.currency ||
             updated.startsAt !== original.startsAt ||
             updated.endsAt !== original.endsAt)
         )
           throw new AppError(
-            "Price and dates cannot change while there are active bookings.",
+            "Ticket prices, allocations, and dates cannot change while there are active bookings.",
             409,
           );
         const value: Event = {
           ...updated,
           id: original.id,
           slug: original.slug,
+          visibility: original.visibility,
         };
         await run(
           "UPDATE events SET data=? WHERE id=?",
@@ -324,7 +499,17 @@ async function handle(request: Request, context: Context) {
       const input = await body(request);
       const event = await getEvent(textField(input.eventId, "Event"));
       if (!event) throw new AppError("Event not found.", 404);
-      if (!event.sample && event.price > 0) {
+      if (eventIsPrivate(event))
+        throw new AppError("This event is a private draft.", 409);
+      const requestedTicketType = textField(
+        input.ticketType === undefined ? "standard" : input.ticketType,
+        "Ticket type",
+      ) as TicketType;
+      if (requestedTicketType !== "standard" && requestedTicketType !== "vip")
+        throw new AppError("Choose a valid ticket type.");
+      const ticketPrice =
+        requestedTicketType === "vip" ? event.vipPrice || 0 : event.price;
+      if (!event.sample && ticketPrice > 0) {
         if (!paymentConfigured())
           throw new AppError(
             "Paid bookings will open once Stripe setup is complete.",
@@ -338,7 +523,17 @@ async function handle(request: Request, context: Context) {
               ),
             )
           : null;
-        if (!owner || !(await accountStatus(owner)).ready)
+        const organizerProfile = event.organizerProfileId
+          ? await getOwnedBusinessProfile(
+              event.organizerProfileId,
+              event.ownerId || "",
+              "organizer",
+            )
+          : null;
+        if (
+          !owner ||
+          !(await accountStatus(owner, organizerProfile || undefined)).ready
+        )
           throw new AppError(
             "The organizer has not activated payments yet.",
             409,
@@ -359,6 +554,7 @@ async function handle(request: Request, context: Context) {
         event.id,
         input.quantity as number,
         textField(input.requestKey, "Request"),
+        requestedTicketType,
       );
       if (
         booking.status === "cancelled" ||
@@ -452,11 +648,38 @@ async function handle(request: Request, context: Context) {
     }
     if (route === "organizer" && method === "GET")
       return json(await organizerData(user.id));
+    if (route === "organizer/demo-guest" && method === "POST") {
+      await takeRateLimit("demo-guest:" + user.id, 30, 3600000);
+      const input = await body(request);
+      return json({ guest: await addDemoGuest(textField(input.eventId, "Event"), user.id) }, 201);
+    }
+    if (route === "organizer/demo-feedback" && method === "POST") {
+      await takeRateLimit("demo-feedback:" + user.id, 10, 3600000);
+      const input = await body(request);
+      await saveDemoFeedback(user.id, textField(input.feedback, "Feedback", 10, 3000));
+      return json({ ok: true }, 201);
+    }
     if (route === "organizer/check-in" && method === "POST") {
       await takeRateLimit("checkin:" + user.id, 100);
       const input = await body(request);
+      const organizerProfileId = input.organizerProfileId
+        ? textField(input.organizerProfileId, "Organizer profile")
+        : undefined;
+      if (
+        organizerProfileId &&
+        !(await getOwnedBusinessProfile(
+          organizerProfileId,
+          user.id,
+          "organizer",
+        ))
+      )
+        throw new AppError("Choose one of your organizer profiles.", 400);
       return json(
-        await checkIn(textField(input.code, "Ticket code").toUpperCase(), user.id),
+        await checkIn(
+          textField(input.code, "Ticket code").toUpperCase(),
+          user.id,
+          organizerProfileId,
+        ),
       );
     }
     if (route === "organizer/refund" && method === "POST") {

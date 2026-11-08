@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { FiArrowRight, FiShield, FiHeart, FiShare2 } from "react-icons/fi";
 import { api } from "@/lib/client";
 import { money } from "@/lib/format";
-import type { Event } from "@/lib/types";
+import type { Event, TicketType } from "@/lib/types";
 import { useApp } from "./AppProvider";
 export default function BookingPanel({
   event,
@@ -15,14 +15,40 @@ export default function BookingPanel({
   acceptingPayments: boolean;
   past: boolean;
 }) {
-  const { user, saved, toggleSave, toast } = useApp();
+  const { user, saved, toggleSave, toast, language, t } = useApp();
   const router = useRouter();
+  const standardAvailable = event.standardAvailable ?? event.available;
+  const vipConfigured =
+    Boolean(event.vipCapacity) && event.vipPrice !== undefined;
+  const vipAvailable = event.vipAvailable || 0;
   const [quantity, setQuantity] = useState(1);
+  const [ticketType, setTicketType] = useState<TicketType>(() =>
+    standardAvailable > 0
+      ? "standard"
+      : vipConfigured && vipAvailable > 0
+        ? "vip"
+        : "standard",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const inFlight = useRef(false);
-  const unavailable = past || event.available < 1;
-  const payable = event.price > 0 && !event.sample;
+  const selectedAvailable =
+    ticketType === "vip" ? vipAvailable : standardAvailable;
+  const selectedPrice =
+    ticketType === "vip" && event.vipPrice !== undefined
+      ? event.vipPrice
+      : event.price;
+  const unavailable = past || selectedAvailable < 1;
+  const payable = selectedPrice > 0 && !event.sample;
+
+  function chooseTicketType(nextType: TicketType) {
+    const nextAvailable = nextType === "vip" ? vipAvailable : standardAvailable;
+    if (nextAvailable < 1 || (nextType === "vip" && !vipConfigured)) return;
+    setTicketType(nextType);
+    setQuantity((current) => Math.min(current, nextAvailable));
+    setError("");
+  }
+
   async function book() {
     if (!user) {
       router.push("/login?next=" + encodeURIComponent("/events/" + event.slug));
@@ -32,7 +58,15 @@ export default function BookingPanel({
     inFlight.current = true;
     setBusy(true);
     setError("");
-    const key = "evently-checkout:" + user.id + ":" + event.id + ":" + quantity;
+    const key =
+      "evently-checkout:" +
+      user.id +
+      ":" +
+      event.id +
+      ":" +
+      ticketType +
+      ":" +
+      quantity;
     try {
       let nonce = sessionStorage.getItem(key);
       if (!nonce) {
@@ -41,7 +75,7 @@ export default function BookingPanel({
       }
       const result = await api<{ url: string }>("checkout", {
         method: "POST",
-        body: { eventId: event.id, quantity, requestKey: nonce },
+        body: { eventId: event.id, quantity, ticketType, requestKey: nonce },
       });
       sessionStorage.removeItem(key);
       if (result.url.startsWith("/")) {
@@ -66,58 +100,121 @@ export default function BookingPanel({
   async function share() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      toast("Event link copied");
+      toast(language === "it" ? "Link dell'evento copiato" : "Event link copied");
     } catch {
-      toast("Copy this event’s address from your browser to share it.");
+      toast(language === "it"
+        ? "Copia l'indirizzo dell'evento dal browser per condividerlo."
+        : "Copy this event’s address from your browser to share it.");
     }
   }
   return (
-    <aside>
+    <aside aria-label={t("booking.aria")}>
       <div className="booking-panel">
         <h2>
           {unavailable
             ? past
-              ? "Booking has closed"
-              : "This one’s full"
+              ? t("booking.closed")
+              : t("booking.full")
             : event.sample
-              ? "Try the experience"
-              : "Make it a plan."}
+              ? t("booking.try")
+              : t("booking.makePlan")}
         </h2>
         <p>
           {event.sample
-            ? "An illustrative event. Sample bookings are free."
-            : "General admission · " + event.available + " tickets available"}
+            ? t("booking.sampleIntro")
+            : ticketType === "vip"
+              ? t("booking.vipAvailable", { count: selectedAvailable })
+              : t("booking.standardAvailable", { count: selectedAvailable })}
         </p>
+        <span className="ticket-option-label">{t("booking.chooseTicket")}</span>
+        <div
+          className="ticket-type-options"
+          role="group"
+          aria-label={t("booking.ticketType")}
+        >
+          <button
+            aria-pressed={ticketType === "standard"}
+            className={
+              "ticket-type-option" +
+              (ticketType === "standard" ? " is-selected" : "")
+            }
+            disabled={past || standardAvailable < 1}
+            onClick={() => chooseTicketType("standard")}
+            type="button"
+          >
+            <span className="ticket-type-option-copy">
+              <strong>Standard</strong>
+              <small>
+                {past
+                  ? t("booking.salesClosed")
+                  : standardAvailable > 0
+                    ? t("booking.available", { count: standardAvailable })
+                    : t("booking.soldOut")}
+              </small>
+            </span>
+            <strong className="ticket-type-option-price">
+              {money(event.price, event.currency, language)}
+            </strong>
+          </button>
+          <button
+            aria-pressed={ticketType === "vip"}
+            className={
+              "ticket-type-option ticket-type-option-vip" +
+              (ticketType === "vip" ? " is-selected" : "")
+            }
+            disabled={past || !vipConfigured || vipAvailable < 1}
+            onClick={() => chooseTicketType("vip")}
+            type="button"
+          >
+            <span className="ticket-type-option-copy">
+              <strong>VIP</strong>
+              <small>
+                {past
+                  ? t("booking.salesClosed")
+                  : !vipConfigured
+                    ? t("booking.notOffered")
+                    : vipAvailable > 0
+                      ? t("booking.available", { count: vipAvailable })
+                      : t("booking.soldOut")}
+              </small>
+            </span>
+            <strong className="ticket-type-option-price">
+              {vipConfigured ? money(event.vipPrice!, event.currency, language) : "—"}
+            </strong>
+          </button>
+        </div>
         <div className="price-display">
-          {money(event.price, event.currency)}
-          <small>per person{event.sample ? " · sample price" : ""}</small>
+          {money(selectedPrice, event.currency, language)}
+          <small>{t("booking.perPerson")}{event.sample ? " · " + t("booking.samplePrice") : ""}</small>
         </div>
         {!unavailable && (
           <div className="field">
-            <label htmlFor="ticket-quantity">Number of tickets</label>
+            <label htmlFor="ticket-quantity">{t("booking.numberOfTickets")}</label>
             <select
               id="ticket-quantity"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
             >
-              {Array.from({ length: Math.min(10, event.available) }, (_, i) => (
-                <option key={i} value={i + 1}>
-                  {i + 1} ticket{i > 0 ? "s" : ""}
-                </option>
-              ))}
+              {Array.from(
+                { length: Math.min(10, selectedAvailable) },
+                (_, i) => (
+                  <option key={i} value={i + 1}>
+                    {i + 1} {t(i > 0 ? "booking.ticketMany" : "booking.ticketOne")}
+                  </option>
+                ),
+              )}
             </select>
           </div>
         )}
         <div className="summary-row total">
-          <span>{event.sample ? "Due for sample booking" : "Total"}</span>
+          <span>{event.sample ? t("booking.dueSample") : t("booking.total")}</span>
           <span>
-            {money(event.sample ? 0 : event.price * quantity, event.currency)}
+            {money(event.sample ? 0 : selectedPrice * quantity, event.currency, language)}
           </span>
         </div>
         {payable && !acceptingPayments && (
           <div className="notice">
-            Payments aren’t available yet. Please check back after the organizer
-            finishes payment setup.
+            {t("booking.paymentsUnavailable")}
           </div>
         )}
         {error && (
@@ -131,23 +228,23 @@ export default function BookingPanel({
           className="button button-primary button-wide"
         >
           {busy
-            ? "Reserving your place…"
+            ? t("booking.reserving")
             : unavailable
-              ? "Booking unavailable"
+              ? t("booking.unavailable")
               : event.sample
-                ? "Try a sample booking"
+                ? t("booking.trySample")
                 : payable
-                  ? "Continue to secure checkout"
-                  : "Reserve my spot"}
+                  ? t("booking.secureCheckout")
+                  : t("booking.reserve")}
           <FiArrowRight />
         </button>
         <div className="secure-note">
           <FiShield />
           {event.sample
-            ? "No payment. No real event admission."
+            ? t("booking.noSamplePayment")
             : payable
-              ? "Secure payment, hosted by Stripe"
-              : "Free booking. No card needed."}
+              ? t("booking.stripe")
+              : t("booking.freeBooking")}
         </div>
         <div className="detail-actions">
           <button
@@ -156,20 +253,19 @@ export default function BookingPanel({
             aria-pressed={saved.includes(event.id)}
           >
             <FiHeart />
-            {saved.includes(event.id) ? "Saved" : "Save event"}
+            {saved.includes(event.id) ? t("booking.saved") : t("booking.save")}
           </button>
           <button
             className="button button-outline button-small"
             onClick={share}
           >
             <FiShare2 />
-            Share
+            {t("booking.shareLabel")}
           </button>
         </div>
         {!event.sample && (
           <p className="form-note" style={{ marginTop: 17 }}>
-            Paid refunds are handled by the organizer. Free reservations can be
-            cancelled before the event, until check-in.
+            {t("booking.refundNote")}
           </p>
         )}
       </div>

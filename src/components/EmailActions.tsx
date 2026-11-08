@@ -11,7 +11,7 @@ export default function EmailActions({
   token,
   email,
   deliveryFailed = false,
-  emailDelivery = "resend",
+  emailDelivery = "unavailable",
 }: {
   mode: "verify" | "forgot" | "reset";
   token?: string;
@@ -19,12 +19,14 @@ export default function EmailActions({
   deliveryFailed?: boolean;
   emailDelivery?: EmailDeliveryMode;
 }) {
-  const { user, setSession } = useApp();
+  const { user, setSession, t } = useApp();
   const router = useRouter();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(
       deliveryFailed
-        ? "Your account was created, but we couldn’t send the verification email. Please try resending it below."
+        ? emailDelivery === "gmail"
+          ? t("recovery.deliveryCodeFailed")
+          : t("recovery.deliveryEmailFailed")
         : "",
     ),
     [message, setMessage] = useState(""),
@@ -37,7 +39,7 @@ export default function EmailActions({
     const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       if (mode === "reset" && data.password !== data.confirm)
-        throw new Error("Your passwords don’t match.");
+        throw new Error(t("recovery.passwordMismatch"));
       if (mode === "forgot") {
         const result = await api<{ delivery: EmailDeliveryMode }>(
           "auth/forgot-password",
@@ -48,23 +50,31 @@ export default function EmailActions({
         );
         setMessage(
           result.delivery === "preview"
-            ? "Preview only: if an account exists, its reset message was saved locally. No email was sent."
-            : "If an account exists for that email, we’ve requested a reset email. Check your inbox and spam folder.",
+            ? t("recovery.previewReset")
+            : t("recovery.resetRequested"),
         );
-      } else if (mode === "verify" && !token) {
+      } else if (mode === "verify" && !token && emailDelivery !== "gmail") {
         const result = await api<{ delivery: EmailDeliveryMode }>(
           "auth/resend-verification",
           { method: "POST" },
         );
         setMessage(
           result.delivery === "preview"
-            ? "Preview only: your verification message was saved locally. No email was sent."
-            : "A new verification email has been submitted for delivery. Check your inbox and spam folder.",
+            ? t("recovery.previewVerification")
+            : t("recovery.verificationRequested"),
         );
       } else {
         const result = await api<{ user: User | null }>(
           mode === "verify" ? "auth/verify-email" : "auth/reset-password",
-          { method: "POST", body: { token, password: data.password } },
+          {
+            method: "POST",
+            body:
+              mode === "verify"
+                ? token
+                  ? { token }
+                  : { code: data.code }
+                : { token, password: data.password },
+          },
         );
         if (mode === "verify") setSession(result.user);
         else setSession(null, []);
@@ -77,7 +87,66 @@ export default function EmailActions({
       setBusy(false);
     }
   }
+
+  async function resendCode() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await api<{ delivery: EmailDeliveryMode }>("auth/resend-verification", {
+        method: "POST",
+      });
+      setMessage(t("recovery.codeSent"));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const verified = mode === "verify" && user?.emailVerified && !token;
+  const codeMode =
+    mode === "verify" && emailDelivery === "gmail" && !token && Boolean(user);
+  const successState = done || verified;
+  const title = successState
+    ? mode === "reset"
+      ? t("recovery.titleFresh")
+      : t("recovery.titleVerified")
+    : mode === "forgot"
+      ? t("recovery.titleForgot")
+      : mode === "reset"
+        ? t("recovery.titleReset")
+        : token
+          ? t("recovery.titleConfirm")
+          : (emailDelivery === "gmail" || emailDelivery === "resend") &&
+              !deliveryFailed
+            ? t("recovery.titleInbox")
+            : t("recovery.titleVerify");
+  const description = successState
+    ? mode === "reset"
+      ? t("recovery.passwordUpdated")
+      : t("recovery.emailConfirmed")
+    : mode === "forgot"
+      ? emailDelivery === "gmail" || emailDelivery === "resend"
+        ? t("recovery.forgotEnabled")
+        : t("recovery.forgotUnavailable")
+      : mode === "reset"
+        ? t("recovery.resetIntro")
+        : token
+          ? t("recovery.confirmIntro")
+          : codeMode
+            ? deliveryFailed
+              ? t("recovery.codeFailed")
+              : t("recovery.codeIntro", {
+                  email: email || t("recovery.yourInbox"),
+                })
+            : deliveryFailed
+              ? t("recovery.verifyFailed")
+              : emailDelivery === "resend"
+                ? t("recovery.linkIntro", {
+                    email: email || t("recovery.yourInbox"),
+                  })
+                : t("recovery.verifyIntro");
   return (
     <main id="main" className="auth-recovery page-main container">
       <div className="panel recovery-card">
@@ -90,67 +159,35 @@ export default function EmailActions({
             <FiMail />
           )}
         </div>
-        <span className="eyebrow">YOUR NEXT CHAPTER STARTS HERE</span>
-        <h1>
-          {done || verified
-            ? mode === "reset"
-              ? "A fresh start."
-              : "You’re verified."
-            : mode === "forgot"
-              ? "Forgot your password?"
-              : mode === "reset"
-                ? "Make it yours again."
-                : token
-                  ? "Confirm your email."
-                  : emailDelivery === "resend" && !deliveryFailed
-                    ? "Check your inbox."
-                    : "Verify your email."}
-        </h1>
-        <p>
-          {done || verified
-            ? mode === "reset"
-              ? "Your password has been updated and existing sessions have been signed out. Sign in with your new password."
-              : "Your email is confirmed. You’re ready to book, create and connect."
-            : mode === "forgot"
-              ? emailDelivery === "resend"
-                ? "It happens. We’ll send you a secure link to choose a new password."
-                : "Use a secure email link to choose a new password."
-              : mode === "reset"
-                ? "Choose a unique password with at least 10 characters. This link can only be used once."
-                : token
-                  ? "Confirm your email address to unlock your next experience."
-                  : emailDelivery !== "resend"
-                    ? "Your account needs email verification before you can book events or connect music."
-                    : deliveryFailed
-                      ? "Your account is saved. Request another verification email below."
-                      : "Check" +
-                        (email ? " " + email : " your email") +
-                        " for your verification link. Open it to finish setting up your account, or request a fresh link below."}
-        </p>
+        <span className="eyebrow">{t("recovery.eyebrow")}</span>
+        <h1>{title}</h1>
+        <p>{description}</p>
         {done || verified ? (
           <Link
             className="button button-primary button-wide"
             href={mode === "verify" && user ? "/for-you" : "/login"}
           >
             {mode === "verify" && user
-              ? "Find my next experience"
-              : "Back to sign in"}{" "}
+              ? t("recovery.findExperience")
+              : t("recovery.backToSignIn")}{" "}
             <FiArrowRight />
           </Link>
         ) : (
           <form onSubmit={submit} className="form-stack">
-            {!token && emailDelivery !== "resend" && (
-              <div className="notice" role="status">
-                {emailDelivery === "preview"
-                  ? "Preview mode: messages are saved locally for testing. No email is sent to your inbox."
-                  : mode === "verify"
-                    ? "Your account is created and saved. Email delivery is not ready yet, so no verification email has been sent. You can browse events and return here to verify once delivery is available."
-                    : "Email delivery is not ready yet. Password reset emails cannot be sent until delivery is available."}
-              </div>
-            )}
+            {!token &&
+              emailDelivery !== "gmail" &&
+              emailDelivery !== "resend" && (
+                <div className="notice" role="status">
+                  {emailDelivery === "preview"
+                    ? t("recovery.previewMode")
+                    : mode === "verify"
+                      ? t("recovery.deliveryNotReadyVerify")
+                      : t("recovery.deliveryNotReadyReset")}
+                </div>
+              )}
             {mode === "forgot" && (
               <div className="field">
-                <label htmlFor="recovery-email">Email address</label>
+                <label htmlFor="recovery-email">{t("recovery.email")}</label>
                 <input
                   id="recovery-email"
                   name="email"
@@ -162,10 +199,33 @@ export default function EmailActions({
                 />
               </div>
             )}
+            {codeMode && (
+              <div className="field">
+                <label htmlFor="verification-code">{t("recovery.code")}</label>
+                <input
+                  id="verification-code"
+                  name="code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  minLength={6}
+                  maxLength={6}
+                  placeholder="000000"
+                  aria-describedby="verification-code-help"
+                  required
+                />
+                <small id="verification-code-help">
+                  {t("recovery.codeExpiry")}
+                </small>
+              </div>
+            )}
             {mode === "reset" && token && (
               <>
                 <div className="field">
-                  <label htmlFor="new-password">New password</label>
+                  <label htmlFor="new-password">
+                    {t("recovery.newPassword")}
+                  </label>
                   <input
                     id="new-password"
                     name="password"
@@ -177,7 +237,9 @@ export default function EmailActions({
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="confirm-password">Confirm new password</label>
+                  <label htmlFor="confirm-password">
+                    {t("recovery.confirmPassword")}
+                  </label>
                   <input
                     id="confirm-password"
                     name="confirm"
@@ -202,15 +264,15 @@ export default function EmailActions({
             )}
             {mode === "reset" && !token ? (
               <div className="notice">
-                This reset link is missing.{" "}
-                <Link href="/forgot-password">Request a new one</Link>.
+                {t("recovery.linkMissing")}{" "}
+                <Link href="/forgot-password">{t("recovery.requestNew")}</Link>.
               </div>
             ) : mode === "verify" && !token && !user ? (
               <Link
                 className="button button-primary"
                 href="/login?next=/verify-email"
               >
-                Sign in to resend verification
+                {t("recovery.signInResend")}
               </Link>
             ) : (
               <button
@@ -218,26 +280,38 @@ export default function EmailActions({
                 className="button button-primary button-wide"
               >
                 {busy
-                  ? "One moment…"
+                  ? t("recovery.oneMoment")
                   : mode === "forgot"
-                    ? "Send reset link"
+                    ? t("recovery.sendReset")
                     : mode === "reset"
-                      ? "Save new password"
+                      ? t("recovery.savePassword")
                       : token
-                        ? "Verify my email"
-                        : "Resend verification email"}{" "}
+                        ? t("recovery.verifyEmail")
+                        : codeMode
+                          ? t("recovery.verifyEmail")
+                          : t("recovery.resendEmail")}{" "}
                 <FiArrowRight />
+              </button>
+            )}
+            {codeMode && (
+              <button
+                type="button"
+                className="text-link"
+                disabled={busy}
+                onClick={resendCode}
+              >
+                {t("recovery.sendCode")}
               </button>
             )}
           </form>
         )}
         {mode === "reset" && !done && (
           <Link className="text-link" href="/forgot-password">
-            Need a fresh reset link?
+            {t("recovery.freshResetLink")}
           </Link>
         )}
         <Link className="recovery-back" href="/login">
-          Back to sign in
+          {t("recovery.backToSignIn")}
         </Link>
       </div>
     </main>

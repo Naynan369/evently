@@ -30,6 +30,8 @@ export default defineConfig({
         : "preview",
       RESEND_API_KEY: "",
       EMAIL_FROM: "",
+      MYEMAIL: "",
+      MYPASS: "",
       EMAIL_PREVIEW_DIR: resolve("test-results/mail"),
       EVENTLY_TEST_MODE: "true",
       MUSIC_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),

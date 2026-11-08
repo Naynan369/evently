@@ -1,5 +1,6 @@
 "use client";
 import { FiSearch, FiMapPin, FiArrowRight } from "react-icons/fi";
+import { useApp } from "./AppProvider";
 export function SearchForm({
   query = "",
   city = "",
@@ -7,30 +8,31 @@ export function SearchForm({
   query?: string;
   city?: string;
 }) {
+  const { t } = useApp();
   return (
     <form action="/events" className="search-form" role="search">
       <div className="search-term">
         <FiSearch />
         <label className="sr-only" htmlFor="event-query">
-          Search events
+          {t("common.searchEvents")}
         </label>
         <input
           id="event-query"
           name="q"
           defaultValue={query}
-          placeholder="Search events or venues"
+          placeholder={t("common.searchPlaceholder")}
         />
       </div>
       <div className="search-city">
         <FiMapPin />
         <label className="sr-only" htmlFor="event-city">
-          City
+          {t("common.city")}
         </label>
         <input
           id="event-city"
           name="city"
           defaultValue={city}
-          placeholder="City"
+          placeholder={t("common.cityPlaceholder")}
           list="suggested-cities"
         />
         <datalist id="suggested-cities">
@@ -41,7 +43,7 @@ export function SearchForm({
         </datalist>
       </div>
       <button className="button button-primary" type="submit">
-        Search <FiArrowRight />
+        {t("common.search")} <FiArrowRight />
       </button>
     </form>
   );

@@ -1,75 +1,157 @@
 "use client";
+
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { FiArrowUpRight, FiCheckCircle, FiPlus } from "react-icons/fi";
+import {
+  FiArrowUpRight,
+  FiCalendar,
+  FiCheckCircle,
+  FiCreditCard,
+  FiDownload,
+  FiMapPin,
+  FiPlus,
+  FiTag,
+  FiUsers,
+} from "react-icons/fi";
 import { api } from "@/lib/client";
+import { categoryName } from "@/lib/catalog";
 import { eventDate, money } from "@/lib/format";
 import { useApp } from "./AppProvider";
-import type { Event, Booking } from "@/lib/types";
+import type { Event, Booking, BusinessProfile } from "@/lib/types";
+import type { TranslationKey } from "@/lib/i18n";
+
 type Guest = Booking & { name: string; email: string };
+const supportedCountries = ["GB", "US", "IT", "DE", "FR", "ES", "NL", "IE", "CA", "AU"];
+
+function coverFor(event: Event) {
+  return event.coverImage || "/images/" + event.image + ".jpg";
+}
+
 export default function OrganizerStudio({
   events,
   bookings,
+  profiles,
+  demoMode = false,
 }: {
   events: Event[];
   bookings: Guest[];
+  profiles: BusinessProfile[];
+  demoMode?: boolean;
 }) {
-  const { toast } = useApp();
+  const { toast, language, t } = useApp();
+  const countryNames = new Intl.DisplayNames(language === "it" ? "it-IT" : "en-GB", {
+    type: "region",
+  });
   const router = useRouter();
-  const [payment, setPayment] = useState<{
-    configured: boolean;
-    connected: boolean;
-    ready: boolean;
+  const [paymentState, setPaymentState] = useState<{
+    profileId: string;
+    data: {
+      configured: boolean;
+      connected: boolean;
+      ready: boolean;
+    };
   } | null>(null);
-  const [paymentError, setPaymentError] = useState("");
+  const [paymentErrorState, setPaymentErrorState] = useState<{
+    profileId: string;
+    message: string;
+  } | null>(null);
+  const [countryChoices, setCountryChoices] = useState<Record<string, string>>({});
   const [connecting, setConnecting] = useState(false);
-  const [country, setCountry] = useState("GB");
+  const [profileId, setProfileId] = useState(profiles[0]?.id || "");
+  const selectedProfile =
+    profiles.find((profile) => profile.id === profileId) || profiles[0];
+  const selectedProfileId = selectedProfile?.id;
+  const payment = paymentState?.profileId === selectedProfileId
+    ? paymentState.data
+    : null;
+  const paymentError = paymentErrorState?.profileId === selectedProfileId
+    ? paymentErrorState.message
+    : "";
+  const country = selectedProfile
+    ? countryChoices[selectedProfile.id] || selectedProfile.countryCode || "IT"
+    : "IT";
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState("");
   const [checkError, setCheckError] = useState("");
   const [refund, setRefund] = useState<string | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [practiceGuest, setPracticeGuest] = useState<{
+    eventId: string;
+    id: string;
+    name: string;
+    code: string;
+  } | null>(null);
+  const [practiceBusy, setPracticeBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
   useEffect(() => {
+    if (!selectedProfileId || demoMode) return;
     let active = true;
     api<{ configured: boolean; connected: boolean; ready: boolean }>(
-      "stripe/status",
+      "stripe/status?profileId=" + encodeURIComponent(selectedProfileId),
     )
       .then((data) => {
-        if (active) setPayment(data);
+        if (active) setPaymentState({ profileId: selectedProfileId, data });
       })
-      .catch((e) => {
-        if (active) setPaymentError(e.message);
+      .catch((error) => {
+        if (active)
+          setPaymentErrorState({ profileId: selectedProfileId, message: error.message });
       });
     return () => {
       active = false;
     };
-  }, []);
-  const confirmed = bookings.filter((b) => b.status === "confirmed");
+  }, [selectedProfileId, demoMode]);
+
+  const defaultProfileId = profiles[0]?.id;
+  const profileEvents = events.filter(
+    (event) =>
+      event.organizerProfileId === selectedProfile?.id ||
+      (!event.organizerProfileId && selectedProfile?.id === defaultProfileId),
+  );
+  const profileEventIds = new Set(profileEvents.map((event) => event.id));
+  const profileBookings = bookings.filter((booking) =>
+    profileEventIds.has(booking.eventId),
+  );
+  const confirmed = profileBookings.filter((booking) => booking.status === "confirmed");
+  const ticketCount = confirmed.reduce((total, booking) => total + booking.quantity, 0);
+  const checkedInCount = confirmed
+    .filter((booking) => booking.checkedIn)
+    .reduce((total, booking) => total + booking.quantity, 0);
+  const eventById = new Map(profileEvents.map((event) => [event.id, event]));
+
   async function connect() {
     setConnecting(true);
-    setPaymentError("");
+    setPaymentErrorState(null);
     try {
       const data = await api<{ url: string }>("stripe/connect", {
         method: "POST",
-        body: { country },
+        body: { country, profileId: selectedProfile?.id },
       });
       const url = new URL(data.url);
       if (url.protocol !== "https:" || !url.hostname.endsWith(".stripe.com"))
         throw new Error("Unexpected onboarding destination.");
       window.location.assign(data.url);
-    } catch (e) {
-      setPaymentError((e as Error).message);
+    } catch (error) {
+      if (selectedProfile)
+        setPaymentErrorState({
+          profileId: selectedProfile.id,
+          message: (error as Error).message,
+        });
     } finally {
       setConnecting(false);
     }
   }
-  async function checkIn(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+
+  async function checkIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setChecking(true);
     setCheckResult("");
     setCheckError("");
-    const form = e.currentTarget;
+    const form = event.currentTarget;
     try {
       const result = await api<{
         quantity: number;
@@ -77,16 +159,17 @@ export default function OrganizerStudio({
         event: string;
       }>("organizer/check-in", {
         method: "POST",
-        body: { code: new FormData(form).get("code") },
+        body: {
+          code: new FormData(form).get("code"),
+          organizerProfileId: selectedProfile?.id,
+        },
       });
       setCheckResult(
-        result.name +
-          " · " +
-          result.quantity +
-          " guest" +
-          (result.quantity > 1 ? "s" : "") +
-          " checked in for " +
-          result.event,
+        t("studio.checkInResult", {
+          name: result.name,
+          count: result.quantity,
+          event: result.event,
+        }),
       );
       form.reset();
       router.refresh();
@@ -96,6 +179,7 @@ export default function OrganizerStudio({
       setChecking(false);
     }
   }
+
   async function doRefund() {
     setRefunding(true);
     try {
@@ -105,28 +189,71 @@ export default function OrganizerStudio({
       });
       toast(
         result.status === "succeeded"
-          ? "The booking has been refunded."
-          : "Refund submitted. Stripe is processing it.",
+          ? t("studio.refundedToast")
+          : t("studio.refundPendingToast"),
       );
       setRefund(null);
       router.refresh();
-    } catch (e) {
-      toast((e as Error).message);
+    } catch (error) {
+      toast((error as Error).message);
     } finally {
       setRefunding(false);
     }
   }
+
+  async function createPracticeGuest(eventId: string) {
+    setPracticeBusy(eventId);
+    try {
+      const result = await api<{ guest: { id: string; name: string; code: string } }>(
+        "organizer/demo-guest",
+        { method: "POST", body: { eventId } },
+      );
+      setPracticeGuest({ eventId, ...result.guest });
+      router.refresh();
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      setPracticeBusy(null);
+    }
+  }
+
+  async function submitFeedback(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFeedbackBusy(true);
+    try {
+      await api("organizer/demo-feedback", {
+        method: "POST",
+        body: { feedback },
+      });
+      setFeedback("");
+      setFeedbackSent(true);
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      setFeedbackBusy(false);
+    }
+  }
+
   function exportGuests() {
-    const quote = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+    const quote = (value: string) => '"' + value.replace(/"/g, '""') + '"';
     const rows = [
-      ["Name", "Email", "Event", "Tickets", "Status", "Checked in"],
-      ...bookings.map((b) => [
-        b.name,
-        b.email,
-        events.find((e) => e.id === b.eventId)?.title || "",
-        String(b.quantity),
-        b.status,
-        b.checkedIn ? "Yes" : "No",
+      [
+        t("account.name"),
+        t("auth.email"),
+        t("studio.event"),
+        t("booking.ticketType"),
+        t("booking.numberOfTickets"),
+        t("studio.status"),
+        t("studio.checkedIn"),
+      ],
+      ...profileBookings.map((booking) => [
+        booking.name,
+        booking.email,
+        eventById.get(booking.eventId)?.title || "",
+        booking.ticketType === "vip" ? "VIP" : t("booking.standard"),
+        String(booking.quantity),
+        booking.status,
+        booking.checkedIn ? (language === "it" ? "Sì" : "Yes") : "No",
       ]),
     ];
     const csv = rows
@@ -139,42 +266,71 @@ export default function OrganizerStudio({
     const url = URL.createObjectURL(
       new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }),
     );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "evently-guests.csv";
-    a.click();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "evently-guests.csv";
+    anchor.click();
     URL.revokeObjectURL(url);
   }
+
   return (
-    <>
-      <div className="metrics">
-        <div className="metric">
-          <span>Published events</span>
-          <strong>{events.length}</strong>
-        </div>
-        <div className="metric">
-          <span>Confirmed tickets</span>
-          <strong>{confirmed.reduce((n, b) => n + b.quantity, 0)}</strong>
-        </div>
-        <div className="metric">
-          <span>Guests checked in</span>
-          <strong>
-            {confirmed
-              .filter((b) => b.checkedIn)
-              .reduce((n, b) => n + b.quantity, 0)}
-          </strong>
-        </div>
-      </div>
-      <div className="studio-grid">
-        <section className="panel">
-          <h2>Ready to welcome people.</h2>
-          <p>
-            Enter a ticket’s code to check in its whole group. Codes can only be
-            used once, and only for your events.
-          </p>
-          <form onSubmit={checkIn} className="connect-row">
+    <div className="organizer-studio">
+      {selectedProfile && (
+        <section className="org-profile-context" aria-label={t("studio.activeProfile")}>
+          <div className="org-profile-context-copy">
+            <span>{t("studio.activeProfile")}</span>
+            <strong>{selectedProfile.name}</strong>
+            <p>{t("studio.profileSummary")}</p>
+          </div>
+          <div className="org-profile-context-controls">
             <div className="field">
-              <label htmlFor="checkin-code">Ticket code</label>
+              <label htmlFor="active-organizer-profile">{t("studio.workingAs")}</label>
+              <select
+                id="active-organizer-profile"
+                value={selectedProfile.id}
+                onChange={(event) => setProfileId(event.target.value)}
+              >
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+            </div>
+            <Link href="/business-profiles">{t("studio.manageProfiles")} <FiArrowUpRight aria-hidden="true" /></Link>
+          </div>
+        </section>
+      )}
+      <section className="org-overview" aria-label={t("studio.overview")}>
+        <article className="org-stat">
+          <span className="org-stat-icon"><FiCalendar aria-hidden="true" /></span>
+          <span className="org-stat-label">{demoMode ? (language === "it" ? "Eventi in bozza" : "Draft events") : t("studio.publishedEvents")}</span>
+          <strong>{profileEvents.length}</strong>
+          <small>{language === "it" ? "Per " : "For "}{selectedProfile?.name || t("studio.thisProfile")}</small>
+        </article>
+        <article className="org-stat">
+          <span className="org-stat-icon"><FiTag aria-hidden="true" /></span>
+          <span className="org-stat-label">{demoMode ? (language === "it" ? "Ospiti" : "Guests") : t("studio.ticketsReserved")}</span>
+          <strong>{ticketCount}</strong>
+          <small>{t("studio.confirmedBookings")}</small>
+        </article>
+        <article className="org-stat">
+          <span className="org-stat-icon"><FiUsers aria-hidden="true" /></span>
+          <span className="org-stat-label">{t("studio.guestsCheckedIn")}</span>
+          <strong>{checkedInCount}</strong>
+          <small>{t("studio.welcomeMore")}</small>
+        </article>
+      </section>
+
+      <section className={"org-section org-operations" + (demoMode ? " is-demo" : "")} aria-label={t("studio.operations")}>
+        <article className="org-tool-card" id="org-checkin">
+          <div className="org-tool-head">
+            <span className="org-tool-icon"><FiCheckCircle aria-hidden="true" /></span>
+            <span className="org-tool-state">{t("studio.guestOperations")}</span>
+          </div>
+          <h2>{t("studio.welcomeGuests")}</h2>
+          <p>{t("studio.checkinIntro")}</p>
+          <form onSubmit={checkIn} className="org-checkin-form">
+            <div className="field">
+              <label htmlFor="checkin-code">{t("studio.ticketCode")}</label>
               <input
                 id="checkin-code"
                 name="code"
@@ -184,224 +340,230 @@ export default function OrganizerStudio({
                 maxLength={40}
               />
             </div>
-            <button className="button button-dark" disabled={checking}>
-              {checking ? "Checking…" : "Check in"}
-              <FiCheckCircle />
+            <button className="button button-primary" disabled={checking}>
+              {checking ? t("studio.checking") : t("studio.checkInGuest")}
+              <FiArrowUpRight aria-hidden="true" />
             </button>
           </form>
-          {checkResult && (
-            <div className="success-box" role="status">
-              {checkResult}
-            </div>
-          )}
-          {checkError && (
-            <div className="error-box" role="alert">
-              {checkError}
-            </div>
-          )}
-        </section>
-        <section className="panel">
-          <h2>Your payments, connected.</h2>
+          {checkResult && <div className="org-inline-success" role="status">{checkResult}</div>}
+          {checkError && <div className="error-box" role="alert">{checkError}</div>}
+        </article>
+
+        {!demoMode && <article className="org-tool-card org-payment-card" id="org-payments">
+          <div className="org-tool-head">
+            <span className="org-tool-icon"><FiCreditCard aria-hidden="true" /></span>
+            <span className="org-tool-state">{t("studio.payments")}</span>
+            <span className={"org-payment-status" + (payment?.ready ? " is-ready" : "")}>
+              <i aria-hidden="true" />
+              {payment?.ready ? t("studio.ready") : payment?.connected ? t("studio.setupProgress") : payment ? t("studio.notConnected") : t("studio.checkingStatus")}
+            </span>
+          </div>
+          <h2>{t("studio.keepPayouts")}</h2>
           <p>
-            Use Stripe to accept payments directly into your organizer account.
-            Free events work without Stripe.
+              {t("studio.connectStripe", { profile: selectedProfile?.name || t("studio.thisOrganizer") })}
           </p>
           {payment?.ready ? (
-            <div className="success-box">
-              <FiCheckCircle /> Stripe is connected and ready for paid tickets.
+            <div className="org-payment-ready"><FiCheckCircle aria-hidden="true" /> {t("studio.stripeReady")}</div>
+          ) : payment && !payment.configured ? (
+            <div className="org-payment-notice">
+              <strong>{t("studio.platformSetup")}</strong>
+              <span>{t("studio.platformSetupHelp")}</span>
             </div>
           ) : (
-            <>
-              {payment && !payment.configured ? (
-                <div className="notice notice-warm">
-                  <strong>Platform setup is needed.</strong>
-                  <br />
-                  The platform owner needs to configure Stripe before organizers
-                  can connect. You can create free events now.
-                </div>
-              ) : (
-                <div className="connect-row">
-                  <div className="field">
-                    <label htmlFor="country">Business country</label>
-                    <select
-                      id="country"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      disabled={Boolean(payment?.connected)}
-                    >
-                      {[
-                        ["GB", "United Kingdom"],
-                        ["US", "United States"],
-                        ["IT", "Italy"],
-                        ["DE", "Germany"],
-                        ["FR", "France"],
-                        ["ES", "Spain"],
-                        ["NL", "Netherlands"],
-                        ["IE", "Ireland"],
-                        ["CA", "Canada"],
-                        ["AU", "Australia"],
-                      ].map(([code, name]) => (
-                        <option value={code} key={code}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    className="button button-outline"
-                    disabled={connecting || !payment}
-                    onClick={connect}
-                  >
-                    {connecting
-                      ? "Opening Stripe…"
-                      : payment?.connected
-                        ? "Finish setup"
-                        : "Connect Stripe"}
-                    <FiArrowUpRight />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-          {paymentError && (
-            <div className="error-box" role="alert">
-              {paymentError}
+            <div className="org-connect-form">
+              <div className="field">
+                <label htmlFor="business-country">{t("studio.businessCountry")}</label>
+                <select
+                  id="business-country"
+                  value={country}
+                  onChange={(event) => {
+                    if (selectedProfile)
+                      setCountryChoices((current) => ({
+                        ...current,
+                        [selectedProfile.id]: event.target.value,
+                      }));
+                  }}
+                  disabled={Boolean(payment?.connected)}
+                >
+                  {supportedCountries.map((code) => (
+                    <option value={code} key={code}>
+                      {countryNames.of(code) || code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="button button-outline"
+                disabled={connecting || !payment}
+                onClick={connect}
+              >
+                {connecting ? t("studio.openingStripe") : payment?.connected ? t("studio.finishSetup") : t("studio.connect")}
+                <FiArrowUpRight aria-hidden="true" />
+              </button>
             </div>
           )}
-          <p className="form-note" style={{ textAlign: "left", marginTop: 13 }}>
-            Evently adds no platform fee. Stripe processing fees apply.
-          </p>
-        </section>
-      </div>
-      <section>
-        <div className="section-heading">
+          {paymentError && <div className="error-box" role="alert">{paymentError}</div>}
+          <div className="org-payment-footnote">{t("studio.fees")}</div>
+        </article>}
+      </section>
+
+      <section className="org-section" id="org-event-list" aria-labelledby="org-events-title">
+        <div className="org-section-heading">
           <div>
-            <span className="eyebrow">YOUR IDEAS, OUT IN THE WORLD</span>
-            <h2>Your events.</h2>
+            <span className="org-section-kicker">{demoMode ? (language === "it" ? "I TUOI EVENTI" : "YOUR EVENTS") : t("studio.publishedByYou")}</span>
+            <h2 id="org-events-title">{t("studio.events")}</h2>
+            <p>{demoMode
+              ? (language === "it" ? "Prepara il tuo evento, controlla l'anteprima e prova la gestione degli ospiti." : "Plan your event, check its preview, and try guest management.")
+              : t("studio.eventsIntro")}</p>
           </div>
-          <Link
-            href="/create-event"
-            className="button button-dark button-small"
-          >
-            <FiPlus />
-            Create an event
-          </Link>
+            <span className="org-section-count">{t("studio.eventsCount", { count: String(profileEvents.length).padStart(2, "0") })}</span>
         </div>
-        {events.length ? (
-          <div className="table-wrap">
-            <table>
-              <caption className="sr-only">Your published events</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Event</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Tickets</th>
-                  <th scope="col">Price</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <strong>{e.title}</strong>
-                      <small>
-                        {e.venue} · {e.city}
-                      </small>
-                    </td>
-                    <td>{eventDate(e.startsAt, e.timezone, true)}</td>
-                    <td>
-                      {e.capacity - e.available} reserved / {e.capacity}
-                    </td>
-                    <td>{money(e.price, e.currency)}</td>
-                    <td>
-                      <Link className="text-link" href={"/events/" + e.slug}>
-                        View <FiArrowUpRight />
-                      </Link>
-                      <span style={{ paddingInline: 8 }}>·</span>
-                      <Link
-                        className="text-link"
-                        href={"/create-event?edit=" + e.id}
+
+        {profileEvents.length ? (
+          <div className="org-event-grid">
+            {profileEvents.map((event) => {
+              const reserved = Math.max(0, event.capacity - event.available);
+              const fill = event.capacity > 0
+                ? Math.min(100, Math.round((reserved / event.capacity) * 100))
+                : 0;
+              return (
+                <article className="org-event-card" key={event.id}>
+                  <Link
+                    href={"/events/" + event.slug}
+                    className="org-event-cover"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  >
+                    <Image src={coverFor(event)} alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" />
+                    <time dateTime={event.startsAt}><FiCalendar aria-hidden="true" />{eventDate(event.startsAt, event.timezone, true, language)}</time>
+                    {event.sample && <span className="org-sample-tag">{t("studio.sample")}</span>}
+                  </Link>
+                  <div className="org-event-content">
+                    <span className="org-event-category">{categoryName(event.category, language)}</span>
+                    <h3><Link href={"/events/" + event.slug}>{event.title}</Link></h3>
+                    <p className="org-event-venue"><FiMapPin aria-hidden="true" />{event.venue} · {event.city}</p>
+                    <div className="org-ticket-progress">
+                      <div className="org-ticket-progress-label">
+                        <span>{demoMode ? (language === "it" ? "Ospiti" : "Guests") : t("studio.ticketsReserved")}</span>
+                        <strong>{reserved} <small>/ {event.capacity}</small></strong>
+                      </div>
+                      <div
+                        className="org-progress-track"
+                        role="progressbar"
+                        aria-label={(demoMode ? (language === "it" ? "Ospiti" : "Guests") : t("studio.ticketsReserved")) + " · " + event.title}
+                        aria-valuemin={0}
+                        aria-valuemax={event.capacity}
+                        aria-valuenow={reserved}
                       >
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <span style={{ width: fill + "%" }} />
+                      </div>
+                    </div>
+                    <div className="org-event-footer">
+                      <span>{money(event.price, event.currency, language)} <small>{demoMode ? (language === "it" ? "prezzo indicativo" : "planned price") : t("studio.perTicket")}</small></span>
+                      <div>
+                        <Link href={"/events/" + event.slug} aria-label={t("studio.view") + " " + event.title}>
+                          {demoMode ? (language === "it" ? "Anteprima" : "Preview") : t("studio.view")} <FiArrowUpRight aria-hidden="true" />
+                        </Link>
+                        <Link href={"/create-event?edit=" + event.id} aria-label={t("studio.edit") + " " + event.title}>
+                          {t("studio.edit")} <FiArrowUpRight aria-hidden="true" />
+                        </Link>
+                      </div>
+                    </div>
+                    {demoMode && event.visibility === "draft" && (
+                      <div className="org-demo-event-actions">
+                        <span className="org-demo-draft-label">{language === "it" ? "Bozza" : "Draft"}</span>
+                        <button
+                          className="button button-outline button-small"
+                          type="button"
+                          disabled={practiceBusy === event.id || (event.standardAvailable ?? event.available) < 1}
+                          onClick={() => createPracticeGuest(event.id)}
+                        >
+                          <FiPlus aria-hidden="true" /> {practiceBusy === event.id
+                            ? (language === "it" ? "Aggiunta..." : "Adding...")
+                            : (language === "it" ? "Aggiungi ospite di esempio" : "Add sample guest")}
+                        </button>
+                        {practiceGuest?.eventId === event.id && (
+                          <div className="org-practice-result" role="status">
+                            <strong>{practiceGuest.name}</strong>
+                            <code>{practiceGuest.code}</code>
+                            <Link href={"/tickets/" + practiceGuest.id}>
+                              {language === "it" ? "Apri biglietto di esempio" : "Open sample ticket"}
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
-          <div className="empty-state">
-            <h3>Your next great idea belongs here.</h3>
-            <p>Publish an event and start bringing your community together.</p>
-            <Link href="/create-event" className="button button-primary">
-              Create your first event
-            </Link>
+          <div className="org-empty-events">
+            <span className="org-empty-mark"><FiCalendar aria-hidden="true" /></span>
+            <div>
+              <h3>{t("studio.eventsEmptyTitle")}</h3>
+              <p>{demoMode
+                ? (language === "it" ? "Crea la tua prima bozza privata per iniziare la prova." : "Create your first private draft to begin the trial.")
+                : t("studio.eventsEmptyBody")}</p>
+            </div>
+            <Link href="/create-event" className="button button-primary"><FiPlus aria-hidden="true" />{t("studio.createFirst")}</Link>
           </div>
         )}
       </section>
-      <section className="section-spacer">
-        <div className="section-heading">
+
+      <section className="org-section org-guests" aria-labelledby="org-guests-title">
+        <div className="org-section-heading">
           <div>
-            <span className="eyebrow">THE PEOPLE MAKING IT HAPPEN</span>
-            <h2>Your guest list.</h2>
+            <span className="org-section-kicker">{t("studio.guestSection")}</span>
+            <h2 id="org-guests-title">{t("studio.guestList")}</h2>
+            <p>{t("studio.guestIntro")}</p>
           </div>
-          {bookings.length > 0 && (
-            <button
-              className="button button-outline button-small"
-              onClick={exportGuests}
-            >
-              Download guest list
+          {profileBookings.length > 0 && (
+            <button className="button button-outline org-export-button" onClick={exportGuests}>
+              <FiDownload aria-hidden="true" /> {t("studio.downloadGuests")}
             </button>
           )}
         </div>
-        {bookings.length ? (
-          <div className="table-wrap">
-            <table>
-              <caption className="sr-only">Guest bookings</caption>
+
+        {profileBookings.length ? (
+          <div className="org-table-wrap">
+            <table className="org-table">
+              <caption className="sr-only">{t("studio.guestBookings")}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Guest</th>
-                  <th scope="col">Event</th>
-                  <th scope="col">Tickets</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Payment</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col">{t("studio.guest")}</th>
+                  <th scope="col">{t("studio.event")}</th>
+                  <th scope="col">{t("studio.ticketsType")}</th>
+                  <th scope="col">{t("studio.status")}</th>
+                  {!demoMode && <th scope="col">{t("studio.payment")}</th>}
+                  <th scope="col">{t("studio.action")}</th>
                 </tr>
               </thead>
               <tbody>
-                {bookings.map((b) => (
-                  <tr key={b.id}>
+                {profileBookings.map((booking) => (
+                  <tr key={booking.id}>
+                    <td><strong>{booking.name}</strong><small>{booking.email}</small></td>
+                    <td>{eventById.get(booking.eventId)?.title || t("studio.eventUnavailable")}</td>
                     <td>
-                      <strong>{b.name}</strong>
-                      <small>{b.email}</small>
-                    </td>
-                    <td>{events.find((e) => e.id === b.eventId)?.title}</td>
-                    <td>
-                      {b.quantity}
-                      {b.checkedIn ? <small>Checked in</small> : null}
+                      <strong>{booking.quantity}</strong>
+                      <small>{booking.ticketType === "vip" ? "VIP" : t("booking.standard")}</small>
+                      {booking.checkedIn ? <small>{t("studio.checkedIn")}</small> : null}
                     </td>
                     <td>
-                      <span className={"status status-" + b.status}>
-                        {b.status}
-                      </span>
-                      {b.refundRequested > 0 && b.status === "confirmed" && (
-                        <small>Refund requested</small>
-                      )}
+                      <span className={"org-booking-status is-" + booking.status}>{t(("tickets." + booking.status) as TranslationKey)}</span>
+                      {booking.refundRequested > 0 && booking.status === "confirmed" && <small>{t("studio.refundRequested")}</small>}
                     </td>
-                    <td>{money(b.total, b.currency)}</td>
+                    {!demoMode && <td>{money(booking.total, booking.currency, language)}</td>}
                     <td>
-                      {b.status === "confirmed" && b.mode === "stripe" ? (
-                        <button
-                          className="button button-outline button-small"
-                          onClick={() => setRefund(b.id)}
-                        >
-                          Refund
-                        </button>
-                      ) : (
-                        "—"
-                      )}
+                      {demoMode && booking.demoGuestName ? (
+                        <Link className="org-refund-button" href={"/tickets/" + booking.id}>
+                          {language === "it" ? "Biglietto di esempio" : "Sample ticket"}
+                        </Link>
+                      ) : !demoMode && booking.status === "confirmed" && booking.mode === "stripe" ? (
+                        <button className="org-refund-button" onClick={() => setRefund(booking.id)}>{t("studio.refund")}</button>
+                      ) : <span className="org-no-action">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -409,36 +571,59 @@ export default function OrganizerStudio({
             </table>
           </div>
         ) : (
-          <div className="notice">
-            When someone books one of your events, their reservation will appear
-            here.
+          <div className="org-empty-guests">
+            <FiUsers aria-hidden="true" />
+            <div><strong>{t("studio.guestEmptyTitle")}</strong><span>{t("studio.guestEmptyBody")}</span></div>
           </div>
         )}
-        {refund && (
-          <div className="notice">
-            <strong>Refund this entire booking?</strong>
-            <p>
-              This returns the full ticket payment through Stripe and
-              invalidates the tickets. This action cannot be undone.
-            </p>
-            <div className="ticket-actions">
-              <button
-                className="button button-danger"
-                disabled={refunding}
-                onClick={doRefund}
-              >
-                {refunding ? "Submitting refund…" : "Confirm full refund"}
+
+        {!demoMode && refund && (
+          <div className="org-refund-confirm" role="alert">
+            <div>
+              <strong>{t("studio.refundTitle")}</strong>
+              <p>{t("studio.refundBody")}</p>
+            </div>
+            <div className="org-refund-actions">
+              <button className="button button-danger" disabled={refunding} onClick={doRefund}>
+                {refunding ? t("studio.refunding") : t("studio.confirmRefund")}
               </button>
-              <button
-                className="button button-outline"
-                onClick={() => setRefund(null)}
-              >
-                Keep booking
-              </button>
+              <button className="button button-outline" onClick={() => setRefund(null)}>{t("studio.keepBooking")}</button>
             </div>
           </div>
         )}
       </section>
-    </>
+      {demoMode && (
+        <section className="org-section org-demo-feedback" aria-labelledby="org-feedback-title">
+          <div className="org-section-heading">
+            <div>
+              <span className="org-section-kicker">{language === "it" ? "AIUTACI A MIGLIORARE" : "HELP SHAPE EVENTLY"}</span>
+              <h2 id="org-feedback-title">{language === "it" ? "Com'è andata?" : "How did it go?"}</h2>
+              <p>{language === "it"
+                ? "Dopo aver creato una bozza e provato l'ingresso, raccontaci cosa era poco chiaro o cosa manca per i tuoi eventi a Messina."
+                : "After creating a draft and trying check-in, tell us what was unclear or what you need for your events in Messina."}</p>
+            </div>
+          </div>
+          <form className="org-feedback-form" onSubmit={submitFeedback}>
+            <label htmlFor="organizer-demo-feedback">
+              {language === "it" ? "Il tuo feedback" : "Your feedback"}
+            </label>
+            <textarea
+              id="organizer-demo-feedback"
+              maxLength={3000}
+              minLength={10}
+              onChange={(event) => { setFeedback(event.target.value); setFeedbackSent(false); }}
+              placeholder={language === "it" ? "Cosa cambieresti? Quale funzione ti serve?" : "What would you change? Which feature do you need?"}
+              required
+              rows={5}
+              value={feedback}
+            />
+            <button className="button button-primary" disabled={feedbackBusy || feedback.trim().length < 10} type="submit">
+              {feedbackBusy ? (language === "it" ? "Invio..." : "Sending...") : (language === "it" ? "Invia feedback" : "Send feedback")}
+            </button>
+            {feedbackSent && <span role="status">{language === "it" ? "Grazie! Il tuo feedback è stato salvato." : "Thank you! Your feedback was saved."}</span>}
+          </form>
+        </section>
+      )}
+    </div>
   );
 }

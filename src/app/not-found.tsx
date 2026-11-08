@@ -1,16 +1,17 @@
 import Link from "next/link";
-export default function NotFound() {
+import { getLanguage } from "@/lib/i18n-server";
+import { translate } from "@/lib/i18n";
+export default async function NotFound() {
+  const language = await getLanguage();
+  const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   return (
     <main id="main" className="container section page-main">
       <div className="empty-state">
-        <span className="eyebrow">A SMALL DETOUR</span>
-        <h1 style={{ marginTop: 15 }}>This one got away.</h1>
-        <p>
-          We couldn’t find that page or event. There are plenty of other good
-          things waiting for you.
-        </p>
+        <span className="eyebrow">{t("page.notFoundEyebrow")}</span>
+        <h1 style={{ marginTop: 15 }}>{t("page.notFoundTitle")}</h1>
+        <p>{t("page.notFoundBody")}</p>
         <Link href="/events" className="button button-primary">
-          Discover events
+          {t("page.discoverEvents")}
         </Link>
       </div>
     </main>

@@ -1,9 +1,19 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { one, run, transaction, userById } from "./db.ts";
-import { AppError, hashPassword, randomToken, tokenHash } from "./security.ts";
-import { applicationOrigin, sendAccountEmail } from "./mail.ts";
+import {
+  AppError,
+  checkPassword,
+  hashPassword,
+  randomToken,
+  tokenHash,
+} from "./security.ts";
+import {
+  applicationOrigin,
+  sendAccountEmail,
+  sendVerificationCodeEmail,
+} from "./mail.ts";
 export type TokenPurpose = "verify" | "reset";
-type TokenRow = { user_id: string; expires_at: number };
+type TokenRow = { user_id: string; expires_at: number; token_hash?: string };
 export async function issueAccountToken(userId: string, purpose: TokenPurpose) {
   const token = randomToken();
   await transaction(async () => {
@@ -66,6 +76,67 @@ export async function deliverAccountToken(
     throw error;
   }
 }
+
+export async function deliverVerificationCode(userId: string) {
+  const user = await userById(userId);
+  if (!user) return;
+  const code = String(randomInt(100000, 1000000));
+  const codeHash = await hashPassword(code);
+  await transaction(async () => {
+    await run(
+      "DELETE FROM account_tokens WHERE expires_at<? OR (user_id=? AND purpose='verify')",
+      Date.now(),
+      userId,
+    );
+    await run(
+      "INSERT INTO account_tokens(token_hash,user_id,purpose,expires_at,created_at) VALUES(?,?,?,?,?)",
+      codeHash,
+      userId,
+      "verify",
+      Date.now() + 15 * 60 * 1000,
+      Date.now(),
+    );
+  });
+  try {
+    await sendVerificationCodeEmail({
+      id: randomUUID(),
+      to: user.email,
+      name: user.name,
+      code,
+    });
+  } catch (error) {
+    await run("DELETE FROM account_tokens WHERE token_hash=?", codeHash);
+    throw error;
+  }
+}
+
+export async function verifyEmailCode(code: unknown, userId: string) {
+  if (typeof code !== "string" || !/^\d{6}$/.test(code))
+    throw new AppError("Enter the six-digit verification code.");
+  return transaction(async () => {
+    const row = await one<TokenRow>(
+      "SELECT user_id,token_hash,expires_at FROM account_tokens WHERE user_id=? AND purpose='verify' ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+      userId,
+    );
+    if (
+      !row ||
+      row.expires_at <= Date.now() ||
+      !(await checkPassword(code, row.token_hash || ""))
+    )
+      throw new AppError("The verification code is invalid or expired.");
+    await run(
+      "UPDATE users SET email_verified_at=? WHERE id=? AND email_verified_at=0",
+      Date.now(),
+      userId,
+    );
+    await run(
+      "DELETE FROM account_tokens WHERE user_id=? AND purpose='verify'",
+      userId,
+    );
+    return userId;
+  });
+}
+
 export async function verifyEmail(token: unknown) {
   return transaction(async () => {
     const row = await checkedToken(token, "verify");

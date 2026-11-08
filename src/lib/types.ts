@@ -1,5 +1,46 @@
 export type Category =
   "music" | "arts" | "food" | "technology" | "wellness" | "community";
+export type VenueType =
+  | "club"
+  | "concert-hall"
+  | "bar-restaurant"
+  | "outdoor"
+  | "gallery"
+  | "community"
+  | "other";
+export type BusinessProfileKind = "organizer" | "venue";
+export type BusinessProfile = {
+  id: string;
+  ownerId: string;
+  kind: BusinessProfileKind;
+  name: string;
+  countryCode: string;
+  stripeAccount: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+export type Venue = {
+  id: string;
+  ownerId: string;
+  hostProfileId?: string;
+  name: string;
+  type: VenueType;
+  description: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  countryCode: "IT";
+  timezone: string;
+  capacity: number;
+  spaces: string[];
+  facilities: string[];
+  accessibility: string[];
+  houseRules: string;
+  setupNotes: string;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
 export type Event = {
   id: string;
   slug: string;
@@ -14,16 +55,24 @@ export type Event = {
   endsAt: string;
   timezone: string;
   price: number;
+  vipPrice?: number;
   currency: string;
   capacity: number;
+  vipCapacity?: number;
   available: number;
+  standardAvailable?: number;
+  vipAvailable?: number;
   image: string;
   coverImage?: string;
   host: string;
+  venueId?: string;
+  organizerProfileId?: string;
+  visibility?: "draft" | "published";
   sample: boolean;
   artists?: string[];
   genres?: string[];
 };
+export type TicketType = "standard" | "vip";
 export type User = {
   id: string;
   name: string;
@@ -36,6 +85,7 @@ export type Booking = {
   id: string;
   userId: string;
   eventId: string;
+  ticketType: TicketType;
   quantity: number;
   total: number;
   currency: string;
@@ -50,6 +100,11 @@ export type Booking = {
   refundRequested: number;
   requestKey: string;
   stripeAccount: string | null;
+  demoGuestName?: string | null;
 };
 export type Ticket = Booking & { event: Event };
-export type EmailDeliveryMode = "resend" | "preview" | "unavailable";
+export type EmailDeliveryMode =
+  | "gmail"
+  | "resend"
+  | "preview"
+  | "unavailable";

@@ -1,12 +1,14 @@
 "use client";
+import { useApp } from "@/components/AppProvider";
 export default function ErrorPage({ reset }: { reset: () => void }) {
+  const { t } = useApp();
   return (
     <main id="main" className="container section page-main">
       <div className="empty-state">
-        <h1>A little pause in the plans.</h1>
-        <p>Something didn’t load correctly. Give it another try.</p>
+        <h1>{t("page.errorTitle")}</h1>
+        <p>{t("page.errorBody")}</p>
         <button className="button button-primary" onClick={reset}>
-          Try again
+          {t("page.tryAgain")}
         </button>
       </div>
     </main>

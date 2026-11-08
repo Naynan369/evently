@@ -5,7 +5,7 @@ import { useApp } from "./AppProvider";
 import type { Event } from "@/lib/types";
 import EventCard from "./EventCard";
 export default function SavedEvents({ events }: { events: Event[] }) {
-  const { saved } = useApp();
+  const { saved, t } = useApp();
   const selected = events.filter((e) => saved.includes(e.id));
   return selected.length ? (
     <div className="event-grid">
@@ -16,13 +16,12 @@ export default function SavedEvents({ events }: { events: Event[] }) {
   ) : (
     <div className="empty-state">
       <FiBookmark />
-      <h3>Keep your next good idea here.</h3>
+      <h3>{t("saved.emptyTitle")}</h3>
       <p>
-        Save an event from its details page and your collection will be waiting
-        whenever you’re ready to make a plan.
+        {t("saved.emptyBody")}
       </p>
       <Link className="button button-primary" href="/events">
-        Find something to save
+        {t("saved.findSomething")}
       </Link>
     </div>
   );

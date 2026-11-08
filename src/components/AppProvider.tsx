@@ -2,10 +2,19 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/client";
+import {
+  LANGUAGE_COOKIE,
+  translate,
+  type Language,
+  type TranslationKey,
+} from "@/lib/i18n";
 import type { User } from "@/lib/types";
 type AppContext = {
   user: User | null;
   saved: string[];
+  language: Language;
+  t: (key: TranslationKey, values?: Record<string, string | number>) => string;
+  setLanguage: (language: Language) => void;
   setSession: (user: User | null, saved?: string[]) => void;
   toggleSave: (id: string) => Promise<void>;
   toast: (message: string) => void;
@@ -15,16 +24,27 @@ export function AppProvider({
   children,
   initialUser,
   initialSaved,
+  initialLanguage,
 }: {
   children: ReactNode;
   initialUser: User | null;
   initialSaved: string[];
+  initialLanguage: Language;
 }) {
   const [user, setUser] = useState(initialUser);
   const [saved, setSaved] = useState(initialSaved);
+  const [language, setLanguageState] = useState(initialLanguage);
   const [message, setMessage] = useState("");
   const router = useRouter();
   const path = usePathname();
+  function setLanguage(nextLanguage: Language) {
+    if (nextLanguage === language) return;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${LANGUAGE_COOKIE}=${nextLanguage}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    document.documentElement.lang = nextLanguage;
+    setLanguageState(nextLanguage);
+    router.refresh();
+  }
   function toast(value: string) {
     setMessage(value);
     window.setTimeout(
@@ -45,8 +65,8 @@ export function AppProvider({
       setSaved(result.saved);
       toast(
         result.saved.includes(id)
-          ? "Added to your saved events"
-          : "Removed from saved events",
+          ? translate(language, "toast.savedAdded")
+          : translate(language, "toast.savedRemoved"),
       );
     } catch (error) {
       toast((error as Error).message);
@@ -57,6 +77,9 @@ export function AppProvider({
       value={{
         user,
         saved,
+        language,
+        t: (key, values) => translate(language, key, values),
+        setLanguage,
         setSession: (next, ids) => {
           setUser(next);
           if (ids) setSaved(ids);

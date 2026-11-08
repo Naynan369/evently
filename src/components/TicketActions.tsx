@@ -7,7 +7,7 @@ import { useApp } from "./AppProvider";
 import type { Booking } from "@/lib/types";
 export default function TicketActions({ booking }: { booking: Booking }) {
   const router = useRouter();
-  const { toast } = useApp();
+  const { toast, t } = useApp();
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   useEffect(() => {
@@ -53,8 +53,8 @@ export default function TicketActions({ booking }: { booking: Booking }) {
         router.refresh();
         toast(
           kind === "refund-request"
-            ? "Refund request sent to your organizer."
-            : "Booking cancelled.",
+            ? t("ticketActions.refundToast")
+            : t("ticketActions.cancelledToast"),
         );
       }
     } catch (e) {
@@ -70,8 +70,7 @@ export default function TicketActions({ booking }: { booking: Booking }) {
           booking.mode === "stripe" &&
           (booking.refundRequested ? (
             <p role="status">
-              Refund requested — awaiting your organizer’s review. Your tickets
-              remain valid until a refund is issued.
+              {t("ticketActions.refundRequested")}
             </p>
           ) : (
             <button
@@ -79,7 +78,7 @@ export default function TicketActions({ booking }: { booking: Booking }) {
               disabled={busy}
               onClick={() => action("refund-request")}
             >
-              {busy ? "Sending request…" : "Request a refund"}
+              {busy ? t("ticketActions.sending") : t("ticketActions.requestRefund")}
             </button>
           ))}
         {booking.status === "confirmed" && (
@@ -89,14 +88,14 @@ export default function TicketActions({ booking }: { booking: Booking }) {
               onClick={() => window.print()}
             >
               <FiPrinter />
-              Print ticket / save PDF
+              {t("ticketActions.print")}
             </button>
             <a
               className="button button-outline"
               href={"/api/tickets/" + booking.id + "/calendar"}
             >
               <FiCalendar />
-              Add to calendar
+              {t("ticketActions.calendar")}
             </a>
           </>
         )}
@@ -107,13 +106,13 @@ export default function TicketActions({ booking }: { booking: Booking }) {
               disabled={busy}
               onClick={() => action("resume")}
             >
-              Resume checkout <FiArrowRight />
+              {t("ticketActions.resume")} <FiArrowRight />
             </button>
             <button
               className="button button-outline"
               onClick={() => router.refresh()}
             >
-              Check payment status
+              {t("ticketActions.checkStatus")}
             </button>
           </>
         )}
@@ -126,27 +125,27 @@ export default function TicketActions({ booking }: { booking: Booking }) {
             disabled={busy}
             onClick={() => setConfirm(!confirm)}
           >
-            Cancel {booking.status === "pending" ? "checkout" : "reservation"}
+            {booking.status === "pending" ? t("ticketActions.cancelCheckout") : t("ticketActions.cancelReservation")}
           </button>
         )}
       </div>
       {confirm && (
         <div className="notice">
-          <strong>Cancel this booking?</strong>
-          <p>Your reserved places will be released. This cannot be undone.</p>
+          <strong>{t("ticketActions.cancelTitle")}</strong>
+          <p>{t("ticketActions.cancelBody")}</p>
           <button
             className="button button-danger button-small"
             style={{ marginTop: 10 }}
             disabled={busy}
             onClick={() => action("cancel")}
           >
-            {busy ? "Cancelling…" : "Yes, cancel booking"}
+            {busy ? t("ticketActions.cancelling") : t("ticketActions.confirmCancel")}
           </button>{" "}
           <button
             className="button button-outline button-small"
             onClick={() => setConfirm(false)}
           >
-            Keep my booking
+            {t("ticketActions.keep")}
           </button>
         </div>
       )}

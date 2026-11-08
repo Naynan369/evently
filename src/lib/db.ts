@@ -3,7 +3,19 @@ import { randomUUID, randomBytes } from "node:crypto";
 import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 import { categories, imageOptions, seedEvents } from "./catalog.ts";
 import { AppError, integer, textField } from "./security.ts";
-import type { Booking, Event, User, Category, Ticket } from "./types.ts";
+import { eventIsPrivate, organizerDemoMode } from "./demo.ts";
+import type {
+  Booking,
+  BusinessProfile,
+  BusinessProfileKind,
+  Event,
+  User,
+  Category,
+  Ticket,
+  TicketType,
+  Venue,
+  VenueType,
+} from "./types.ts";
 
 type SqlValue = string | number | boolean | Date | Buffer | null;
 type RuntimeState = typeof globalThis & {
@@ -32,6 +44,16 @@ const schema = `
     id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
     owner_id TEXT REFERENCES users(id), data TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS venues (
+    id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id),
+    data TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS venues_owner ON venues(owner_id);
+  CREATE TABLE IF NOT EXISTS business_profiles (
+    id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL, data TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS business_profiles_owner ON business_profiles(owner_id,kind);
   CREATE TABLE IF NOT EXISTS saved (
     user_id TEXT REFERENCES users(id), event_id TEXT REFERENCES events(id),
     PRIMARY KEY(user_id,event_id)
@@ -42,10 +64,12 @@ const schema = `
     quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 10),
     total BIGINT NOT NULL CHECK(total >= 0), currency TEXT NOT NULL,
     status TEXT NOT NULL, mode TEXT NOT NULL, code TEXT NOT NULL UNIQUE,
+    ticket_type TEXT NOT NULL DEFAULT 'standard',
     session_id TEXT UNIQUE, checkout_url TEXT, expires_at BIGINT NOT NULL,
     created_at BIGINT NOT NULL, checked_in BIGINT NOT NULL DEFAULT 0,
     request_key TEXT NOT NULL UNIQUE, stripe_account TEXT,
-    refund_requested BIGINT NOT NULL DEFAULT 0
+    refund_requested BIGINT NOT NULL DEFAULT 0,
+    demo_guest_name TEXT
   );
   CREATE INDEX IF NOT EXISTS bookings_event_status ON bookings(event_id,status);
   CREATE INDEX IF NOT EXISTS bookings_user ON bookings(user_id);
@@ -73,6 +97,11 @@ const schema = `
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     session_hash TEXT NOT NULL, verifier TEXT NOT NULL, expires_at BIGINT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS demo_feedback (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL, created_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS demo_feedback_created ON demo_feedback(created_at);
 `;
 
 function pool() {
@@ -115,6 +144,12 @@ async function initialize() {
     await client.query(
       "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_requested BIGINT NOT NULL DEFAULT 0",
     );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ticket_type TEXT NOT NULL DEFAULT 'standard'",
+    );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS demo_guest_name TEXT",
+    );
     if (process.env.SEED_DEMO !== "false") {
       const count = await client.query<{ n: number }>(
         "SELECT COUNT(*)::integer AS n FROM events",
@@ -140,13 +175,18 @@ async function initialize() {
         const refreshCover =
           currentSample.coverImage &&
           currentSample.coverImage !== event.coverImage;
-        if (refreshDate || refreshCover)
+        const refreshTicketTypes =
+          currentSample.vipPrice !== event.vipPrice ||
+          currentSample.vipCapacity !== event.vipCapacity;
+        if (refreshDate || refreshCover || refreshTicketTypes)
           await client.query("UPDATE events SET data=$1 WHERE id=$2", [
             JSON.stringify({
               ...event,
               startsAt: refreshDate ? currentSample.startsAt : event.startsAt,
               endsAt: refreshDate ? currentSample.endsAt : event.endsAt,
               coverImage: currentSample.coverImage ?? event.coverImage,
+              vipPrice: currentSample.vipPrice,
+              vipCapacity: currentSample.vipCapacity,
             }),
             row.id,
           ]);
@@ -176,7 +216,7 @@ export async function resetDatabaseForTests() {
     throw new Error("Test database reset requires EVENTLY_TEST_MODE=true.");
   await initializeDatabase();
   await pool().query(
-    "TRUNCATE TABLE oauth_states,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,users CASCADE",
+    "TRUNCATE TABLE demo_feedback,oauth_states,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
   );
 }
 
@@ -271,18 +311,28 @@ async function hydrateEvent(row: { data: string }): Promise<Event> {
   const event = JSON.parse(row.data) as Event;
   if (event.sample && event.id === "sample-1" && !event.genres)
     event.genres = ["Electronic", "House"];
-  const reserved =
-    (await one<{ quantity: number }>(
-      "SELECT COALESCE(SUM(quantity),0) AS quantity FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
-      event.id,
-    ))?.quantity || 0;
-  return { ...event, available: Math.max(0, event.capacity - reserved) };
+  const reserved = await one<{ standard: number; vip: number }>(
+    "SELECT COALESCE(SUM(quantity) FILTER (WHERE ticket_type='standard'),0) AS standard, COALESCE(SUM(quantity) FILTER (WHERE ticket_type='vip'),0) AS vip FROM bookings WHERE event_id=? AND status IN ('pending','confirmed')",
+    event.id,
+  );
+  const standardReserved = reserved?.standard || 0;
+  const vipReserved = reserved?.vip || 0;
+  const vipCapacity = event.vipCapacity || 0;
+  const standardCapacity = Math.max(0, event.capacity - vipCapacity);
+  return {
+    ...event,
+    available: Math.max(0, event.capacity - standardReserved - vipReserved),
+    standardAvailable: Math.max(0, standardCapacity - standardReserved),
+    vipAvailable: Math.max(0, vipCapacity - vipReserved),
+  };
 }
 export async function listEvents() {
   const events = await Promise.all(
     (await all<{ data: string }>("SELECT data FROM events")).map(hydrateEvent),
   );
-  return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  return events
+    .filter((event) => !eventIsPrivate(event))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 export async function getEvent(id: string) {
   const row = await one<{ data: string }>(
@@ -292,6 +342,327 @@ export async function getEvent(id: string) {
   );
   return row ? await hydrateEvent(row) : null;
 }
+export async function getBusinessProfile(id: string) {
+  const row = await one<{ data: string }>(
+    "SELECT data FROM business_profiles WHERE id=?",
+    id,
+  );
+  return row ? (JSON.parse(row.data) as BusinessProfile) : null;
+}
+export async function getOwnedBusinessProfile(
+  id: string,
+  ownerId: string,
+  kind?: BusinessProfileKind,
+) {
+  const row = await one<{ data: string }>(
+    "SELECT data FROM business_profiles WHERE id=? AND owner_id=?" +
+      (kind ? " AND kind=?" : ""),
+    ...([id, ownerId, ...(kind ? [kind] : [])] as [string, string, ...string[]]),
+  );
+  return row ? (JSON.parse(row.data) as BusinessProfile) : null;
+}
+export async function businessProfilesForOwner(
+  ownerId: string,
+  kind?: BusinessProfileKind,
+) {
+  return (await all<{ data: string }>(
+    "SELECT data FROM business_profiles WHERE owner_id=?" +
+      (kind ? " AND kind=?" : ""),
+    ...([ownerId, ...(kind ? [kind] : [])] as [string, ...string[]]),
+  ))
+    .map((row) => JSON.parse(row.data) as BusinessProfile)
+    .sort(
+      (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+    );
+}
+function validateBusinessProfile(
+  input: Record<string, unknown>,
+  existing?: BusinessProfile,
+): Omit<BusinessProfile, "id" | "ownerId" | "createdAt" | "updatedAt"> {
+  const kind = textField(
+    input.kind ?? existing?.kind,
+    "Business profile type",
+    1,
+    20,
+  ) as BusinessProfileKind;
+  if (kind !== "organizer" && kind !== "venue")
+    throw new AppError("Choose organizer or venue as the profile type.");
+  const countryCode =
+    kind === "venue"
+      ? "IT"
+      : String(input.countryCode ?? existing?.countryCode ?? "IT").toUpperCase();
+  if (! ["GB", "US", "IT", "DE", "FR", "ES", "NL", "IE", "CA", "AU"].includes(countryCode))
+    throw new AppError("Choose a supported business country.");
+  if (
+    existing?.stripeAccount &&
+    countryCode !== existing.countryCode
+  )
+    throw new AppError("Business country cannot change after Stripe setup.", 409);
+  return {
+    kind,
+    name: textField(input.name ?? existing?.name, "Business profile name", 2, 120),
+    countryCode,
+    stripeAccount: existing?.stripeAccount || null,
+  };
+}
+export async function createBusinessProfile(
+  input: Record<string, unknown>,
+  owner: User,
+) {
+  const now = Date.now();
+  const value: BusinessProfile = {
+    ...validateBusinessProfile(input),
+    id: randomUUID(),
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await run(
+    "INSERT INTO business_profiles(id,owner_id,kind,data) VALUES(?,?,?,?)",
+    value.id,
+    owner.id,
+    value.kind,
+    JSON.stringify(value),
+  );
+  return value;
+}
+export async function updateBusinessProfile(
+  id: string,
+  ownerId: string,
+  input: Record<string, unknown>,
+) {
+  const existing = await getOwnedBusinessProfile(id, ownerId);
+  if (!existing) throw new AppError("Business profile not found.", 404);
+  const value: BusinessProfile = {
+    ...validateBusinessProfile(input, existing),
+    id: existing.id,
+    ownerId: existing.ownerId,
+    createdAt: existing.createdAt,
+    updatedAt: Date.now(),
+  };
+  await transaction(async () => {
+    await run(
+      "UPDATE business_profiles SET kind=?,data=? WHERE id=? AND owner_id=?",
+      value.kind,
+      JSON.stringify(value),
+      id,
+      ownerId,
+    );
+    if (value.kind === "organizer" && value.name !== existing.name) {
+      const organizerProfiles = await businessProfilesForOwner(
+        ownerId,
+        "organizer",
+      );
+      const isLegacyDefault = organizerProfiles[0]?.id === id;
+      const rows = await all<{ id: string; data: string }>(
+        "SELECT id,data FROM events WHERE owner_id=?",
+        ownerId,
+      );
+      for (const row of rows) {
+        const event = JSON.parse(row.data) as Event;
+        if (
+          event.organizerProfileId === id ||
+          (isLegacyDefault && !event.organizerProfileId)
+        ) {
+          await run(
+            "UPDATE events SET data=? WHERE id=? AND owner_id=?",
+            JSON.stringify({ ...event, host: value.name }),
+            row.id,
+            ownerId,
+          );
+        }
+      }
+    }
+  });
+  return value;
+}
+export async function ensureBusinessProfile(
+  owner: User,
+  kind: BusinessProfileKind,
+) {
+  const existing = await businessProfilesForOwner(owner.id, kind);
+  if (existing.length) {
+    if (kind === "organizer" && owner.stripeAccount && !existing[0].stripeAccount)
+      return saveBusinessProfileStripeAccount(
+        existing[0].id,
+        owner.id,
+        owner.stripeAccount,
+      );
+    return existing[0];
+  }
+  const created = await createBusinessProfile(
+    {
+      kind,
+      name: owner.name + (kind === "organizer" ? " Events" : " Venues"),
+      countryCode: "IT",
+    },
+    owner,
+  );
+  if (kind === "organizer" && owner.stripeAccount)
+    return saveBusinessProfileStripeAccount(
+      created.id,
+      owner.id,
+      owner.stripeAccount,
+    );
+  return created;
+}
+export async function saveBusinessProfileStripeAccount(
+  profileId: string,
+  ownerId: string,
+  stripeAccount: string,
+) {
+  const profile = await getOwnedBusinessProfile(profileId, ownerId, "organizer");
+  if (!profile) throw new AppError("Organizer profile not found.", 404);
+  const updated: BusinessProfile = {
+    ...profile,
+    stripeAccount,
+    updatedAt: Date.now(),
+  };
+  await run(
+    "UPDATE business_profiles SET data=? WHERE id=? AND owner_id=?",
+    JSON.stringify(updated),
+    profileId,
+    ownerId,
+  );
+  return updated;
+}
+export async function getVenue(id: string) {
+  const row = await one<{ data: string }>(
+    "SELECT data FROM venues WHERE id=?",
+    id,
+  );
+  return row ? (JSON.parse(row.data) as Venue) : null;
+}
+export async function getOwnedVenue(id: string, ownerId: string) {
+  const row = await one<{ data: string }>(
+    "SELECT data FROM venues WHERE id=? AND owner_id=?",
+    id,
+    ownerId,
+  );
+  return row ? (JSON.parse(row.data) as Venue) : null;
+}
+export async function venuesForOwner(ownerId: string) {
+  return (await all<{ data: string }>(
+    "SELECT data FROM venues WHERE owner_id=?",
+    ownerId,
+  ))
+    .map((row) => JSON.parse(row.data) as Venue)
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+}
+export function validateVenue(
+  input: Record<string, unknown>,
+  existing?: Venue,
+): Omit<Venue, "id" | "ownerId" | "createdAt" | "updatedAt"> {
+  const type = textField(input.type, "Venue type", 1, 30) as VenueType;
+  if (
+    ![
+      "club",
+      "concert-hall",
+      "bar-restaurant",
+      "outdoor",
+      "gallery",
+      "community",
+      "other",
+    ].includes(type)
+  )
+    throw new AppError("Choose a valid venue type.");
+  return {
+    ...(typeof input.hostProfileId === "string" && input.hostProfileId.trim()
+      ? { hostProfileId: input.hostProfileId.trim() }
+      : existing?.hostProfileId
+        ? { hostProfileId: existing.hostProfileId }
+        : {}),
+    name: textField(input.name, "Venue name", 2, 120),
+    type,
+    description: optionalText(input.description, "Description", 800),
+    address: textField(input.address, "Street address", 5, 300),
+    city: textField(input.city, "City", 2, 80),
+    postalCode: textField(input.postalCode, "Postcode", 3, 20),
+    countryCode: "IT",
+    timezone: "Europe/Rome",
+    capacity: integer(input.capacity, "Venue capacity", 1, 100000),
+    spaces: parseTags(input.spaces, "Spaces", 20),
+    facilities: parseTags(input.facilities, "Facilities", 30),
+    accessibility: parseTags(input.accessibility, "Accessibility details", 20),
+    houseRules: optionalText(input.houseRules, "House rules", 2000),
+    setupNotes: optionalText(input.setupNotes, "Setup notes", 2000),
+    active:
+      typeof input.active === "boolean" ? input.active : existing?.active ?? true,
+  };
+}
+function optionalText(value: unknown, name: string, max: number) {
+  if (value === undefined || value === null || value === "") return "";
+  return textField(value, name, 0, max);
+}
+export async function createVenue(
+  input: Record<string, unknown>,
+  owner: User,
+) {
+  const profileId =
+    typeof input.hostProfileId === "string" && input.hostProfileId.trim()
+      ? input.hostProfileId.trim()
+      : (await ensureBusinessProfile(owner, "venue")).id;
+  const profile = await getOwnedBusinessProfile(profileId, owner.id, "venue");
+  if (!profile) throw new AppError("Choose one of your venue profiles.", 400);
+  const now = Date.now();
+  const venue: Venue = {
+    ...validateVenue({ ...input, hostProfileId: profile.id }),
+    id: randomUUID(),
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await run(
+    "INSERT INTO venues(id,owner_id,data) VALUES(?,?,?)",
+    venue.id,
+    owner.id,
+    JSON.stringify(venue),
+  );
+  return venue;
+}
+export async function updateVenue(
+  id: string,
+  ownerId: string,
+  input: Record<string, unknown>,
+) {
+  const existing = await getOwnedVenue(id, ownerId);
+  if (!existing) throw new AppError("Venue not found.", 404);
+  const profileId =
+    typeof input.hostProfileId === "string" && input.hostProfileId.trim()
+      ? input.hostProfileId.trim()
+      : existing.hostProfileId;
+  if (profileId && !(await getOwnedBusinessProfile(profileId, ownerId, "venue")))
+    throw new AppError("Choose one of your venue profiles.", 400);
+  const linkedEvents = await all<{ data: string }>(
+    "SELECT data FROM events WHERE owner_id=?",
+    ownerId,
+  );
+  const nextCapacity = integer(input.capacity, "Venue capacity", 1, 100000);
+  const overCapacityEvent = linkedEvents
+    .map((row) => JSON.parse(row.data) as Event)
+    .find((event) => event.venueId === existing.id && event.capacity > nextCapacity);
+  if (overCapacityEvent)
+    throw new AppError(
+      "Venue capacity cannot be lower than the ticket capacity for “" +
+        overCapacityEvent.title +
+        ".”",
+      400,
+    );
+  const venue: Venue = {
+    ...validateVenue({ ...input, hostProfileId: profileId }, existing),
+    id: existing.id,
+    ownerId: existing.ownerId,
+    createdAt: existing.createdAt,
+    updatedAt: Date.now(),
+  };
+  await run(
+    "UPDATE venues SET data=? WHERE id=? AND owner_id=?",
+    JSON.stringify(venue),
+    id,
+    ownerId,
+  );
+  return venue;
+}
 export async function savedIds(userId: string) {
   return (await all<{ event_id: string }>(
     "SELECT event_id FROM saved WHERE user_id=?",
@@ -299,7 +670,9 @@ export async function savedIds(userId: string) {
   )).map((r) => r.event_id);
 }
 export async function saveEvent(userId: string, eventId: string, saved: boolean) {
-  if (!(await getEvent(eventId))) throw new AppError("Event not found.", 404);
+  const event = await getEvent(eventId);
+  if (!event || eventIsPrivate(event))
+    throw new AppError("Event not found.", 404);
   if (saved)
     await run(
       "INSERT INTO saved(user_id,event_id) VALUES(?,?) ON CONFLICT(user_id,event_id) DO NOTHING",
@@ -326,6 +699,7 @@ export async function updateInterests(userId: string, value: unknown) {
 export function validateEvent(
   input: Record<string, unknown>,
   owner: User,
+  organizerProfile?: BusinessProfile,
 ): Omit<Event, "id" | "slug"> {
   const category = textField(input.category, "Category") as Category;
   if (!categories.some((c) => c.id === category))
@@ -333,6 +707,7 @@ export function validateEvent(
   const image = textField(input.image, "Cover");
   if (!imageOptions.some((i) => i.id === image))
     throw new AppError("Choose a cover image.");
+  const venueId = optionalText(input.venueId, "Venue", 100);
   const start = Date.parse(textField(input.startsAt, "Start date"));
   const end = Date.parse(textField(input.endsAt, "End date"));
   if (
@@ -356,6 +731,26 @@ export function validateEvent(
     throw new AppError("Choose GBP, EUR or USD.");
   const capacity = integer(input.capacity, "Capacity", 1, 100000);
   const price = integer(input.price, "Ticket price", 0, 1000000);
+  const vipCapacity =
+    input.vipCapacity === undefined ||
+    input.vipCapacity === null ||
+    input.vipCapacity === ""
+      ? 0
+      : integer(input.vipCapacity, "VIP capacity", 1, 100000);
+  const vipPrice =
+    input.vipPrice === undefined ||
+    input.vipPrice === null ||
+    input.vipPrice === ""
+      ? undefined
+      : integer(input.vipPrice, "VIP ticket price", 0, 1000000);
+  if (vipCapacity > capacity)
+    throw new AppError("VIP capacity cannot exceed total event capacity.");
+  if ((vipCapacity > 0) !== (vipPrice !== undefined))
+    throw new AppError("Set both a VIP ticket price and VIP capacity.");
+  if (vipPrice !== undefined && vipPrice > 0 && vipPrice < 100)
+    throw new AppError(
+      "Paid VIP tickets must cost at least 1 in the selected currency.",
+    );
   if (price > 0 && price < 100)
     throw new AppError(
       "Paid tickets must cost at least 1 in the selected currency.",
@@ -372,11 +767,15 @@ export function validateEvent(
     endsAt: new Date(end).toISOString(),
     timezone,
     price,
+    ...(vipPrice !== undefined ? { vipPrice } : {}),
     currency,
     capacity,
+    ...(vipCapacity > 0 ? { vipCapacity } : {}),
     available: capacity,
     image,
-    host: owner.name,
+    host: organizerProfile?.name || owner.name,
+    ...(venueId ? { venueId } : {}),
+    ...(organizerProfile ? { organizerProfileId: organizerProfile.id } : {}),
     sample: false,
     artists: parseTags(input.artists, "Artists", 30),
     genres: parseTags(input.genres, "Genres", 12),
@@ -389,8 +788,22 @@ export function parseTags(value: unknown, label: string, max: number) {
     throw new AppError("Use up to " + max + " " + label.toLowerCase() + ".");
   return [...new Set(values.map((entry) => textField(entry, label, 1, 80)))];
 }
-export async function createEvent(input: Record<string, unknown>, owner: User) {
-  const content = validateEvent(input, owner);
+export async function createEvent(
+  input: Record<string, unknown>,
+  owner: User,
+  selectedProfile?: BusinessProfile,
+) {
+  const profileId =
+    selectedProfile?.id ||
+    (typeof input.organizerProfileId === "string"
+      ? input.organizerProfileId
+      : "");
+  const organizerProfile = profileId
+    ? await getOwnedBusinessProfile(profileId, owner.id, "organizer")
+    : selectedProfile || (await ensureBusinessProfile(owner, "organizer"));
+  if (!organizerProfile)
+    throw new AppError("Choose one of your organizer profiles.", 400);
+  const content = validateEvent(input, owner, organizerProfile);
   const id = randomUUID();
   const slug =
     content.title
@@ -400,7 +813,12 @@ export async function createEvent(input: Record<string, unknown>, owner: User) {
       .slice(0, 70) +
     "-" +
     id.slice(0, 8);
-  const event: Event = { ...content, id, slug };
+  const event: Event = {
+    ...content,
+    id,
+    slug,
+    visibility: organizerDemoMode() ? "draft" : "published",
+  };
   await run(
     "INSERT INTO events(id,slug,owner_id,data) VALUES(?,?,?,?)",
     id,
@@ -411,7 +829,7 @@ export async function createEvent(input: Record<string, unknown>, owner: User) {
   return event;
 }
 const bookingColumns =
-  'id, user_id AS "userId", event_id AS "eventId", quantity, total, currency, status, mode, code, session_id AS "sessionId", checkout_url AS "checkoutUrl", expires_at AS "expiresAt", created_at AS "createdAt", checked_in AS "checkedIn", request_key AS "requestKey", stripe_account AS "stripeAccount", refund_requested AS "refundRequested"';
+  'id, user_id AS "userId", event_id AS "eventId", ticket_type AS "ticketType", quantity, total, currency, status, mode, code, session_id AS "sessionId", checkout_url AS "checkoutUrl", expires_at AS "expiresAt", created_at AS "createdAt", checked_in AS "checkedIn", request_key AS "requestKey", stripe_account AS "stripeAccount", refund_requested AS "refundRequested", demo_guest_name AS "demoGuestName"';
 export async function bookingById(id: string) {
   return one<Booking>(
     "SELECT " + bookingColumns + " FROM bookings WHERE id=?",
@@ -437,8 +855,11 @@ export async function reserveBooking(
   eventId: string,
   quantity: number,
   nonce: string,
+  ticketType: TicketType = "standard",
 ): Promise<Booking> {
   integer(quantity, "Quantity", 1, 10);
+  if (ticketType !== "standard" && ticketType !== "vip")
+    throw new AppError("Choose a valid ticket type.");
   if (!/^[a-zA-Z0-9-]{16,80}$/.test(nonce))
     throw new AppError("Invalid booking request. Refresh and try again.");
   return transaction(async () => {
@@ -454,7 +875,11 @@ export async function reserveBooking(
       key,
     );
     if (existing) {
-      if (existing.eventId !== eventId || existing.quantity !== quantity)
+      if (
+        existing.eventId !== eventId ||
+        existing.quantity !== quantity ||
+        existing.ticketType !== ticketType
+      )
         throw new AppError("This booking request has already been used.", 409);
       return existing;
     }
@@ -466,7 +891,7 @@ export async function reserveBooking(
       eventId,
     );
     if (pending) {
-      if (pending.quantity !== quantity)
+      if (pending.quantity !== quantity || pending.ticketType !== ticketType)
         throw new AppError(
           "You already have a checkout for this event. Resume it from My tickets, or cancel it before changing the quantity.",
           409,
@@ -475,24 +900,37 @@ export async function reserveBooking(
     }
     const event = await getEvent(eventId);
     if (!event) throw new AppError("Event not found.", 404);
+    if (eventIsPrivate(event))
+      throw new AppError("This event is a private draft.", 409);
     if (Date.parse(event.startsAt) <= Date.now())
       throw new AppError("Booking has closed for this event.", 409);
-    if (quantity > event.available)
+    const tierAvailable =
+      ticketType === "vip"
+        ? event.vipAvailable || 0
+        : event.standardAvailable ?? event.available;
+    if (
+      ticketType === "vip" &&
+      (!event.vipCapacity || event.vipPrice === undefined)
+    )
+      throw new AppError("VIP tickets are not available for this event.", 409);
+    if (quantity > tierAvailable)
       throw new AppError(
-        "There are not enough tickets left. Choose a smaller quantity.",
+        `There are not enough ${ticketType === "vip" ? "VIP" : "Standard"} tickets left. Choose a smaller quantity.`,
         409,
       );
+    const unitPrice = ticketType === "vip" ? event.vipPrice! : event.price;
     const mode = event.sample
       ? "sample"
-      : event.price === 0
+      : unitPrice === 0
         ? "free"
         : "stripe";
     const booking: Booking = {
       id: randomUUID(),
       userId,
       eventId,
+      ticketType,
       quantity,
-      total: mode === "sample" ? 0 : quantity * event.price,
+      total: mode === "sample" ? 0 : quantity * unitPrice,
       currency: event.currency,
       status: mode === "stripe" ? "pending" : "confirmed",
       mode,
@@ -504,15 +942,19 @@ export async function reserveBooking(
       checkedIn: 0,
       refundRequested: 0,
       requestKey: key,
-      stripeAccount: event.ownerId
-        ? (await userById(event.ownerId))?.stripeAccount || null
-        : null,
+      stripeAccount: event.organizerProfileId
+        ? (await getBusinessProfile(event.organizerProfileId))?.stripeAccount ||
+          (event.ownerId ? (await userById(event.ownerId))?.stripeAccount || null : null)
+        : event.ownerId
+          ? (await userById(event.ownerId))?.stripeAccount || null
+          : null,
     };
     await run(
-      "INSERT INTO bookings(id,user_id,event_id,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO bookings(id,user_id,event_id,ticket_type,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       booking.id,
       userId,
       eventId,
+      ticketType,
       quantity,
       booking.total,
       booking.currency,
@@ -604,14 +1046,26 @@ export async function cancelFreeBooking(id: string, userId: string) {
     id,
   );
 }
-export async function checkIn(code: string, ownerId: string) {
+export async function checkIn(
+  code: string,
+  ownerId: string,
+  organizerProfileId?: string,
+) {
   return transaction(async () => {
     const booking = await one<Booking>(
       "SELECT " + bookingColumns + " FROM bookings WHERE code=? FOR UPDATE",
       code,
     );
-    if (!booking || (await getEvent(booking.eventId))?.ownerId !== ownerId)
+    const event = booking ? await getEvent(booking.eventId) : null;
+    if (!booking || event?.ownerId !== ownerId)
       throw new AppError("Ticket not found for one of your events.", 404);
+    if (organizerProfileId) {
+      const eventProfileId =
+        event.organizerProfileId ||
+        (await businessProfilesForOwner(ownerId, "organizer"))[0]?.id;
+      if (eventProfileId !== organizerProfileId)
+        throw new AppError("Ticket not found for this organizer profile.", 404);
+    }
     if (booking.status !== "confirmed")
       throw new AppError("This ticket is not valid for entry.", 409);
     if (booking.checkedIn)
@@ -620,9 +1074,64 @@ export async function checkIn(code: string, ownerId: string) {
     return {
       quantity: booking.quantity,
       event: (await getEvent(booking.eventId))!.title,
-      name: (await userById(booking.userId))!.name,
+      name: booking.demoGuestName || (await userById(booking.userId))!.name,
     };
   });
+}
+export async function addDemoGuest(eventId: string, ownerId: string) {
+  if (!organizerDemoMode()) throw new AppError("Demo mode is unavailable.", 404);
+  return transaction(async () => {
+    const locked = await one<{ id: string }>(
+      "SELECT id FROM events WHERE id=? AND owner_id=? FOR UPDATE",
+      eventId,
+      ownerId,
+    );
+    if (!locked) throw new AppError("Event not found.", 404);
+    const event = await getEvent(eventId);
+    if (!event || event.visibility !== "draft")
+      throw new AppError("Practice guests require a private event draft.", 409);
+    if ((event.standardAvailable ?? event.available) < 1)
+      throw new AppError("There are no Standard places left.", 409);
+    const count = await one<{ n: number }>(
+      "SELECT COUNT(*)::integer AS n FROM bookings WHERE event_id=? AND demo_guest_name IS NOT NULL",
+      eventId,
+    );
+    if ((count?.n || 0) >= 10)
+      throw new AppError("This draft already has 10 practice guests.", 409);
+    const name = "Sample guest " + ((count?.n || 0) + 1);
+    const id = randomUUID();
+    const code = "EV-" + randomBytes(8).toString("hex").toUpperCase();
+    await run(
+      "INSERT INTO bookings(id,user_id,event_id,ticket_type,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account,demo_guest_name) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      id,
+      ownerId,
+      eventId,
+      "standard",
+      1,
+      0,
+      event.currency,
+      "confirmed",
+      "sample",
+      code,
+      Math.floor(Date.now() / 1000) + 2100,
+      Date.now(),
+      "demo:" + id,
+      null,
+      name,
+    );
+    return { id, name, code };
+  });
+}
+export async function saveDemoFeedback(userId: string, feedback: string) {
+  if (!organizerDemoMode()) throw new AppError("Demo mode is unavailable.", 404);
+  const content = textField(feedback, "Feedback", 10, 3000);
+  await run(
+    "INSERT INTO demo_feedback(id,user_id,body,created_at) VALUES(?,?,?,?)",
+    randomUUID(),
+    userId,
+    content,
+    Date.now(),
+  );
 }
 export async function requestRefund(id: string, userId: string) {
   const booking = await bookingById(id);
@@ -642,24 +1151,29 @@ export async function requestRefund(id: string, userId: string) {
 }
 export async function organizerData(userId: string) {
   const [allEvents, bookings] = await Promise.all([
-    listEvents(),
+    Promise.all(
+      (await all<{ data: string }>(
+        "SELECT data FROM events WHERE owner_id=?",
+        userId,
+      )).map(hydrateEvent),
+    ),
     all<Booking & { name: string; email: string }>(
     "SELECT " +
       bookingColumns
         .split(", ")
         .map((c) => "b." + c)
         .join(", ") +
-      ",u.name,u.email FROM bookings b JOIN users u ON u.id=b.user_id JOIN events e ON e.id=b.event_id WHERE e.owner_id=? ORDER BY b.created_at DESC",
+      ",COALESCE(b.demo_guest_name,u.name) AS name,CASE WHEN b.demo_guest_name IS NULL THEN u.email ELSE '' END AS email FROM bookings b JOIN users u ON u.id=b.user_id JOIN events e ON e.id=b.event_id WHERE e.owner_id=? ORDER BY b.created_at DESC",
       userId,
     ),
   ]);
-  const events = allEvents.filter((event) => event.ownerId === userId);
+  const events = allEvents.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   return { events, bookings };
 }
 export async function takeRateLimit(key: string, max: number, duration = 900000) {
   const now = Date.now();
   const result = await one<{ count: number }>(
-    "INSERT INTO rate_limits(key,count,resets_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN resets_at <= ? THEN 1 ELSE count+1 END, resets_at=CASE WHEN resets_at <= ? THEN ? ELSE resets_at END RETURNING count",
+    "INSERT INTO rate_limits AS rl(key,count,resets_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rl.resets_at <= ? THEN 1 ELSE rl.count+1 END, resets_at=CASE WHEN rl.resets_at <= ? THEN ? ELSE rl.resets_at END RETURNING rl.count AS count",
     key,
     now + duration,
     now,

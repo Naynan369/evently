@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { useApp } from "./AppProvider";
 export function Brand({ light = false }: { light?: boolean }) {
+  const { t } = useApp();
   return (
     <Link
       href="/"
       className={"brand" + (light ? " brand-light" : "")}
-      aria-label="Evently home"
+      aria-label={t("brand.home")}
     >
       <svg viewBox="0 0 32 32" aria-hidden="true">
         <path

@@ -3,10 +3,34 @@ import type { AnimatedScene } from "./types";
 
 const SEGMENTS = 180;
 const RIBBONS = [
-  { baseline: -0.43, amplitude: 0.11, thickness: 0.1, color: "#9aabb6", opacity: 0.29 },
-  { baseline: -0.24, amplitude: 0.095, thickness: 0.08, color: "#c3b8a7", opacity: 0.24 },
-  { baseline: -0.055, amplitude: 0.08, thickness: 0.065, color: "#8299a7", opacity: 0.22 },
-  { baseline: 0.12, amplitude: 0.065, thickness: 0.05, color: "#bac6cb", opacity: 0.19 },
+  {
+    baseline: -0.43,
+    amplitude: 0.11,
+    thickness: 0.1,
+    color: "#cf8a58",
+    opacity: 0.29,
+  },
+  {
+    baseline: -0.24,
+    amplitude: 0.095,
+    thickness: 0.08,
+    color: "#eeb57f",
+    opacity: 0.24,
+  },
+  {
+    baseline: -0.055,
+    amplitude: 0.08,
+    thickness: 0.065,
+    color: "#ba7246",
+    opacity: 0.22,
+  },
+  {
+    baseline: 0.12,
+    amplitude: 0.065,
+    thickness: 0.05,
+    color: "#ffd9ab",
+    opacity: 0.19,
+  },
 ];
 
 function createRibbonGeometry() {
@@ -31,7 +55,7 @@ export function createOpenHorizonsScene(): AnimatedScene {
   const group = new THREE.Group();
   const sunGlowGeometry = new THREE.CircleGeometry(0.7, 80);
   const sunGlowMaterial = new THREE.MeshBasicMaterial({
-    color: "#b9c5ca",
+    color: "#f6bc86",
     transparent: true,
     opacity: 0.09,
     depthWrite: false,
@@ -43,7 +67,7 @@ export function createOpenHorizonsScene(): AnimatedScene {
 
   const sunGeometry = new THREE.CircleGeometry(0.43, 80);
   const sunMaterial = new THREE.MeshBasicMaterial({
-    color: "#d7c9b2",
+    color: "#ffdfb2",
     transparent: true,
     opacity: 0.24,
     depthWrite: false,
@@ -65,12 +89,11 @@ export function createOpenHorizonsScene(): AnimatedScene {
         toneMapped: false,
       }),
   );
-  const ribbons = ribbonGeometries.map((geometry, index) => {
+  ribbonGeometries.forEach((geometry, index) => {
     const ribbon = new THREE.Mesh(geometry, ribbonMaterials[index]);
     ribbon.position.z = -0.11 + index * 0.012;
     ribbon.frustumCulled = false;
     group.add(ribbon);
-    return ribbon;
   });
 
   const crestMaterials = RIBBONS.map(
@@ -95,12 +118,11 @@ export function createOpenHorizonsScene(): AnimatedScene {
     );
     return geometry;
   });
-  const crests = crestGeometries.map((geometry, index) => {
+  crestGeometries.forEach((geometry, index) => {
     const crest = new THREE.Line(geometry, crestMaterials[index]);
     crest.position.z = -0.045 + index * 0.005;
     crest.frustumCulled = false;
     group.add(crest);
-    return crest;
   });
 
   return {
@@ -125,7 +147,8 @@ export function createOpenHorizonsScene(): AnimatedScene {
         for (let segment = 0; segment <= SEGMENTS; segment += 1) {
           const progress = segment / SEGMENTS;
           const x = -aspect + progress * aspect * 2;
-          const phase = x * 1.55 - time * (0.5 + ribbonIndex * 0.07) + phaseShift;
+          const phase =
+            x * 1.55 - time * (0.5 + ribbonIndex * 0.07) + phaseShift;
           const swell =
             Math.sin(phase) * ribbon.amplitude +
             Math.sin(phase * 0.43 + time * 0.24) * ribbon.amplitude * 0.42;

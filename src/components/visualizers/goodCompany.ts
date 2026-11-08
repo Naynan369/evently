@@ -7,8 +7,8 @@ const ORB_POSITIONS = [
   [0, 0.17],
   [0.5, -0.09],
 ];
-const CLAY_COLORS = ["#d9c9b5", "#b9c6cc", "#c9c0b4"];
-const ORBIT_COLORS = ["#cbb99f", "#aab9c5", "#d4c3a8"];
+const CLAY_COLORS = ["#f8c99f", "#e9a568", "#ffe0bd"];
+const ORBIT_COLORS = ["#f2a86d", "#cf7840", "#ffe0bb"];
 
 export function createGoodCompanyScene(): AnimatedScene {
   const group = new THREE.Group();
@@ -49,12 +49,12 @@ export function createGoodCompanyScene(): AnimatedScene {
 
   const beadGeometry = new THREE.SphereGeometry(0.035, 20, 16);
   const beadMaterial = new THREE.MeshBasicMaterial({
-    color: "#eee3d2",
+    color: "#fff1dd",
     transparent: true,
     opacity: 0.8,
     toneMapped: false,
   });
-  const satellites = Array.from({ length: 3 }, (_, index) => {
+  const satellites = Array.from({ length: 3 }, () => {
     const bead = new THREE.Mesh(beadGeometry, beadMaterial);
     group.add(bead);
     return bead;
@@ -77,15 +77,24 @@ export function createGoodCompanyScene(): AnimatedScene {
         );
         const breath = 1 + Math.sin(phase * 1.45) * 0.045;
         orb.scale.setScalar(ORB_SIZES[index] * breath);
-        orb.rotation.set(Math.cos(phase) * 0.14, phase * 0.18, Math.sin(phase) * 0.12);
+        orb.rotation.set(
+          Math.cos(phase) * 0.14,
+          phase * 0.18,
+          Math.sin(phase) * 0.12,
+        );
 
         orbits[index].position.copy(orb.position);
         orbits[index].rotation.z = phase * (index % 2 ? -0.2 : 0.2);
       });
 
       satellites.forEach((bead, index) => {
-        const angle = time * (0.55 + index * 0.08) + index * ((Math.PI * 2) / 3);
-        bead.position.set(Math.cos(angle) * 0.72, Math.sin(angle * 1.2) * 0.3, 0.24);
+        const angle =
+          time * (0.55 + index * 0.08) + index * ((Math.PI * 2) / 3);
+        bead.position.set(
+          Math.cos(angle) * 0.72,
+          Math.sin(angle * 1.2) * 0.3,
+          0.24,
+        );
         bead.scale.setScalar(0.78 + (0.5 + 0.5 * Math.sin(angle * 2)) * 0.38);
       });
     },

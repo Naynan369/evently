@@ -1,19 +1,20 @@
 import localFont from "next/font/local";
 import type { Metadata } from "next";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import VerificationNotice from "@/components/VerificationNotice";
+import AppShell from "@/components/AppShell";
 import ThemeProvider from "@/components/ThemeProvider";
 import { AppProvider } from "@/components/AppProvider";
 import { currentUser } from "@/lib/auth";
 import { savedIds } from "@/lib/db";
+import { getLanguage } from "@/lib/i18n-server";
+import { translate } from "@/lib/i18n";
 import "./globals.css";
 import "./professional.css";
-const jetBrainsMono = localFont({
-  src: "../../public/fonts/jetbrains-mono-variable.ttf",
+import "./refinement.css";
+const inter = localFont({
+  src: "../../public/fonts/inter-variable.woff2",
   variable: "--font-interface",
   display: "swap",
-  weight: "100 800",
+  weight: "100 900",
 });
 export const metadata: Metadata = {
   title: {
@@ -30,21 +31,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await currentUser();
+  const language = await getLanguage();
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={jetBrainsMono.variable}>
+    <html lang={language} suppressHydrationWarning>
+      <body className={inter.variable}>
         <ThemeProvider>
           <AppProvider
             initialUser={user}
             initialSaved={user ? await savedIds(user.id) : []}
+            initialLanguage={language}
           >
             <a className="skip-link" href="#main">
-              Skip to content
+              {translate(language, "common.skipContent")}
             </a>
-            <Navbar />
-            <VerificationNotice />
-            {children}
-            <Footer />
+            <AppShell>{children}</AppShell>
           </AppProvider>
         </ThemeProvider>
       </body>

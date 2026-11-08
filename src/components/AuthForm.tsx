@@ -20,7 +20,7 @@ export default function AuthForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
-  const { setSession } = useApp();
+  const { setSession, t } = useApp();
   const router = useRouter();
   const destination = safeNext(next);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -64,46 +64,44 @@ export default function AuthForm({
           sizes="50vw"
         />
         <div>
-          <span className="eyebrow" style={{ color: "#f5cbb5" }}>
-            YOU’VE GOT GOOD PLANS AHEAD.
+          <span className="eyebrow" style={{ color: "#ffe2c2" }}>
+            {t("auth.banner")}
           </span>
           <h2>
-            More moments.
+            {t("auth.bannerLine1")}
             <br />
-            More memories.
+            {t("auth.bannerLine2")}
             <br />
-            More you.
+            {t("auth.bannerLine3")}
           </h2>
-          <p>Your next favorite experience starts with showing up.</p>
+          <p>{t("auth.nextExperience")}</p>
         </div>
       </aside>
       <div className="auth-form-wrap">
         <div className="auth-form">
           <span className="eyebrow">
-            {register ? "LET’S GET YOU OUT THERE" : "GOOD TO SEE YOU AGAIN"}
+            {register ? t("auth.registerEyebrow") : t("auth.signInEyebrow")}
           </span>
-          <h1>{register ? "Create your account." : "Welcome back."}</h1>
-          <p>
-            {register
-              ? "Save your favorites, find your people and keep every ticket in one place."
-              : "Your next good story is waiting for you."}
-          </p>
+          <h1>{register ? t("auth.register") : t("auth.signIn")}</h1>
+          <p>{register ? t("auth.registerIntro") : t("auth.signInIntro")}</p>
           <form onSubmit={submit} className="form-stack" aria-busy={busy}>
-            {register && emailDelivery !== "resend" && (
-              <div className="notice" role="status">
-                {emailDelivery === "preview"
-                  ? "Preview mode: no email will be sent to your inbox. Verification messages are saved locally for testing."
-                  : "You can create your account now. Email delivery is being set up; verification will be needed before you can book or publish events."}
-              </div>
-            )}
+            {register &&
+              emailDelivery !== "gmail" &&
+              emailDelivery !== "resend" && (
+                <div className="notice" role="status">
+                  {emailDelivery === "preview"
+                    ? t("auth.previewNotice")
+                    : t("auth.emailSetupNotice")}
+                </div>
+              )}
             {register && (
               <div className="field">
-                <label htmlFor="name">Your name</label>
+                <label htmlFor="name">{t("auth.name")}</label>
                 <input
                   id="name"
                   name="name"
                   autoComplete="name"
-                  placeholder="Alex Taylor"
+                  placeholder={t("auth.namePlaceholder")}
                   minLength={2}
                   maxLength={80}
                   required
@@ -111,19 +109,19 @@ export default function AuthForm({
               </div>
             )}
             <div className="field">
-              <label htmlFor="email">Email address</label>
+              <label htmlFor="email">{t("auth.email")}</label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("auth.emailPlaceholder")}
                 maxLength={254}
                 required
               />
             </div>
             <div className="field">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t("auth.password")}</label>
               <div className="password-field">
                 <input
                   id="password"
@@ -134,26 +132,26 @@ export default function AuthForm({
                   maxLength={128}
                   required
                   placeholder={
-                    register ? "At least 10 characters" : "Enter your password"
+                    register
+                      ? t("auth.passwordCreatePlaceholder")
+                      : t("auth.passwordSignInPlaceholder")
                   }
                 />
                 <button
                   className="icon-button"
                   type="button"
-                  aria-label={visible ? "Hide password" : "Show password"}
+                  aria-label={
+                    visible ? t("auth.hidePassword") : t("auth.showPassword")
+                  }
                   onClick={() => setVisible(!visible)}
                 >
                   {visible ? <FiEyeOff /> : <FiEye />}
                 </button>
               </div>
-              {register && (
-                <small>
-                  Use at least 10 characters. Make it unique to Evently.
-                </small>
-              )}
+              {register && <small>{t("auth.passwordHint")}</small>}
               {!register && (
                 <Link className="forgot-link" href="/forgot-password">
-                  Forgot password?
+                  {t("auth.forgot")}
                 </Link>
               )}
             </div>
@@ -162,8 +160,10 @@ export default function AuthForm({
                 {error}
                 {register && error.includes("already exists") && (
                   <div className="auth-error-links">
-                    <Link href="/login">Sign in</Link>
-                    <Link href="/forgot-password">Reset password</Link>
+                    <Link href="/login">{t("nav.signIn")}</Link>
+                    <Link href="/forgot-password">
+                      {t("auth.resetPassword")}
+                    </Link>
                   </div>
                 )}
               </div>
@@ -173,15 +173,15 @@ export default function AuthForm({
               disabled={busy}
             >
               {busy
-                ? "One moment…"
+                ? t("auth.oneMoment")
                 : register
-                  ? "Create my account"
-                  : "Sign in"}
+                  ? t("auth.createAccountButton")
+                  : t("nav.signIn")}
               <FiArrowRight />
             </button>
           </form>
           <div className="auth-switch">
-            {register ? "Already part of the good times?" : "New here?"}{" "}
+            {register ? t("auth.haveAccount") : t("auth.noAccount")}{" "}
             <Link
               href={
                 (register ? "/login" : "/register") +
@@ -189,13 +189,11 @@ export default function AuthForm({
                 encodeURIComponent(destination)
               }
             >
-              {register ? "Sign in" : "Create an account"}
+              {register ? t("nav.signIn") : t("auth.createAccountLink")}
             </Link>
           </div>
           <p className="form-note" style={{ marginTop: 22 }}>
-            {register
-              ? "Free to join. Verify your email, then make your next plan."
-              : "Your plans, tickets and favorites, all in one place."}
+            {register ? t("auth.joinNote") : t("auth.signInNote")}
           </p>
         </div>
       </div>

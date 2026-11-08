@@ -5,20 +5,21 @@ import { FiArrowUpRight, FiCalendar } from "react-icons/fi";
 import { currentUser } from "@/lib/auth";
 import { listTickets } from "@/lib/db";
 import { eventDate } from "@/lib/format";
+import { getLanguage } from "@/lib/i18n-server";
+import { translate, type TranslationKey } from "@/lib/i18n";
 export const metadata = { title: "My tickets" };
 export default async function Tickets() {
+  const language = await getLanguage();
+  const t = (key: TranslationKey) => translate(language, key);
   const user = await currentUser();
   if (!user) redirect("/login?next=/tickets");
   const tickets = await listTickets(user.id);
   return (
     <main id="main" className="container page-main">
       <div className="page-heading">
-        <span className="eyebrow">YOU’VE GOT PLANS</span>
-        <h1>Good times, booked.</h1>
-        <p>
-          Your tickets, your memories in the making. Everything you need to show
-          up.
-        </p>
+        <span className="eyebrow">{t("tickets.eyebrow")}</span>
+        <h1>{t("tickets.title")}</h1>
+        <p>{t("tickets.intro")}</p>
       </div>
       {tickets.length ? (
         <div className="ticket-list">
@@ -34,23 +35,23 @@ export default async function Tickets() {
               </div>
               <div>
                 <span className={"status status-" + t.status}>
-                  {t.status}
-                  {t.mode === "sample" ? " · sample" : ""}
+                  {translate(language, ("tickets." + t.status) as TranslationKey)}
+                  {t.mode === "sample" ? " · " + translate(language, "tickets.sample") : ""}
                 </span>
                 <h2>
                   <Link href={"/tickets/" + t.id}>{t.event.title}</Link>
                 </h2>
                 <p>
-                  {eventDate(t.event.startsAt, t.event.timezone)} ·{" "}
-                  {t.event.city} · {t.quantity} ticket
-                  {t.quantity > 1 ? "s" : ""}
+                  {eventDate(t.event.startsAt, t.event.timezone, false, language)} ·{" "}
+                  {t.event.city} ·{" "}
+                  {t.ticketType === "vip" ? "VIP" : translate(language, "booking.standard")} · {t.quantity} {translate(language, t.quantity > 1 ? "booking.ticketMany" : "booking.ticketOne")}
                 </p>
               </div>
               <Link
                 href={"/tickets/" + t.id}
                 className="button button-outline button-small"
               >
-                {t.status === "pending" ? "Manage checkout" : "View booking"}
+                {t.status === "pending" ? translate(language, "tickets.manageCheckout") : translate(language, "tickets.viewBooking")}
                 <FiArrowUpRight />
               </Link>
             </article>
@@ -59,10 +60,10 @@ export default async function Tickets() {
       ) : (
         <div className="empty-state">
           <FiCalendar />
-          <h3>Your calendar has room for something good.</h3>
-          <p>Once you book an event, your tickets will appear here.</p>
+          <h3>{t("tickets.emptyTitle")}</h3>
+          <p>{t("tickets.emptyBody")}</p>
           <Link href="/events" className="button button-primary">
-            Find your next experience
+            {t("tickets.findNext")}
           </Link>
         </div>
       )}

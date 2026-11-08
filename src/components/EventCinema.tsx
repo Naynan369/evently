@@ -1,76 +1,101 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { FiArrowUpRight, FiArrowRight, FiPause, FiPlay } from "react-icons/fi";
 import { SearchForm } from "./SearchForm";
+import { useApp } from "./AppProvider";
 import MusicVisualizer from "./MusicVisualizer";
+import type { TranslationKey } from "@/lib/i18n";
 
 const collection = [
   {
-    label: "Club nights",
-    title: "Lose yourself in the lights.",
-    description: "Lights down, bass up. Find your way to the floor.",
+    labelKey: "home.clubNights",
+    titleKey: "home.clubNightsTitle",
+    descriptionKey: "home.clubNightsDescription",
   },
   {
-    label: "Good company",
-    title: "Find your people.",
-    description: "Shared tables, new faces and stories that stay with you.",
+    labelKey: "home.goodCompany",
+    titleKey: "home.goodCompanyTitle",
+    descriptionKey: "home.goodCompanyDescription",
   },
   {
-    label: "Open horizons",
-    title: "Make room for more.",
-    description: "Fresh air, fresh ideas. A little outside your everyday.",
+    labelKey: "home.openHorizons",
+    titleKey: "home.openHorizonsTitle",
+    descriptionKey: "home.openHorizonsDescription",
   },
-];
+] satisfies {
+  labelKey: TranslationKey;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
+}[];
 
 export default function EventCinema() {
+  const { t } = useApp();
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const slide = collection[index];
 
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncMotionPreference = () => setPlaying(!reducedMotion.matches);
+
+    syncMotionPreference();
+    reducedMotion.addEventListener("change", syncMotionPreference);
+    return () =>
+      reducedMotion.removeEventListener("change", syncMotionPreference);
+  }, []);
+
   return (
-    <section className="event-cinema" aria-label="Event collection">
-      <div className="cinema-media">
+    <section className="event-cinema" aria-label={t("home.chooseCollection")}>
+      <div className={`cinema-media cinema-media--${index}`}>
+        <div className="cinema-photo" aria-hidden="true">
+          <Image
+            src="/images/club-photo.jpg"
+            alt=""
+            fill
+            sizes="100vw"
+            preload
+          />
+        </div>
+        <div className="cinema-shade" />
         <MusicVisualizer mode={index} playing={playing} />
       </div>
-      <div className="cinema-shade" />
       <div className="container cinema-content">
         <div className="cinema-eyebrow">
-          <span className="live-dot" /> EVENTLY / LIVE EXPERIENCES
+          <span className="live-dot" /> {t("home.liveExperiences")}
         </div>
         <h1>
-          Events worth
+          {t("home.title")}
           <br />
-          <em>being there for.</em>
+          <em>{t("home.titleEmphasis")}</em>
         </h1>
-        <p className="cinema-intro">
-          Explore live music, culture, food and experiences worth making time
-          for.
-        </p>
+        <p className="cinema-intro">{t("home.intro")}</p>
         <div className="cinema-ctas">
           <Link className="button button-primary" href="/events">
-            Explore events <FiArrowUpRight />
+            {t("home.exploreEvents")} <FiArrowUpRight />
           </Link>
-          <Link className="cinema-music-link" href="/for-you">
-            See recommendations <FiArrowRight />
+          <Link className="cinema-music-link" href="#home-categories">
+            {t("nav.discovery.categories")} <FiArrowRight />
           </Link>
         </div>
         <div className="cinema-bottom">
           <div className="collection-label" aria-live="polite">
-            <span>THE EVENTLY COLLECTION / 0{index + 1}</span>
-            <h2>{slide.title}</h2>
-            <p>{slide.description}</p>
+            <span>
+              {t("home.collection")} / 0{index + 1}
+            </span>
+            <h2>{t(slide.titleKey)}</h2>
+            <p>{t(slide.descriptionKey)}</p>
           </div>
           <div className="cinema-controls">
-            <span className="visualizer-status">
-              <span className="visualizer-status-dot" />
-              Generative music visualizer
+            <span className="cinema-motion-caption">
+              {t("home.animationCaption")}
             </span>
             <button
               className="cinema-play"
               aria-label={
-                playing ? "Pause background animation" : "Play background animation"
+                playing ? t("home.pauseAnimation") : t("home.playAnimation")
               }
               aria-pressed={playing}
               onClick={() => setPlaying((value) => !value)}
@@ -82,16 +107,16 @@ export default function EventCinema() {
         <div
           className="collection-tabs"
           role="group"
-          aria-label="Choose an event collection"
+          aria-label={t("home.chooseCollection")}
         >
           {collection.map((item, i) => (
             <button
-              key={item.label}
+              key={item.labelKey}
               onClick={() => setIndex(i)}
               aria-pressed={i === index}
             >
               <span>0{i + 1}</span>
-              {item.label}
+              {t(item.labelKey)}
               <span className="collection-progress" />
             </button>
           ))}
@@ -100,10 +125,9 @@ export default function EventCinema() {
       <div className="container cinema-search">
         <SearchForm />
         <div className="popular-searches">
-          <span>Popular searches</span>
-          <Link href="/events?category=music">Live music</Link>
-          <Link href="/events?price=free">Free things to do</Link>
-          <Link href="/for-you">Picked for you ↗</Link>
+          <span>{t("home.popularSearches")}</span>
+          <Link href="/events?category=music">{t("common.liveMusic")}</Link>
+          <Link href="/events?price=free">{t("common.freeThings")}</Link>
         </div>
       </div>
     </section>

@@ -8,6 +8,7 @@
     "start": "next start",
     "db:migrate": "tsx scripts/migrate-database.ts",
     "db:import:sqlite": "tsx scripts/import-sqlite-to-postgres.ts",
+    "demo:feedback": "tsx scripts/export-demo-feedback.ts",
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
     "test:e2e": "playwright test"
@@ -16,6 +17,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "next": "16.2.12",
     "next-themes": "^0.4.6",
+    "nodemailer": "^6.10.1",
     "pg": "^8.23.1",
     "postcss": "^8.5.24",
     "qrcode": "^1.5.4",
@@ -30,6 +32,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.4",
+    "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",

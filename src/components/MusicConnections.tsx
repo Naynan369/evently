@@ -43,7 +43,7 @@ export default function MusicConnections({
   initial: MusicStatus;
   connectionResult?: string;
 }) {
-  const { user, toast } = useApp(),
+  const { user, toast, t, language } = useApp(),
     router = useRouter();
   const [status, setStatus] = useState(initial),
     [busy, setBusy] = useState(""),
@@ -89,7 +89,7 @@ export default function MusicConnections({
         });
         const url = new URL(data.url);
         if (url.origin !== "https://accounts.spotify.com")
-          throw new Error("Unexpected authorization destination.");
+          throw new Error(t("musicConnect.unexpectedDestination"));
         window.location.assign(data.url);
       } else if (!appleToken) {
         const data = await api<{ developerToken: string }>(
@@ -98,10 +98,7 @@ export default function MusicConnections({
         );
         setAppleToken(data.developerToken);
       } else {
-        if (!kit.current)
-          throw new Error(
-            "Apple Music is still loading. Try again in a moment.",
-          );
+        if (!kit.current) throw new Error(t("musicConnect.appleLoading"));
         const token = await kit.current.authorize();
         update(
           await api<MusicStatus>("music/apple/connect", {
@@ -110,14 +107,13 @@ export default function MusicConnections({
           }),
         );
         setConsent(null);
-        toast("Apple Music connected. Choose the playlists you want to use.");
+        toast(t("musicConnect.appleConnected"));
       }
     });
   }
   async function prepareApple() {
     try {
-      if (!window.MusicKit)
-        throw new Error("Apple Music couldn’t load. Please try again.");
+      if (!window.MusicKit) throw new Error(t("musicConnect.appleLoadError"));
       kit.current = await window.MusicKit.configure({
         developerToken: appleToken,
         app: { name: "Evently", build: "1.0" },
@@ -158,7 +154,7 @@ export default function MusicConnections({
         }),
       );
       setChoosing(null);
-      toast("Your music matches are ready.");
+      toast(t("musicConnect.matchesReady"));
     });
   }
   async function manualSave(event: FormEvent<HTMLFormElement>) {
@@ -171,7 +167,7 @@ export default function MusicConnections({
           body: { artists: data.get("artists"), genres },
         }),
       );
-      toast("Your music preferences are saved.");
+      toast(t("musicConnect.preferencesSaved"));
     });
   }
   const canConnect = Boolean(user?.emailVerified);
@@ -188,19 +184,21 @@ export default function MusicConnections({
     <div className="music-workspace">
       {connectionResult === "spotify" && (
         <div className="success-box" role="status">
-          {spotifyConnectionTest
-            ? "Spotify connected. View your playlists below to check access. Event recommendations are not enabled for this connection."
-            : "Spotify connected. Choose the playlists you’d like to use below."}
+          {t(
+            spotifyConnectionTest
+              ? "musicConnect.spotifyTestResult"
+              : "musicConnect.spotifyConnectedResult",
+          )}
         </div>
       )}
       {connectionResult === "cancelled" && (
         <div className="notice" role="status">
-          You cancelled the connection. Your choices are always yours.
+          {t("musicConnect.cancelled")}
         </div>
       )}
       {connectionResult === "failed" && (
         <div className="error-box" role="alert">
-          We couldn’t complete that music connection. Please try again.
+          {t("musicConnect.failed")}
         </div>
       )}
       {error && (
@@ -211,9 +209,11 @@ export default function MusicConnections({
       {!canConnect && (
         <div className="notice">
           <Link href={user ? "/verify-email" : "/register?next=/music"}>
-            {user ? "Verify your email" : "Create an account"}
+            {user
+              ? t("musicConnect.verifyEmail")
+              : t("musicConnect.createAccount")}
           </Link>{" "}
-          to save your music taste and connect playlists.
+          {t("musicConnect.connectPrompt")}
         </div>
       )}
       <div className="provider-grid">
@@ -236,51 +236,58 @@ export default function MusicConnections({
                   }
                 >
                   {p.connected
-                    ? "Connected"
+                    ? t("musicConnect.connected")
                     : p.available
                       ? p.status === "connection-test"
-                        ? "Connection test"
-                        : "Ready to connect"
-                      : "Unavailable"}
+                        ? t("musicConnect.test")
+                        : t("musicConnect.ready")
+                      : t("musicConnect.unavailable")}
                 </span>
               </div>
               <h2>{musicProviderName(p.provider)}</h2>
               <p>
-                {p.status === "connection-test"
-                  ? "Connect Spotify to check access to playlists you own or collaborate on."
-                  : p.provider === "spotify"
-                    ? "Bring the artists from playlists you own or collaborate on into your next night out."
-                    : "Find live experiences inspired by the artists and genres in your Apple Music playlists."}
+                {t(
+                  p.status === "connection-test"
+                    ? "musicConnect.testDescription"
+                    : p.provider === "spotify"
+                      ? "musicConnect.spotifyDescription"
+                      : "musicConnect.appleDescription",
+                )}
               </p>
               {p.available ? (
                 <p className="provider-detail">
-                  {p.status === "connection-test"
-                    ? "Read-only connection test. Spotify event recommendations are not enabled. Disconnect whenever you like."
-                    : "You choose the playlists. Read-only access. Disconnect whenever you like."}
+                  {t(
+                    p.status === "connection-test"
+                      ? "musicConnect.testDetail"
+                      : "musicConnect.readOnly",
+                  )}
                 </p>
               ) : (
-                <p className="provider-detail">
-                  This connection is being prepared. Artist and genre selections
-                  below are available now.
-                </p>
+                <p className="provider-detail">{t("musicConnect.preparing")}</p>
               )}
               {profile && (
                 <div className="music-summary">
-                  <strong>{profile.trackCount} songs considered</strong>
+                  <strong>
+                    {t("musicConnect.songsConsidered", {
+                      count: profile.trackCount.toLocaleString(
+                        language === "it" ? "it-IT" : "en-GB",
+                      ),
+                    })}
+                  </strong>
                   <span>
-                    {profile.playlists.length} playlists · Updated{" "}
-                    {new Date(profile.updatedAt).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                      timeZone: "UTC",
+                    {profile.playlists.length} {t("musicConnect.playlists")} ·{" "}
+                    {t("musicConnect.updated", {
+                      date: new Date(profile.updatedAt).toLocaleDateString(
+                        language === "it" ? "it-IT" : "en-GB",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          timeZone: "UTC",
+                        },
+                      ),
                     })}
                   </span>
-                  {profile.partial && (
-                    <span>
-                      First 500 readable songs. Some playlist content could not
-                      be included.
-                    </span>
-                  )}
+                  {profile.partial && <span>{t("musicConnect.partial")}</span>}
                 </div>
               )}
               <div className="provider-actions">
@@ -293,8 +300,8 @@ export default function MusicConnections({
                     >
                       <FiRefreshCw />{" "}
                       {p.recommendationsAvailable
-                        ? "Choose playlists"
-                        : "View playlists"}
+                        ? t("musicConnect.choosePlaylists")
+                        : t("musicConnect.viewPlaylists")}
                     </button>
                     <button
                       className="text-link"
@@ -309,13 +316,11 @@ export default function MusicConnections({
                           );
                           if (p.provider === "apple" && kit.current)
                             await kit.current.unauthorize().catch(() => {});
-                          toast(
-                            "Connection and imported music preferences removed.",
-                          );
+                          toast(t("musicConnect.disconnectedToast"));
                         })
                       }
                     >
-                      Disconnect & remove data
+                      {t("musicConnect.disconnect")}
                     </button>
                   </>
                 ) : (
@@ -328,13 +333,20 @@ export default function MusicConnections({
                       setError("");
                     }}
                   >
-                    Connect {musicProviderName(p.provider)} <FiArrowUpRight />
+                    {t("musicConnect.connectProvider", {
+                      provider: musicProviderName(p.provider),
+                    })}{" "}
+                    <FiArrowUpRight />
                   </button>
                 )}
               </div>
               {profile && (
                 <div className="playlist-sources">
-                  <span>From {musicProviderName(p.provider)}</span>
+                  <span>
+                    {t("musicConnect.from", {
+                      provider: musicProviderName(p.provider),
+                    })}
+                  </span>
                   {profile.playlists.map((p) => (
                     <a key={p.id} href={p.url} target="_blank" rel="noreferrer">
                       {p.name} ↗
@@ -353,17 +365,23 @@ export default function MusicConnections({
         >
           <button
             className="icon-button close-consent"
-            aria-label="Close music connection"
+            aria-label={t("musicConnect.closeConnection")}
             onClick={() => setConsent(null)}
           >
             <FiX />
           </button>
-          <span className="eyebrow">YOUR MUSIC. YOUR CHOICE.</span>
-          <h2 id="consent-heading">Connect {musicProviderName(consent)}</h2>
+          <span className="eyebrow">{t("musicConnect.choiceEyebrow")}</span>
+          <h2 id="consent-heading">
+            {t("musicConnect.connectProvider", {
+              provider: musicProviderName(consent),
+            })}
+          </h2>
           <p>
-            {consentConnectionTest
-              ? "Evently will read your Spotify account identifier and playlist names, links and track counts to test access. Connection credentials are encrypted. Playlist details are displayed here without saving them. Songs are not imported or used for event recommendations. You can disconnect and remove the connection at any time."
-              : "Evently will read the playlists you select to match their artists and available genres with event lineups. Connection credentials are encrypted. Imported preferences are kept for up to 30 days. We never change playlists or play your music."}
+            {t(
+              consentConnectionTest
+                ? "musicConnect.testConsent"
+                : "musicConnect.recommendationConsent",
+            )}
           </p>
           <label className="consent-check">
             <input
@@ -372,11 +390,11 @@ export default function MusicConnections({
               onChange={(e) => setAccepted(e.target.checked)}
             />{" "}
             {consentConnectionTest
-              ? "I agree to connect Spotify and view my playlists for this connection test."
-              : "I agree to use my selected playlists for event recommendations."}
+              ? t("musicConnect.agreeTest")
+              : t("musicConnect.agreeRecommendations")}
           </label>
           <Link className="text-link" href="/music/privacy">
-            How your music data is used
+            {t("musicConnect.privacyLink")}
           </Link>
           <button
             className="button button-primary"
@@ -388,12 +406,12 @@ export default function MusicConnections({
             onClick={connect}
           >
             {busy
-              ? "Connecting…"
+              ? t("musicConnect.connecting")
               : consent === "apple" && appleToken
                 ? appleReady
-                  ? "Continue to Apple Music"
-                  : "Preparing Apple Music…"
-                : "Continue"}{" "}
+                  ? t("musicConnect.continueApple")
+                  : t("musicConnect.preparingApple")
+                : t("musicConnect.continue")}{" "}
             <FiArrowUpRight />
           </button>
         </section>
@@ -408,9 +426,7 @@ export default function MusicConnections({
           onError={() => {
             setAppleToken("");
             setAppleReady(false);
-            setError(
-              "Apple Music couldn’t load. Please check your connection and try again.",
-            );
+            setError(t("musicConnect.appleLoadError"));
           }}
         />
       )}
@@ -424,18 +440,18 @@ export default function MusicConnections({
               <span className="eyebrow">{musicProviderName(choosing)}</span>
               <h2 id="playlist-heading">
                 {choosingRecommendations
-                  ? "Which playlists feel like you?"
-                  : "Your Spotify playlists"}
+                  ? t("musicConnect.playlistQuestion")
+                  : t("musicConnect.spotifyPlaylists")}
               </h2>
               <p>
                 {choosingRecommendations
-                  ? "Select up to five. We consider up to 500 songs per update."
-                  : "Playlist access is working. These playlists are not imported or used for event recommendations."}
+                  ? t("musicConnect.selectPlaylists")
+                  : t("musicConnect.testPlaylists")}
               </p>
             </div>
             <button
               className="icon-button"
-              aria-label="Close playlist selection"
+              aria-label={t("musicConnect.closePlaylists")}
               onClick={() => setChoosing(null)}
             >
               <FiX />
@@ -465,16 +481,19 @@ export default function MusicConnections({
                   <span>
                     <strong>{p.name}</strong>
                     <small>
-                      {p.count === null ? "Your library" : p.count + " tracks"}
+                      {p.count === null
+                        ? t("musicConnect.library")
+                        : t("musicConnect.tracks", { count: p.count })}
                     </small>
                   </span>
                   <a
                     href={p.url}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label={
-                      "Open " + p.name + " in " + musicProviderName(choosing)
-                    }
+                    aria-label={t("musicConnect.openPlaylist", {
+                      name: p.name,
+                      provider: musicProviderName(choosing),
+                    })}
                   >
                     ↗
                   </a>
@@ -483,10 +502,10 @@ export default function MusicConnections({
             </div>
           ) : (
             <div className="notice">
-              No readable playlists on this page.{" "}
+              {t("musicConnect.noPlaylists")}{" "}
               {choosing === "spotify"
-                ? "Choose a playlist you own or collaborate on."
-                : "Add a playlist to your Apple Music library first."}
+                ? t("musicConnect.spotifyPlaylistHelp")
+                : t("musicConnect.applePlaylistHelp")}
             </div>
           )}
           {next !== null && (
@@ -495,7 +514,7 @@ export default function MusicConnections({
               disabled={Boolean(busy)}
               onClick={() => load(choosing, next)}
             >
-              Load more playlists
+              {t("musicConnect.loadMore")}
             </button>
           )}
           {choosingRecommendations && (
@@ -504,7 +523,9 @@ export default function MusicConnections({
               disabled={!selected.length || Boolean(busy)}
               onClick={sync}
             >
-              {busy === "sync" ? "Finding your sound…" : "Use these playlists"}{" "}
+              {busy === "sync"
+                ? t("musicConnect.findingSound")
+                : t("musicConnect.usePlaylists")}{" "}
               <FiCheck />
             </button>
           )}
@@ -513,32 +534,29 @@ export default function MusicConnections({
       <section className="panel manual-music">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">CURATE YOUR OWN SOUND</span>
-            <h2>No playlist? Still your kind of night.</h2>
-            <p>
-              Choose artists and genres directly. Your music account is
-              optional.
-            </p>
+            <span className="eyebrow">{t("musicConnect.manualEyebrow")}</span>
+            <h2>{t("musicConnect.manualTitle")}</h2>
+            <p>{t("musicConnect.manualIntro")}</p>
           </div>
           <FiHeadphones size={34} />
         </div>
         <form onSubmit={manualSave} className="form-stack">
           <div className="field">
-            <label htmlFor="favorite-artists">Artists you’d love to see</label>
+            <label htmlFor="favorite-artists">
+              {t("musicConnect.artists")}
+            </label>
             <input
               id="favorite-artists"
               name="artists"
               maxLength={2000}
               value={artists}
               onChange={(event) => setArtists(event.target.value)}
-              placeholder="Artist names, separated by commas"
+              placeholder={t("musicConnect.artistsPlaceholder")}
             />
-            <small>
-              We match these names with performers listed by event organizers.
-            </small>
+            <small>{t("musicConnect.artistHelp")}</small>
           </div>
           <fieldset className="genre-fieldset">
-            <legend>Your genres</legend>
+            <legend>{t("musicConnect.genres")}</legend>
             <div className="chip-row">
               {musicGenres.map((g) => (
                 <button
@@ -565,11 +583,13 @@ export default function MusicConnections({
               disabled={!canConnect || Boolean(busy)}
               className="button button-primary"
             >
-              {busy === "manual" ? "Saving…" : "Save my music taste"}{" "}
+              {busy === "manual"
+                ? t("musicConnect.saving")
+                : t("musicConnect.saveTaste")}{" "}
               <FiCheck />
             </button>
             <Link className="button button-outline" href="/for-you">
-              See my recommendations <FiArrowUpRight />
+              {t("musicConnect.myRecommendations")} <FiArrowUpRight />
             </Link>
           </div>
         </form>
@@ -587,19 +607,17 @@ export default function MusicConnections({
                 );
                 setGenres([]);
                 setArtists("");
-                toast("Saved music preferences removed.");
+                toast(t("musicConnect.preferencesRemoved"));
               })
             }
           >
-            Clear saved music preferences
+            {t("musicConnect.clearPreferences")}
           </button>
         )}
       </section>
       <p className="music-privacy-note">
-        <FiShield /> Your playlists stay yours.{" "}
-        <Link href="/music/privacy">
-          Read about music privacy and matching.
-        </Link>
+        <FiShield /> {t("musicConnect.privacyNote")}{" "}
+        <Link href="/music/privacy">{t("musicConnect.privacyRead")}</Link>
       </p>
     </div>
   );

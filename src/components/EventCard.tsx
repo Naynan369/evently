@@ -1,43 +1,109 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
+import { FiMapPin, FiArrowUpRight, FiClock } from "react-icons/fi";
 import {
-  FiMapPin,
-  FiArrowUpRight,
-  FiClock,
-} from "react-icons/fi";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import ThreeCardMotion from "./ThreeCardMotion";
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import EventCardUnfurl from "./EventCardUnfurl";
+import EventCardScene from "./EventCardScene";
 import { categoryName } from "@/lib/catalog";
 import { eventDate, eventTime, money } from "@/lib/format";
 import type { Event } from "@/lib/types";
+import { useApp } from "./AppProvider";
+
 export default function EventCard({
   event,
   reason,
   variant = "standard",
   sequence = 0,
-  assemblyStaggerMs = 740,
-  showThreeMotion = false,
+  motionStaggerMs = 90,
+  showUnfurl = false,
+  editorialMotion = false,
+  scene3D = false,
 }: {
   event: Event;
   reason?: string;
   variant?: "standard" | "featured" | "compact";
   sequence?: number;
-  assemblyStaggerMs?: number;
-  showThreeMotion?: boolean;
+  motionStaggerMs?: number;
+  showUnfurl?: boolean;
+  editorialMotion?: boolean;
+  scene3D?: boolean;
 }) {
+  const { language, t } = useApp();
   const [hasEntered, setHasEntered] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
+  const pointerFrame = useRef<number | null>(null);
+  const pointerPosition = useRef({ x: 0, y: 0 });
   const coverSrc = event.coverImage || "/images/" + event.image + ".jpg";
   const isSoldOut = event.available <= 0;
   const isLimited = !isSoldOut && event.available <= event.capacity * 0.08;
   const availability = isSoldOut
-    ? "Sold out"
+    ? t("events.soldOut")
     : isLimited
-      ? "Limited tickets"
-      : "Tickets available";
-  const assemblyDelay = sequence * assemblyStaggerMs;
-  const shouldShowThreeMotion = variant !== "standard" || showThreeMotion;
+      ? t("eventCard.limited")
+      : t("eventCard.available");
+  const motionDelay = Math.min(sequence, 5) * motionStaggerMs;
+  const shouldShowUnfurl = !editorialMotion && (variant !== "standard" || showUnfurl);
+
+  function applyPointerMotion() {
+    pointerFrame.current = null;
+    const card = cardRef.current;
+    if (!card) return;
+    const { x, y } = pointerPosition.current;
+    card.style.setProperty("--card-rotate-x", `${(-y * 1.1).toFixed(2)}deg`);
+    card.style.setProperty("--card-rotate-y", `${(x * 1.1).toFixed(2)}deg`);
+    card.style.setProperty("--card-image-x", `${(x * 4).toFixed(1)}px`);
+    card.style.setProperty("--card-image-y", `${(y * 3).toFixed(1)}px`);
+    card.style.setProperty("--card-spot-x", `${(x + 1) * 50}%`);
+    card.style.setProperty("--card-spot-y", `${(y + 1) * 50}%`);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
+    if (
+      editorialMotion ||
+      event.pointerType !== "mouse" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    pointerPosition.current = {
+      x: Math.max(
+        -1,
+        Math.min(1, ((event.clientX - bounds.left) / bounds.width) * 2 - 1),
+      ),
+      y: Math.max(
+        -1,
+        Math.min(1, ((event.clientY - bounds.top) / bounds.height) * 2 - 1),
+      ),
+    };
+    if (pointerFrame.current === null) {
+      pointerFrame.current = window.requestAnimationFrame(applyPointerMotion);
+    }
+  }
+
+  function clearPointerMotion() {
+    if (pointerFrame.current !== null) {
+      window.cancelAnimationFrame(pointerFrame.current);
+      pointerFrame.current = null;
+    }
+    const card = cardRef.current;
+    if (!card) return;
+    for (const property of [
+      "--card-rotate-x",
+      "--card-rotate-y",
+      "--card-image-x",
+      "--card-image-y",
+      "--card-spot-x",
+      "--card-spot-y",
+    ])
+      card.style.removeProperty(property);
+  }
 
   useEffect(() => {
     const card = cardRef.current;
@@ -56,17 +122,31 @@ export default function EventCard({
       { rootMargin: "0px 0px -5% 0px", threshold: 0.18 },
     );
     observer.observe(card);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (pointerFrame.current !== null)
+        window.cancelAnimationFrame(pointerFrame.current);
+    };
   }, []);
 
   return (
     <article
       ref={cardRef}
       onFocusCapture={() => setHasEntered(true)}
-      style={{ "--assembly-delay": `${assemblyDelay}ms` } as CSSProperties}
+      onPointerMove={editorialMotion ? undefined : handlePointerMove}
+      onPointerLeave={clearPointerMotion}
+      onPointerCancel={clearPointerMotion}
+      style={
+        {
+          "--motion-delay": `${motionDelay}ms`,
+        } as CSSProperties
+      }
       className={
-        "event-card event-card--" + variant +
-        (showThreeMotion ? " event-card--explore-motion" : "") +
+        "event-card event-card--" +
+        variant +
+        (showUnfurl ? " event-card--unfurl" : "") +
+        (editorialMotion ? " event-card--editorial" : "") +
+        (scene3D ? " event-card--scene" : "") +
         (hasEntered ? " event-card--revealed" : "")
       }
     >
@@ -74,6 +154,7 @@ export default function EventCard({
         <Link href={"/events/" + event.slug} tabIndex={-1} aria-hidden="true">
           <Image
             src={coverSrc}
+            className="event-card-cover"
             alt=""
             fill
             sizes={
@@ -83,19 +164,20 @@ export default function EventCard({
             }
           />
         </Link>
-        {shouldShowThreeMotion && hasEntered && (
-          <ThreeCardMotion delay={assemblyDelay + 180} />
+        {scene3D && <EventCardScene src={coverSrc} />}
+        {shouldShowUnfurl && hasEntered && (
+          <EventCardUnfurl delay={motionDelay + 120} />
         )}
-        {variant !== "standard" && (
+        {variant !== "standard" && !(editorialMotion && variant === "compact") && (
           <div className="featured-image-caption">
-            <span>{categoryName(event.category)}</span>
+            <span>{categoryName(event.category, language)}</span>
             <h3>
               <Link href={"/events/" + event.slug}>{event.title}</Link>
             </h3>
           </div>
         )}
         <time className="date-badge" dateTime={event.startsAt}>
-          {eventDate(event.startsAt, event.timezone, true)}
+          {eventDate(event.startsAt, event.timezone, true, language)}
         </time>
         <span
           className={
@@ -105,17 +187,19 @@ export default function EventCard({
           }
         >
           <span className="ticket-status-dot" aria-hidden="true" />
-          {variant === "compact" && availability === "Tickets available"
-            ? "Available"
+          {variant === "compact" && !isSoldOut && !isLimited
+            ? t("eventCard.availableShort")
             : availability}
         </span>
-        {event.sample && <span className="sample-label">Sample event</span>}
+        {event.sample && (
+          <span className="sample-label">{t("eventCard.sample")}</span>
+        )}
       </div>
       <div className="event-body">
-        {variant === "standard" && (
+        {(variant === "standard" || (editorialMotion && variant === "compact")) && (
           <>
             <div className="card-category">
-              {categoryName(event.category)}
+              {categoryName(event.category, language)}
               {reason && (
                 <span className="recommendation-reason">✦ {reason}</span>
               )}
@@ -128,11 +212,15 @@ export default function EventCard({
         <div className="event-card-meta">
           <p className="event-location">
             <FiMapPin aria-hidden="true" />
-            <span>{event.venue} · {event.city}</span>
+            <span>
+              {event.venue} · {event.city}
+            </span>
           </p>
           <p className="event-time">
             <FiClock aria-hidden="true" />
-            <span>{eventTime(event.startsAt, event.timezone)}</span>
+            <span>
+              {eventTime(event.startsAt, event.timezone, false, language)}
+            </span>
           </p>
         </div>
         {variant !== "standard" && (
@@ -140,15 +228,15 @@ export default function EventCard({
         )}
         <div className="card-bottom">
           <span>
-            {event.price > 0 && <small>From </small>}
-            <strong>{money(event.price, event.currency)}</strong>
+            {event.price > 0 && <small>{t("eventCard.from")} </small>}
+            <strong>{money(event.price, event.currency, language)}</strong>
           </span>
           <Link
             href={"/events/" + event.slug}
             className="card-arrow"
-            aria-label={"View " + event.title}
+            aria-label={t("eventCard.view") + " " + event.title}
           >
-            <span>View event</span>
+            <span>{t("eventCard.view")}</span>
             <FiArrowUpRight />
           </Link>
         </div>

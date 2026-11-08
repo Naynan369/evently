@@ -60,19 +60,10 @@ export default function ExploreVisualizer() {
     let previousFrame = 0;
     let animationFrame = 0;
     let visible = false;
-    let scrollProgress = 0;
 
     const paint = () => {
-      visual.update(time, aspect, scrollProgress);
+      visual.update(time, aspect);
       renderer.render(scene, camera);
-    };
-
-    const updateScrollProgress = () => {
-      scrollProgress = Math.min(
-        window.scrollY / Math.max(window.innerHeight, 1),
-        6,
-      );
-      if (reducedMotion.matches) paint();
     };
 
     const draw = (now: number) => {
@@ -142,10 +133,8 @@ export default function ExploreVisualizer() {
     const onVisibilityChange = () => (document.hidden ? stop() : start());
     reducedMotion.addEventListener("change", onMotionChange);
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("scroll", updateScrollProgress, { passive: true });
 
     resize();
-    updateScrollProgress();
     start();
 
     return () => {
@@ -155,7 +144,6 @@ export default function ExploreVisualizer() {
       if (!resizeObserver) window.removeEventListener("resize", resize);
       reducedMotion.removeEventListener("change", onMotionChange);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("scroll", updateScrollProgress);
       visual.dispose();
       renderer.dispose();
     };

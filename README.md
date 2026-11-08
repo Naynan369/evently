@@ -8,7 +8,7 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Featured events arranged as one lead card and a shortlist; discovery supports grid and list layouts.
 - Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Inter typography.
 - City/text search, category/date/price filters and saved events.
-- Accounts with salted password hashes, required email verification through Resend, verification resend, forgot-password and one-use password reset links.
+- Accounts with salted password hashes, six-digit email verification through Gmail SMTP, verification resend, forgot-password and one-use password reset links.
 - Revocable server-backed sessions; password recovery signs out every existing session.
 - Recommendations based on selected interests, saved categories, artist lineups and music genres, with booked and unavailable events excluded.
 - Optional Apple Music and gated Spotify connections: consent, playlist selection, bounded import, explicit match reasons and disconnect/delete controls. Manual artist and genre preferences work without provider credentials.
@@ -17,6 +17,17 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Stripe Connect onboarding, hosted Checkout, verified payment fulfillment, checkout resumption/cancellation, attendee refund requests and organizer full refunds.
 
 The included listings are fictional examples. Sample bookings never charge money and do not grant admission to real events. The application does not come with Stripe credentials or a connected merchant account.
+
+## Private organizer demo
+
+Set `EVENTLY_ORGANIZER_DEMO=true` in `.env.local` and restart the app. This is enabled in the current local workspace. In this mode:
+
+- New organizer events are saved as private drafts. Only their owner can open the event preview; drafts do not appear in search, discovery, or recommendations.
+- Ticket prices are planning information. Stripe setup is hidden in Organizer studio and payment actions are disabled, even if a Stripe key is configured.
+- Organizers can create up to ten clearly marked practice guests for each private event, open their sample tickets, and test code-based check-in and guest export. Practice tickets do not grant real admission.
+- Organizers can submit feedback in Organizer studio. Read the saved responses locally with `npm run demo:feedback` (includes organizer names and email addresses; keep the output private).
+
+Use verified test accounts for organizers. The demo needs PostgreSQL, but no Stripe account. Existing organizer events are private while demo mode is enabled; newly created drafts remain private when demo mode is turned off. Public sample listings still appear for exploration. This is suitable for guided local sessions before setting up an invite-only preview address.
 
 ## Run locally
 
@@ -29,7 +40,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Create an empty PostgreSQL database first, then set `DATABASE_URL` in `.env.local` to its connection string. Evently initializes the schema on first use; `npm run db:migrate` can also prepare it explicitly. Open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Configure Resend below to send verification messages, or use local preview email delivery. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords.
+Create an empty PostgreSQL database first, then set `DATABASE_URL` in `.env.local` to its connection string. Evently initializes the schema on first use; `npm run db:migrate` can also prepare it explicitly. Set `MYEMAIL` and `MYPASS` to the Gmail sender and Google app password used by Habesha Brokers, then open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords.
 
 To bring over an existing SQLite installation, keep its database file as a backup and run `npm run db:import:sqlite -- data/evently.sqlite` after setting `DATABASE_URL`. The importer copies users, events, bookings, sessions, saved events, tokens and music connections into PostgreSQL without overwriting rows already there. It does not delete or alter the SQLite source file.
 
@@ -50,20 +61,16 @@ A Webpack build is also supported: `npm run build -- --webpack`.
 
 Set `APP_URL` to the exact application origin, including its port. In development, page visits to the matching `localhost`/`127.0.0.1` alias automatically redirect to `APP_URL`, so sessions, form submissions and provider callbacks use one address. API origin checks remain strict. If you use a different port, update `APP_URL` and any registered provider callback URLs to match. Restart the server after changing environment variables.
 
-## Verification and password recovery with Resend
+## Verification and password recovery with Gmail SMTP
 
-1. Verify your sending domain in [Resend](https://resend.com/docs/dashboard/domains/introduction), including its required DNS records.
-2. Create a sending API key and set `RESEND_API_KEY` and `EMAIL_FROM` (for example, `Evently <hello@your-domain.com>`). Keep the key only in `.env.local` or your host's secret manager.
-3. Set `EMAIL_DELIVERY=resend` and `APP_URL` to the correct HTTPS public origin. Restart the application.
-4. Register using an inbox you control, follow the message and press **Verify my email**. Test resend and **Forgot password?** from the sign-in page before launch.
+1. Use the same Gmail sender and Google app password configured in Habesha Brokers. Store them as `MYEMAIL` and `MYPASS` in `.env.local` or your host's secret manager.
+2. Set `EMAIL_DELIVERY=gmail` and `APP_URL` to the correct application origin. Restart the application after changing environment variables.
+3. Register using an inbox you control and enter the six-digit code from the message. Codes expire after 15 minutes, are one-use, and are stored as salted password hashes in PostgreSQL. Resending replaces the previous code and is rate-limited.
+4. Test **Forgot password?** from the sign-in page. Password resets continue to use one-use email links.
 
-For an initial test before verifying a domain, set `EMAIL_FROM="Evently <onboarding@resend.dev>"`. Resend only permits this sender to email the address used for your Resend account. Register with that same address to test verification; sending to other registered addresses requires a verified sending domain. For local testing, use `APP_URL=http://127.0.0.1:3000` and open the emailed link on the computer running the app. [Resend test sender restrictions](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
+Gmail SMTP delivery failures leave the account unverified and offer a resend action. Password recovery returns the same generic response for existing and unknown emails. The mailer sends plain text and HTML. Gmail credentials remain server-side. If only legacy Resend settings are present, Evently can still deliver its previous verification links and password-reset messages.
 
-Verification links expire after 24 hours. Reset links expire after 30 minutes. Only hashes of one-use tokens are stored in PostgreSQL; a new request replaces the previous token. Opening a link does not consume it; explicit confirmation prevents email scanners from accidentally activating it. Resetting a password also confirms mailbox ownership and revokes all sessions and pending account tokens. Unverified sessions can access verification and account pages but cannot perform booking, organizer or music actions.
-
-Resend delivery failures leave the account unverified and offer resend. Password recovery returns the same generic response for existing and unknown emails. Resend messages include plain text and HTML. No real email is sent without your credentials.
-
-For a local preview without Resend, set `EMAIL_DELIVERY=preview`. Emails are written to private `data/mail-preview/*.json` files; open the message's `url` locally to verify/reset. They are never served by a public API. Production-build previews additionally require `EVENTLY_TEST_MODE=true` and a loopback `APP_URL`. Never enable this mode or copy its outbox into a live deployment.
+For a local preview without sending email, set `EMAIL_DELIVERY=preview`. Messages are written to private `data/mail-preview/*.json` files and are never served by a public API. Preview mode keeps the existing link-based verification path; open the message's `url` locally to verify or reset. Production-build previews additionally require `EVENTLY_TEST_MODE=true` and a loopback `APP_URL`. Never enable this mode or copy its outbox into a live deployment.
 
 ## Music-based event recommendations
 
@@ -101,29 +108,29 @@ Provider cards distinguish **Unavailable**, **Connection test**, **Ready to conn
 Start in a Stripe test environment. Use a Stripe account with Connect enabled and complete the platform's required configuration in Stripe.
 
 1. Put the platform's secret key in `STRIPE_SECRET_KEY` in `.env.local` or your host's secret manager. Never put secret keys into a `NEXT_PUBLIC_` variable.
-2. Create a webhook destination for **connected account events** at `https://YOUR_DOMAIN/api/stripe/webhook`. Subscribe to:
+2. Set `APP_URL` to your application's origin. This and the Stripe secret key are enough to enable Checkout and reconcile card payments when the attendee returns to Evently.
+3. A webhook is optional. For background confirmation when an attendee closes Checkout before returning, create a webhook destination for **connected account events** at `https://YOUR_DOMAIN/api/stripe/webhook`. Subscribe to:
    - `checkout.session.completed`
    - `checkout.session.async_payment_succeeded`
    - `checkout.session.expired`
    - `checkout.session.async_payment_failed`
    - `charge.refunded`
-3. Set `STRIPE_WEBHOOK_SECRET` to that destination's signing secret, and `APP_URL` to your application's origin.
-4. For local development, the Stripe CLI can forward Connect events:
+   Then set `STRIPE_WEBHOOK_SECRET` to that destination's signing secret. For local development, the Stripe CLI can forward Connect events:
    `stripe listen --forward-connect-to localhost:3000/api/stripe/webhook`.
-   Use the signing secret printed by that listener.
-5. Restart Evently. Sign in, open **Organizer studio**, select your country and connect a Stripe account. Complete onboarding until both charges and payouts are enabled.
-6. Publish a paid event. Use a separate attendee account to complete a test checkout. Verify confirmation, ticket visibility, cancellation/expiry and a full refund before enabling live mode.
-7. For live operation, configure a live Connect platform, live connected organizer accounts, a live webhook and HTTPS. Test and live objects and secrets are separate.
+   Use the signing secret printed by that listener. Skip this step if you are testing without a webhook.
+4. Restart Evently. Sign in, open **Organizer studio**, select your country and connect a Stripe account. Complete onboarding until both charges and payouts are enabled.
+5. Publish a paid event. Use a separate attendee account to complete a test checkout. Verify confirmation, ticket visibility, cancellation/expiry and a full refund before enabling live mode.
+6. For live operation, configure a live Connect platform, live connected organizer accounts and HTTPS. Add a live webhook if you need background confirmation when attendees do not return to Evently. Test and live objects and secrets are separate.
 
 Payments are **direct charges on each organizer's connected account**. Evently does not collect an application fee in this version. Stripe determines processing fees and account eligibility. Paid publishing is blocked until the organizer's payments and payouts are enabled.
 
-Ticket prices and capacity are checked on the server. Tickets are confirmed only after Stripe returns a paid session with matching booking, amount, currency and connected account. Returning to the success URL alone never issues a ticket. Webhook retries are safe to repeat.
+Ticket prices and capacity are checked on the server. Tickets are confirmed only after Evently retrieves a paid session from Stripe and verifies the booking, amount, currency and connected account. Returning to the success URL alone never issues a ticket. With no webhook, this check happens when the attendee returns to the ticket page; a configured webhook can also confirm or expire sessions in the background. Webhook retries are safe to repeat.
 
 Official references: [Connect direct charges](https://docs.stripe.com/connect/direct-charges), [Checkout fulfillment](https://docs.stripe.com/checkout/fulfillment), [Connect webhooks](https://docs.stripe.com/connect/webhooks), [webhook signature verification](https://docs.stripe.com/webhooks/signature).
 
 ### Payment operations
 
-Checkouts reserve inventory for about 35 minutes. Signed expiry events release places; visiting a ticket or attempting another booking also reconciles known expired sessions. Keep the Connect webhook enabled and monitor failures in Stripe.
+Checkouts reserve inventory for about 35 minutes. A configured signed expiry event releases places in the background; visiting a ticket or attempting another booking also reconciles known expired sessions. If you enable a Connect webhook, monitor delivery failures in Stripe.
 
 If Stripe accepts a checkout but the network fails before Evently receives its session ID, the reservation remains held conservatively. Retry promptly with the same booking; a matching signed webhook can resolve it. An operator should reconcile any unresolved pending bookings against Stripe before releasing capacity. Do not manually mark bookings paid based on a browser redirect.
 
@@ -151,7 +158,7 @@ npm run build
 npm run test:e2e
 ```
 
-The tests cover password hashing, one-use/expired verification and reset tokens, session revocation, Resend failure cleanup, music encryption, OAuth state, Spotify refresh/import contracts, Apple JWT signing/import contracts, disconnect races, recommendation exclusions, capacity, idempotency, ownership and signed payment webhooks.
+The tests cover password hashing, one-use/expired verification and reset tokens, session revocation, mail failure cleanup, music encryption, OAuth state, Spotify refresh/import contracts, Apple JWT signing/import contracts, disconnect races, recommendation exclusions, capacity, idempotency, ownership and signed payment webhooks.
 
 The unit and end-to-end suites use PostgreSQL. Set `TEST_DATABASE_URL` to a separate disposable database; tests isolate their tables in dedicated schemas. Never point it at production data. The end-to-end suite also writes to a local email outbox. It uses **fixture secrets**, not a real Stripe account, and does not charge money. Tests default to installed Google Chrome. To use Playwright Chromium, install it with `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium`. Build before running the suite.
 
@@ -165,7 +172,7 @@ npm run test:e2e -- --grep 'organizer flow|account security API'
 
 The code is an integrated first version, not a completed live merchant deployment. Live Stripe checkout, onboarding and refunds still require account configuration and tests against Stripe.
 
-Resend verification/recovery and Apple Music still need real credentials and live account tests; Spotify additionally needs approval for the use case. Booking emails, custom image uploads, event cancellation notifications, moderation and operator-specific legal policy pages are not implemented. Define operational/refund/privacy policies before opening registration to the public. The music privacy page describes the implemented behavior and does not replace the operator’s complete privacy policy. QR codes contain a group ticket code; organizers currently enter that code in the studio rather than using an in-app camera scanner.
+Gmail SMTP verification/recovery and Apple Music still need live account tests; Spotify additionally needs approval for the use case. Booking emails, custom image uploads, event cancellation notifications, moderation and operator-specific legal policy pages are not implemented. Define operational/refund/privacy policies before opening registration to the public. The music privacy page describes the implemented behavior and does not replace the operator’s complete privacy policy. QR codes contain a group ticket code; organizers currently enter that code in the studio rather than using an in-app camera scanner.
 
 ## Assets
 

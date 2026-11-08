@@ -4,63 +4,68 @@ import { FiArrowUpRight } from "react-icons/fi";
 import { currentUser } from "@/lib/auth";
 import { categoryName } from "@/lib/catalog";
 import AccountActions from "@/components/AccountActions";
+import { getLanguage } from "@/lib/i18n-server";
+import { translate, type TranslationKey } from "@/lib/i18n";
 export const metadata = { title: "Your account" };
 export default async function Account() {
+  const language = await getLanguage();
+  const t = (key: TranslationKey, values?: Record<string, string | number>) =>
+    translate(language, key, values);
   const user = await currentUser();
   if (!user) redirect("/login?next=/account");
   return (
     <main id="main" className="container page-main">
       <div className="page-heading">
-        <span className="eyebrow">YOUR LITTLE CORNER OF EVENTLY</span>
-        <h1>Hey, {user.name.split(" ")[0]}.</h1>
-        <p>Good to have you here. Keep your plans and preferences together.</p>
+        <span className="eyebrow">{t("account.eyebrow")}</span>
+        <h1>{t("account.greeting", { name: user.name.split(" ")[0] })}</h1>
+        <p>{t("account.intro")}</p>
       </div>
       <div className="account-grid">
         <div className="panel">
-          <h2>Your profile</h2>
+          <h2>{t("account.profile")}</h2>
           <div className="summary-row">
-            <span>Name</span>
+            <span>{t("account.name")}</span>
             <strong>{user.name}</strong>
           </div>
           <div className="summary-row">
-            <span>Email</span>
+            <span>{t("auth.email")}</span>
             <strong style={{ overflowWrap: "anywhere" }}>{user.email}</strong>
           </div>
           <div className="notice">
             <strong>
-              Email {user.emailVerified ? "verified ✓" : "not yet verified"}
+              {user.emailVerified ? t("account.verified") : t("account.unverified")}
             </strong>
             {!user.emailVerified && (
               <p>
-                <Link href="/verify-email">Verify your email address</Link>
+                <Link href="/verify-email">{t("account.verifyEmail")}</Link>
               </p>
             )}
           </div>
           <div className="notice">
-            <strong>Your interests</strong>
+            <strong>{t("account.interests")}</strong>
             <br />
             {user.interests.length
-              ? user.interests.map(categoryName).join(" · ")
-              : "You haven’t picked any interests yet."}
+              ? user.interests.map((id) => categoryName(id, language)).join(" · ")
+              : t("account.noInterests")}
             <br />
-            <Link href="/for-you">Fine-tune your recommendations</Link>
+            <Link href="/for-you">{t("account.tune")}</Link>
           </div>
           <AccountActions />
         </div>
         <div className="panel">
-          <h2>Where to next?</h2>
+          <h2>{t("account.next")}</h2>
           <div className="account-links">
             {[
-              ["/tickets", "Your tickets & bookings"],
-              ["/saved", "Saved experiences"],
-              ["/for-you", "Your recommendations"],
-              ["/music", "Your music connections"],
-              ["/forgot-password", "Reset your password"],
-              ["/organizer", "Organizer studio"],
-              ["/help", "Help & questions"],
-            ].map(([href, label]) => (
+              ["/tickets", "account.tickets"],
+              ["/saved", "account.saved"],
+              ["/for-you", "account.recommendations"],
+              ["/music", "account.music"],
+              ["/forgot-password", "account.resetPassword"],
+              ["/organizer", "account.organizer"],
+              ["/help", "account.help"],
+            ].map(([href, key]) => (
               <Link href={href} key={href}>
-                {label}
+                {t(key as TranslationKey)}
                 <FiArrowUpRight />
               </Link>
             ))}

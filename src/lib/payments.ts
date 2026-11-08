@@ -5,14 +5,17 @@ import {
   bookingById,
   confirmPayment,
   expireBooking,
+  saveBusinessProfileStripeAccount,
+  updateBusinessProfile,
   run,
 } from "./db.ts";
-import type { Booking, Event, User } from "./types.ts";
+import type { Booking, BusinessProfile, Event, User } from "./types.ts";
+import { organizerDemoMode } from "./demo.ts";
 
 export function paymentConfigured() {
   return Boolean(
+    !organizerDemoMode() &&
     process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_WEBHOOK_SECRET &&
     process.env.APP_URL,
   );
 }
@@ -39,12 +42,16 @@ export function stripe() {
     timeout: 20000,
   });
 }
-export async function accountStatus(user: User) {
+export async function accountStatus(
+  user: User,
+  profile?: BusinessProfile,
+) {
   if (!paymentConfigured())
     return { configured: false, connected: false, ready: false };
-  if (!user.stripeAccount)
+  const stripeAccount = profile ? profile.stripeAccount : user.stripeAccount;
+  if (!stripeAccount)
     return { configured: true, connected: false, ready: false };
-  const account = await stripe().accounts.retrieve(user.stripeAccount);
+  const account = await stripe().accounts.retrieve(stripeAccount);
   return {
     configured: true,
     connected: true,
@@ -52,7 +59,11 @@ export async function accountStatus(user: User) {
     detailsSubmitted: account.details_submitted,
   };
 }
-export async function connectAccount(user: User, country: string) {
+export async function connectAccount(
+  user: User,
+  country: string,
+  selectedProfile?: BusinessProfile,
+) {
   if (!paymentConfigured())
     throw new AppError(
       "Stripe setup is required before connecting an organizer account.",
@@ -65,13 +76,24 @@ export async function connectAccount(user: User, country: string) {
   )
     throw new AppError("Choose a supported country.");
   const client = stripe();
-  let accountId = user.stripeAccount;
+  let profile = selectedProfile;
+  if (profile && !profile.stripeAccount) {
+    profile = await updateBusinessProfile(profile.id, user.id, {
+      kind: profile.kind,
+      name: profile.name,
+      countryCode: country,
+    });
+  }
+  let accountId = profile ? profile.stripeAccount : user.stripeAccount;
   if (!accountId) {
     const account = await client.accounts.create(
       {
         country,
         email: user.email,
-        metadata: { evently_user_id: user.id },
+        metadata: {
+          evently_user_id: user.id,
+          ...(profile ? { evently_business_profile_id: profile.id } : {}),
+        },
         controller: {
           stripe_dashboard: { type: "full" },
           fees: { payer: "account" },
@@ -83,10 +105,16 @@ export async function connectAccount(user: User, country: string) {
           transfers: { requested: true },
         },
       },
-      { idempotencyKey: "evently-account-" + user.id },
+      {
+        idempotencyKey:
+          "evently-account-" + user.id + (profile ? "-" + profile.id : ""),
+      },
     );
     accountId = account.id;
-    await run("UPDATE users SET stripe_account=? WHERE id=?", accountId, user.id);
+    if (profile)
+      await saveBusinessProfileStripeAccount(profile.id, user.id, accountId);
+    else
+      await run("UPDATE users SET stripe_account=? WHERE id=?", accountId, user.id);
   }
   return client.accountLinks.create({
     account: accountId,
@@ -144,10 +172,18 @@ export async function startCheckout(
           quantity: booking.quantity,
           price_data: {
             currency: booking.currency,
-            unit_amount: event.price,
+            unit_amount: Math.round(booking.total / booking.quantity),
             product_data: {
-              name: event.title,
-              description: "General admission • " + event.venue,
+              name:
+                event.title +
+                " — " +
+                (booking.ticketType === "vip" ? "VIP" : "Standard"),
+              description:
+                (booking.ticketType === "vip"
+                  ? "VIP admission"
+                  : "Standard admission") +
+                " • " +
+                event.venue,
             },
           },
         },

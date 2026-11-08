@@ -8,7 +8,7 @@ export default function AccountActions({
   compact = false,
   onSignOut,
 }: { compact?: boolean; onSignOut?: () => void } = {}) {
-  const { setSession, toast } = useApp();
+  const { setSession, toast, t } = useApp();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
@@ -31,7 +31,7 @@ export default function AccountActions({
       }}
     >
       {compact && <FiLogOut aria-hidden="true" />}
-      {busy ? "Signing out…" : "Sign out"}
+      {busy ? t("auth.signingOut") : t("auth.signOut")}
     </button>
   );
 }

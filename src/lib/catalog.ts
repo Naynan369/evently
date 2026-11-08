@@ -1,4 +1,5 @@
 import type { Category, Event } from "./types.ts";
+import { translate, type Language, type TranslationKey } from "./i18n";
 export const categories: {
   id: Category;
   name: string;
@@ -74,6 +75,8 @@ export function seedEvents(now = new Date()): Event[] {
       startsAt: date(8, 17),
       endsAt: date(8, 22),
       price: 3500,
+      vipPrice: 6500,
+      vipCapacity: 24,
       image: "music",
       host: "Afterglow Collective",
       genres: ["Electronic", "House"],
@@ -169,6 +172,11 @@ export function seedEvents(now = new Date()): Event[] {
     },
   ] as Event[];
 }
-export function categoryName(id: string) {
-  return categories.find((c) => c.id === id)?.name ?? id;
+export function categoryName(id: string, language: Language = "en") {
+  const category = categories.find((item) => item.id === id);
+  if (!category) return id;
+  return translate(language, `category.${category.id}` as TranslationKey);
+}
+export function categoryTagline(id: Category, language: Language = "en") {
+  return translate(language, `category.${id}Tagline` as TranslationKey);
 }

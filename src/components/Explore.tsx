@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FiSearch, FiX, FiGrid, FiList } from "react-icons/fi";
-import { categories } from "@/lib/catalog";
+import { categories, categoryName } from "@/lib/catalog";
 import type { Event } from "@/lib/types";
 import EventCard from "./EventCard";
 import { SearchForm } from "./SearchForm";
+import { useApp } from "./AppProvider";
 export default function Explore({
   events,
   initial,
@@ -13,6 +14,7 @@ export default function Explore({
   events: Event[];
   initial: { q: string; city: string; category: string; price: string };
 }) {
+  const { language, t } = useApp();
   const [now] = useState(() => Date.now());
   const [category, setCategory] = useState(initial.category);
   const [price, setPrice] = useState(initial.price);
@@ -49,13 +51,13 @@ export default function Explore({
     <>
       <SearchForm query={initial.q} city={initial.city} />
       <div className="filter-bar">
-        <div className="chip-row" aria-label="Event categories">
+        <div className="chip-row" aria-label={t("explore.categoriesAria")}>
           <button
             className={"chip" + (!category ? " active" : "")}
             onClick={() => setCategory("")}
             aria-pressed={!category}
           >
-            All experiences
+            {t("explore.all")}
           </button>
           {categories.map((c) => (
             <button
@@ -64,56 +66,57 @@ export default function Explore({
               onClick={() => setCategory(c.id)}
               aria-pressed={category === c.id}
             >
-              {c.name}
+              {categoryName(c.id, language)}
             </button>
           ))}
         </div>
         <div className="filter-selects">
           <label>
-            <span className="sr-only">Price</span>
+            <span className="sr-only">{t("explore.price")}</span>
             <select value={price} onChange={(e) => setPrice(e.target.value)}>
-              <option value="">Any price</option>
-              <option value="free">Free events</option>
-              <option value="paid">Paid events</option>
+              <option value="">{t("explore.anyPrice")}</option>
+              <option value="free">{t("explore.free")}</option>
+              <option value="paid">{t("explore.paid")}</option>
             </select>
           </label>
           <label>
-            <span className="sr-only">Date</span>
+            <span className="sr-only">{t("explore.date")}</span>
             <select value={when} onChange={(e) => setWhen(e.target.value)}>
-              <option value="">Any date</option>
-              <option value="week">Next 7 days</option>
+              <option value="">{t("explore.anyDate")}</option>
+              <option value="week">{t("explore.nextWeek")}</option>
             </select>
           </label>
           <label>
-            <span className="sr-only">Sort events</span>
+            <span className="sr-only">{t("explore.sort")}</span>
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="date">Soonest first</option>
-              <option value="price">Lowest price</option>
-              <option value="title">A to Z</option>
+              <option value="date">{t("explore.soonest")}</option>
+              <option value="price">{t("explore.lowestPrice")}</option>
+              <option value="title">{t("explore.az")}</option>
             </select>
           </label>
         </div>
       </div>
       <div className="results-toolbar">
         <p className="result-count" role="status">
-          {filtered.length} experience{filtered.length !== 1 ? "s" : ""} to look
-          forward to{initial.q ? " for “" + initial.q + "”" : ""}
-          {initial.city ? " in " + initial.city : ""}
+          {new Intl.NumberFormat(language === "it" ? "it-IT" : "en-GB").format(filtered.length)}{" "}
+          {t(filtered.length === 1 ? "explore.experience" : "explore.experiences")}
+          {initial.q ? t("explore.queryResults", { query: initial.q }) : ""}
+          {initial.city ? t("explore.cityResults", { city: initial.city }) : ""}
         </p>
-        <div className="view-toggle" role="group" aria-label="Event layout">
+        <div className="view-toggle" role="group" aria-label={t("explore.layout")}>
           <button
-            aria-label="Grid view"
+            aria-label={t("explore.gridAria")}
             aria-pressed={view === "grid"}
             onClick={() => setView("grid")}
           >
-            <FiGrid /> <span>Grid</span>
+            <FiGrid /> <span>{t("explore.grid")}</span>
           </button>
           <button
-            aria-label="List view"
+            aria-label={t("explore.listAria")}
             aria-pressed={view === "list"}
             onClick={() => setView("list")}
           >
-            <FiList /> <span>List</span>
+            <FiList /> <span>{t("explore.list")}</span>
           </button>
         </div>
       </div>
@@ -124,17 +127,16 @@ export default function Explore({
               event={event}
               key={`${category || "all"}:${event.id}`}
               sequence={index % 3}
-              showThreeMotion
+              showUnfurl
             />
           ))}
         </div>
       ) : (
         <div className="empty-state">
           <FiSearch />
-          <h3>Let’s try a different direction.</h3>
+          <h3>{t("explore.emptyTitle")}</h3>
           <p>
-            No events match all your filters. Try another search, city or
-            category.
+            {t("explore.emptyBody")}
           </p>
           <Link
             href="/events"
@@ -146,7 +148,7 @@ export default function Explore({
               setSort("date");
             }}
           >
-            <FiX /> Clear all filters
+            <FiX /> {t("explore.clearFilters")}
           </Link>
         </div>
       )}
