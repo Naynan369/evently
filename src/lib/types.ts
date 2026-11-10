@@ -1,3 +1,5 @@
+import type { MessinaArea } from "./messina";
+
 export type Category =
   "music" | "arts" | "food" | "technology" | "wellness" | "community";
 export type VenueType =
@@ -49,8 +51,10 @@ export type Event = {
   description: string;
   category: Category;
   city: string;
+  area?: MessinaArea;
   venue: string;
   address: string;
+  accessNotes?: string;
   startsAt: string;
   endsAt: string;
   timezone: string;

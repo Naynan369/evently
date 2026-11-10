@@ -7,9 +7,9 @@ export const metadata = { title: "Create an account" };
 export default async function Register({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; oauthError?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, oauthError } = await searchParams;
   if (await currentUser()) redirect(safeNext(next));
-  return <AuthForm register next={next} emailDelivery={emailDeliveryMode()} />;
+  return <AuthForm register next={next} oauthError={oauthError} emailDelivery={emailDeliveryMode()} />;
 }

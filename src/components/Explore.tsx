@@ -3,8 +3,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FiSearch, FiX, FiGrid, FiList } from "react-icons/fi";
 import { categories, categoryName } from "@/lib/catalog";
+import { isMessinaArea, isMessinaCity, messinaAreas, messinaAreaLabel, type MessinaArea } from "@/lib/messina";
 import type { Event } from "@/lib/types";
 import EventCard from "./EventCard";
+import HomeFeatureCard from "./HomeFeatureCard";
 import { SearchForm } from "./SearchForm";
 import { useApp } from "./AppProvider";
 export default function Explore({
@@ -12,11 +14,14 @@ export default function Explore({
   initial,
 }: {
   events: Event[];
-  initial: { q: string; city: string; category: string; price: string };
+  initial: { q: string; city: string; area: string; category: string; price: string };
 }) {
   const { language, t } = useApp();
   const [now] = useState(() => Date.now());
   const [category, setCategory] = useState(initial.category);
+  const [area, setArea] = useState<MessinaArea | "">(
+    isMessinaArea(initial.area) ? initial.area : "",
+  );
   const [price, setPrice] = useState(initial.price);
   const [when, setWhen] = useState("");
   const [sort, setSort] = useState("date");
@@ -27,6 +32,7 @@ export default function Explore({
         .filter(
           (e) =>
             (!category || e.category === category) &&
+            (!area || (isMessinaCity(e.city) && e.area === area)) &&
             (!initial.city ||
               e.city.toLowerCase() === initial.city.trim().toLowerCase()) &&
             (!initial.q ||
@@ -45,11 +51,28 @@ export default function Explore({
               ? a.title.localeCompare(b.title)
               : a.startsAt.localeCompare(b.startsAt),
         ),
-    [events, category, price, when, sort, initial, now],
+    [events, area, category, price, when, sort, initial, now],
   );
   return (
     <>
       <SearchForm query={initial.q} city={initial.city} />
+      <div className="messina-area-filter">
+        <span className="eyebrow">{t("explore.messinaAreas")}</span>
+        <div className="messina-area-filter__options" role="group" aria-label={t("explore.messinaAreas")}>
+          <button type="button" className={!area ? "active" : ""} aria-pressed={!area} onClick={() => setArea("")}>{t("explore.allAreas")}</button>
+          {messinaAreas.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={area === item.id ? "active" : ""}
+              aria-pressed={area === item.id}
+              onClick={() => setArea(item.id)}
+            >
+              {item[language]}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="filter-bar">
         <div className="chip-row" aria-label={t("explore.categoriesAria")}>
           <button
@@ -102,6 +125,9 @@ export default function Explore({
           {t(filtered.length === 1 ? "explore.experience" : "explore.experiences")}
           {initial.q ? t("explore.queryResults", { query: initial.q }) : ""}
           {initial.city ? t("explore.cityResults", { city: initial.city }) : ""}
+          {area
+            ? t("explore.areaResults", { area: messinaAreaLabel(area, language) })
+            : ""}
         </p>
         <div className="view-toggle" role="group" aria-label={t("explore.layout")}>
           <button
@@ -123,12 +149,21 @@ export default function Explore({
       {filtered.length ? (
         <div className={"event-grid" + (view === "list" ? " event-list" : "")}>
           {filtered.map((event, index) => (
-            <EventCard
-              event={event}
-              key={`${category || "all"}:${event.id}`}
-              sequence={index % 3}
-              showUnfurl
-            />
+            view === "grid" ? (
+              <HomeFeatureCard
+                event={event}
+                language={language}
+                index={index % 3}
+                key={`${category || "all"}:${event.id}`}
+              />
+            ) : (
+              <EventCard
+                event={event}
+                key={`${category || "all"}:${event.id}`}
+                sequence={index % 3}
+                showUnfurl
+              />
+            )
           ))}
         </div>
       ) : (
@@ -143,6 +178,7 @@ export default function Explore({
             className="button button-outline"
             onClick={() => {
               setCategory("");
+              setArea("");
               setPrice("");
               setWhen("");
               setSort("date");

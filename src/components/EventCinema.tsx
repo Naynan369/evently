@@ -123,7 +123,7 @@ export default function EventCinema() {
         </div>
       </div>
       <div className="container cinema-search">
-        <SearchForm />
+        <SearchForm city="Messina" />
         <div className="popular-searches">
           <span>{t("home.popularSearches")}</span>
           <Link href="/events?category=music">{t("common.liveMusic")}</Link>

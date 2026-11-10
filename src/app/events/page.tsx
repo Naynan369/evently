@@ -17,6 +17,7 @@ export default async function EventsPage({
   const initial = {
     q: read("q"),
     city: read("city"),
+    area: read("area"),
     category: read("category"),
     price: read("price"),
   };

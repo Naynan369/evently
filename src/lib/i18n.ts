@@ -78,11 +78,11 @@ const messages = {
     "category.wellnessTagline": "Room to breathe",
     "category.community": "Community",
     "category.communityTagline": "Find your people",
-    "home.liveExperiences": "EVENTLY / MUSIC AND CULTURE, WORLDWIDE",
+    "home.liveExperiences": "EVENTLY / MESSINA, TOGETHER",
     "home.title": "Events worth",
     "home.titleEmphasis": "being there for.",
     "home.intro":
-      "Explore live music, culture, food and experiences worth making time for.",
+      "Discover music, culture, food and community experiences across Messina.",
     "home.exploreEvents": "Explore events",
     "home.recommendations": "See recommendations",
     "home.collection": "THE EVENTLY COLLECTION",
@@ -92,6 +92,15 @@ const messages = {
     "home.chooseCollection": "Choose an event collection",
     "home.popularSearches": "Popular searches",
     "home.featured": "FEATURED EXPERIENCES",
+    "home.messinaEyebrow": "MESSINA, TOGETHER",
+    "home.messinaTitle": "A city to take part in.",
+    "home.messinaIntro": "Find what is happening close to you, from the centre to the coast and the hills. Every area has room for more stories.",
+    "home.messinaAll": "Explore Messina",
+    "home.messinaFree": "Free plans",
+    "home.messinaCommunity": "Community events",
+    "home.messinaHostTitle": "Have an idea for your area?",
+    "home.messinaHostBody": "Bring neighbors together with a free gathering, class or local experience.",
+    "home.messinaHostAction": "Create a gathering",
     "home.worthTime": "Worth making time for.",
     "home.exploreAll": "Explore all events",
     "home.greatExperiences": "Great experiences start with someone.",
@@ -114,9 +123,9 @@ const messages = {
     "home.toolPages": "Branded event pages",
     "home.toolPagesDescription":
       "Present each experience with your own identity.",
-    "home.toolCheckout": "Secure ticket checkout",
+    "home.toolCheckout": "Simple reservations",
     "home.toolCheckoutDescription":
-      "Give guests a clear, protected way to book.",
+      "Welcome guests to free events with a clear booking flow.",
     "home.toolGuests": "Live guest management",
     "home.toolGuestsDescription":
       "Keep attendee details organized as bookings arrive.",
@@ -139,6 +148,9 @@ const messages = {
     "explore.serverEmpty":
       "There are no events to show yet. Check back soon or publish the first one.",
     "explore.all": "All experiences",
+    "explore.messinaAreas": "EXPLORE MESSINA BY AREA",
+    "explore.allAreas": "All areas",
+    "explore.areaResults": " around {area}",
     "explore.categoriesAria": "Event categories",
     "explore.price": "Price",
     "explore.anyPrice": "Any price",
@@ -184,6 +196,7 @@ const messages = {
     "events.about": "ABOUT THIS EXPERIENCE",
     "events.aboutTitle": "A little about the experience.",
     "events.gettingThere": "GETTING THERE",
+    "events.accessNotes": "Access and arrival",
     "events.meetVenue": "Meet us at the venue",
     "events.openMaps": "Open Maps",
     "events.peopleBehind": "THE PEOPLE BEHIND IT",
@@ -259,6 +272,12 @@ const messages = {
     "auth.registerIntro":
       "Save your favorites, find your people and keep every ticket in one place.",
     "auth.signInIntro": "Your next good story is waiting for you.",
+    "auth.withGoogle": "Continue with Google",
+    "auth.withApple": "Continue with Apple",
+    "auth.orEmail": "or use your email",
+    "auth.socialUnavailable": "This sign-in option is not available yet.",
+    "auth.socialCancelled": "Sign-in was cancelled. You can try again.",
+    "auth.socialFailed": "We couldn’t complete sign-in. Please try again.",
     "auth.previewNotice":
       "Preview mode: no email will be sent to your inbox. Verification messages are saved locally for testing.",
     "auth.emailSetupNotice":
@@ -707,6 +726,11 @@ const messages = {
     "events.pageIntro":
       "From big nights to small discoveries. There’s something out there with your name on it.",
     "create.eyebrow": "GOOD THINGS START WITH AN IDEA",
+    "create.messinaArea": "Messina area",
+    "create.chooseArea": "Choose an area",
+    "create.accessNotes": "Access and arrival details",
+    "create.accessNotesPlaceholder": "Entrance, step-free access, bus stop, parking or where the group meets",
+    "create.accessNotesHelp": "Share practical details guests need before they arrive. Only include access features you have checked.",
     "create.newTitle": "Bring people together.",
     "create.editTitle": "Fine-tune the details.",
     "create.newIntro":
@@ -1077,11 +1101,11 @@ const messages = {
     "category.wellnessTagline": "Spazio per respirare",
     "category.community": "Comunità",
     "category.communityTagline": "Trova la tua gente",
-    "home.liveExperiences": "EVENTLY / MUSICA E CULTURE DAL MONDO",
+    "home.liveExperiences": "EVENTLY / MESSINA, INSIEME",
     "home.title": "Eventi da",
     "home.titleEmphasis": "vivere davvero.",
     "home.intro":
-      "Scopri musica dal vivo, cultura, cibo ed esperienze a cui vale la pena dedicare tempo.",
+      "Scopri musica, cultura, sapori ed esperienze di comunità in tutta Messina.",
     "home.exploreEvents": "Esplora gli eventi",
     "home.recommendations": "Scopri i consigli",
     "home.collection": "LA COLLEZIONE EVENTLY",
@@ -1091,6 +1115,15 @@ const messages = {
     "home.chooseCollection": "Scegli una raccolta di eventi",
     "home.popularSearches": "Ricerche frequenti",
     "home.featured": "ESPERIENZE IN EVIDENZA",
+    "home.messinaEyebrow": "MESSINA, INSIEME",
+    "home.messinaTitle": "Una città da vivere insieme.",
+    "home.messinaIntro": "Scopri cosa succede vicino a te, dal centro alla costa e ai colli. Ogni zona ha nuove storie da vivere.",
+    "home.messinaAll": "Esplora Messina",
+    "home.messinaFree": "Eventi gratuiti",
+    "home.messinaCommunity": "Eventi di comunità",
+    "home.messinaHostTitle": "Hai un'idea per la tua zona?",
+    "home.messinaHostBody": "Riunisci le persone con un incontro gratuito, un laboratorio o un'esperienza locale.",
+    "home.messinaHostAction": "Crea un incontro",
     "home.worthTime": "Esperienze a cui dedicare il tuo tempo.",
     "home.exploreAll": "Scopri tutti gli eventi",
     "home.greatExperiences": "Le belle esperienze iniziano con qualcuno.",
@@ -1113,9 +1146,9 @@ const messages = {
     "home.toolPages": "Pagine evento personalizzate",
     "home.toolPagesDescription":
       "Presenta ogni esperienza con la tua identità.",
-    "home.toolCheckout": "Acquisto sicuro dei biglietti",
+    "home.toolCheckout": "Prenotazioni semplici",
     "home.toolCheckoutDescription":
-      "Offri agli ospiti un modo chiaro e protetto per prenotare.",
+      "Accogli gli ospiti agli eventi gratuiti con una prenotazione chiara.",
     "home.toolGuests": "Gestione ospiti in tempo reale",
     "home.toolGuestsDescription":
       "Organizza i dati dei partecipanti man mano che arrivano le prenotazioni.",
@@ -1138,6 +1171,9 @@ const messages = {
     "explore.serverEmpty":
       "Non ci sono ancora eventi da mostrare. Torna a trovarci o pubblica il primo.",
     "explore.all": "Tutte le esperienze",
+    "explore.messinaAreas": "ESPLORA MESSINA PER ZONA",
+    "explore.allAreas": "Tutte le zone",
+    "explore.areaResults": " nella zona {area}",
     "explore.categoriesAria": "Categorie di eventi",
     "explore.price": "Prezzo",
     "explore.anyPrice": "Qualsiasi prezzo",
@@ -1183,6 +1219,7 @@ const messages = {
     "events.about": "INFORMAZIONI SULL'ESPERIENZA",
     "events.aboutTitle": "Qualche dettaglio sull'esperienza.",
     "events.gettingThere": "COME ARRIVARE",
+    "events.accessNotes": "Accessibilità e arrivo",
     "events.meetVenue": "Ci vediamo al locale",
     "events.openMaps": "Apri Maps",
     "events.peopleBehind": "CHI C'È DIETRO",
@@ -1260,6 +1297,12 @@ const messages = {
     "auth.registerIntro":
       "Salva i tuoi preferiti, trova la tua gente e raccogli tutti i biglietti in un unico posto.",
     "auth.signInIntro": "La tua prossima bella storia ti aspetta.",
+    "auth.withGoogle": "Continua con Google",
+    "auth.withApple": "Continua con Apple",
+    "auth.orEmail": "oppure usa la tua email",
+    "auth.socialUnavailable": "Questa opzione di accesso non è ancora disponibile.",
+    "auth.socialCancelled": "Accesso annullato. Puoi riprovare.",
+    "auth.socialFailed": "Non siamo riusciti a completare l’accesso. Riprova.",
     "auth.previewNotice":
       "Modalità anteprima: non riceverai email. I messaggi di verifica sono salvati in locale per i test.",
     "auth.emailSetupNotice":
@@ -1724,6 +1767,11 @@ const messages = {
     "events.pageIntro":
       "Dalle grandi serate alle piccole scoperte: c'è un'esperienza che ti aspetta.",
     "create.eyebrow": "LE BELLE IDEE INIZIANO COSÌ",
+    "create.messinaArea": "Zona di Messina",
+    "create.chooseArea": "Scegli una zona",
+    "create.accessNotes": "Accessibilità e informazioni per arrivare",
+    "create.accessNotesPlaceholder": "Ingresso, accesso senza gradini, fermata bus, parcheggio o punto d'incontro",
+    "create.accessNotesHelp": "Aggiungi le informazioni pratiche utili agli ospiti. Indica solo caratteristiche di accessibilità verificate.",
     "create.newTitle": "Riunisci le persone.",
     "create.editTitle": "Metti a punto i dettagli.",
     "create.newIntro":

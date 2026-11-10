@@ -36,10 +36,7 @@ export function SearchForm({
           list="suggested-cities"
         />
         <datalist id="suggested-cities">
-          <option value="London" />
-          <option value="Manchester" />
-          <option value="Bristol" />
-          <option value="Brighton" />
+          <option value="Messina" />
         </datalist>
       </div>
       <button className="button button-primary" type="submit">

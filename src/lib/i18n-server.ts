@@ -7,5 +7,5 @@ import {
 
 export async function getLanguage(): Promise<Language> {
   const value = (await cookies()).get(LANGUAGE_COOKIE)?.value;
-  return isLanguage(value) ? value : "en";
+  return isLanguage(value) ? value : "it";
 }

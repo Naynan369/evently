@@ -1,120 +1,118 @@
 import * as THREE from "three";
 import type { AnimatedScene } from "./types";
 
-type Ribbon = {
+type Membrane = {
   geometry: THREE.BufferGeometry;
   material: THREE.MeshPhysicalMaterial;
   mesh: THREE.Mesh;
-  positions: Float32Array;
+  original: Float32Array;
   phase: number;
-  radius: number;
+  movement: number;
 };
 
-const segments = 160;
-
-function makeRibbon(index: number): Ribbon {
-  const positions = new Float32Array((segments + 1) * 6);
-  const colors = new Float32Array(positions.length);
-  const indices: number[] = [];
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  const dark = new THREE.Color(index % 2 ? 0x9f4721 : 0x733820);
-  const light = new THREE.Color(index % 2 ? 0xffd1a1 : 0xf4a967);
-  for (let i = 0; i <= segments; i++) {
-    const shade = light.clone().lerp(dark, i / segments * 0.52);
-    for (let edge = 0; edge < 2; edge++) {
-      const offset = (i * 2 + edge) * 3;
-      const color = shade.clone().lerp(light, edge ? 0.3 : 0);
-      colors[offset] = color.r;
-      colors[offset + 1] = color.g;
-      colors[offset + 2] = color.b;
-    }
-    if (i < segments) {
-      const a = i * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
+function makeMembrane(
+  geometry: THREE.BufferGeometry,
+  color: number,
+  opacity: number,
+  phase: number,
+  movement: number,
+): Membrane {
+  const position = geometry.getAttribute("position") as THREE.BufferAttribute;
   const material = new THREE.MeshPhysicalMaterial({
-    vertexColors: true,
+    color,
     side: THREE.DoubleSide,
-    metalness: 0.24,
-    roughness: 0.34,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.22,
     transparent: true,
-    opacity: index === 0 ? 0.92 : 0.78,
+    opacity,
     depthWrite: false,
-    emissive: 0x5b2813,
-    emissiveIntensity: 0.15,
+    metalness: 0.08,
+    roughness: 0.29,
+    clearcoat: 0.95,
+    clearcoatRoughness: 0.16,
+    emissive: 0x444444,
+    emissiveIntensity: 0.22,
   });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.set(index * 0.33 - 0.38, index * 0.44 - 0.62, index * 0.48);
-  mesh.renderOrder = index;
   return {
     geometry,
     material,
     mesh,
-    positions,
-    phase: index * 1.28,
-    radius: 0.58 + index * 0.115,
+    original: new Float32Array(position.array),
+    phase,
+    movement,
   };
 }
 
-function updateRibbon(ribbon: Ribbon, time: number) {
-  for (let i = 0; i <= segments; i++) {
-    const progress = i / segments;
-    const angle = -Math.PI * 0.83 + progress * Math.PI * 1.68;
-    const radius = ribbon.radius + 0.055 * Math.sin(angle * 2.2 + ribbon.phase + time * 0.42);
-    const height = 0.17 * Math.sin(angle * 1.35 + ribbon.phase)
-      + 0.045 * Math.sin(angle * 3.3 - time * 0.38 + ribbon.phase);
-    const width = 0.105 + 0.03 * Math.sin(progress * Math.PI);
-    for (let edge = 0; edge < 2; edge++) {
-      const side = edge ? 1 : -1;
-      const offset = (i * 2 + edge) * 3;
-      const edgeRadius = radius + width * side;
-      ribbon.positions[offset] = Math.cos(angle) * edgeRadius;
-      ribbon.positions[offset + 1] = height + side * 0.045;
-      ribbon.positions[offset + 2] = Math.sin(angle) * edgeRadius;
-    }
+function moveMembrane(membrane: Membrane, time: number) {
+  const position = membrane.geometry.getAttribute("position") as THREE.BufferAttribute;
+  const vertices = position.array as Float32Array;
+  const { original, phase, movement } = membrane;
+  const breath = 1 + Math.sin(time * 0.82 + phase) * 0.025;
+
+  for (let i = 0; i < original.length; i += 3) {
+    const x = original[i];
+    const y = original[i + 1];
+    const z = original[i + 2];
+    const rolling =
+      Math.sin(x * 3.4 + y * 2.6 + time * 0.62 + phase) *
+        Math.cos(z * 3.7 - time * 0.43) * 0.075 +
+      Math.sin(y * 4.6 - x * 2.1 - time * 0.37 + phase) * 0.055 +
+      Math.cos(z * 4.2 + x * 2.3 + time * 0.51 + phase) * 0.035;
+    const radius = breath + rolling * movement;
+    vertices[i] = x * radius;
+    vertices[i + 1] = y * radius;
+    vertices[i + 2] = z * radius;
   }
-  (ribbon.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
-  ribbon.geometry.computeVertexNormals();
+
+  position.needsUpdate = true;
+  membrane.geometry.computeVertexNormals();
 }
 
 export function createClubNightsScene(): AnimatedScene {
   const group = new THREE.Group();
-  const ribbons = Array.from({ length: 4 }, (_, index) => makeRibbon(index));
-  ribbons.forEach((ribbon) => group.add(ribbon.mesh));
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.34, 0.004, 5, 120),
-    new THREE.MeshBasicMaterial({ color: 0xffd6ae, transparent: true, opacity: 0.56, depthWrite: false }),
+  const inner = makeMembrane(
+    new THREE.SphereGeometry(0.5, 48, 36),
+    0xe8e8e8,
+    0.16,
+    1.6,
+    0.65,
   );
-  ring.rotation.set(0.4, -0.25, -0.35);
-  group.add(ring);
+  const outer = makeMembrane(
+    new THREE.TorusGeometry(0.44, 0.29, 48, 128),
+    0xbcbcbc,
+    0.56,
+    0,
+    1,
+  );
+  inner.mesh.renderOrder = 1;
+  outer.mesh.renderOrder = 2;
+  outer.mesh.rotation.x = -0.32;
+  outer.mesh.rotation.y = 0.24;
+  group.add(inner.mesh, outer.mesh);
 
   return {
     group,
     update(time, aspect) {
-      ribbons.forEach((ribbon, index) => {
-        updateRibbon(ribbon, time);
-        ribbon.mesh.rotation.y = index * 0.44 - 0.62 + time * (index % 2 ? -0.045 : 0.055);
-        ribbon.mesh.rotation.z = index * 0.48 + Math.sin(time * 0.22 + index) * 0.055;
-      });
-      ring.rotation.z = -0.35 - time * 0.035;
+      moveMembrane(inner, time);
+      moveMembrane(outer, time);
       const compact = aspect < 0.9;
-      group.position.set(aspect * (compact ? 0.72 : 0.6), compact ? -0.06 : 0.02, 0);
-      group.scale.setScalar(Math.min(compact ? 0.59 : 0.83, aspect / 1.32));
-      group.rotation.y = Math.sin(time * 0.17) * 0.12;
+      group.position.set(
+        aspect * (compact ? 0.7 : 0.59),
+        Math.sin(time * 0.48) * 0.045,
+        0,
+      );
+      group.scale.setScalar(Math.min(compact ? 0.62 : 0.83, aspect / 1.3));
+      group.rotation.set(
+        0.16 + Math.sin(time * 0.23) * 0.075,
+        time * 0.12,
+        -0.1 + Math.sin(time * 0.27) * 0.075,
+      );
+      inner.mesh.rotation.y = -time * 0.07;
     },
     dispose() {
-      ribbons.forEach((ribbon) => {
-        ribbon.geometry.dispose();
-        ribbon.material.dispose();
-      });
-      ring.geometry.dispose();
-      (ring.material as THREE.Material).dispose();
+      for (const membrane of [inner, outer]) {
+        membrane.geometry.dispose();
+        membrane.material.dispose();
+      }
     },
   };
 }

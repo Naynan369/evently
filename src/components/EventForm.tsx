@@ -10,6 +10,7 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import { categories, categoryName, imageOptions } from "@/lib/catalog";
+import { isMessinaCity, messinaAreas } from "@/lib/messina";
 import { localDateTime, zonedToIso } from "@/lib/dates";
 import { api } from "@/lib/client";
 import type { BusinessProfile, Event, Venue } from "@/lib/types";
@@ -55,8 +56,9 @@ export default function EventForm({
     initialVenue?.name || initial?.venue || "",
   );
   const [venueCity, setVenueCity] = useState(
-    initialVenue?.city || initial?.city || "",
+    initialVenue?.city || initial?.city || "Messina",
   );
+  const [venueArea, setVenueArea] = useState(initial?.area || "");
   const [venueAddress, setVenueAddress] = useState(
     initialVenue
       ? initialVenue.address + ", " + initialVenue.postalCode
@@ -86,6 +88,7 @@ export default function EventForm({
     if (!nextVenue) {
       setVenueName("");
       setVenueCity("");
+      setVenueArea("");
       setVenueAddress("");
       setCapacity("100");
       setEventTimezone("Europe/Rome");
@@ -93,6 +96,7 @@ export default function EventForm({
     }
     setVenueName(nextVenue.name);
     setVenueCity(nextVenue.city);
+    setVenueArea("");
     setVenueAddress(nextVenue.address + ", " + nextVenue.postalCode);
     setCapacity(String(nextVenue.capacity));
     setEventTimezone(nextVenue.timezone);
@@ -486,13 +490,35 @@ export default function EventForm({
                 maxLength={80}
                 minLength={2}
                 name="city"
-                onChange={(event) => setVenueCity(event.target.value)}
+                onChange={(event) => {
+                  setVenueCity(event.target.value);
+                  setVenueArea("");
+                }}
                 placeholder={t("create.cityPlaceholder")}
                 readOnly={Boolean(venueId)}
                 required
                 value={venueCity}
               />
             </div>
+            {isMessinaCity(venueCity) && (
+              <div className="field">
+                <label htmlFor="area">{t("create.messinaArea")}</label>
+                <select
+                  id="area"
+                  name="area"
+                  onChange={(event) => setVenueArea(event.target.value)}
+                  required
+                  value={venueArea}
+                >
+                  <option value="">{t("create.chooseArea")}</option>
+                  {messinaAreas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area[language]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="field span-full">
               <label htmlFor="address">{t("create.address")}</label>
               <input
@@ -506,6 +532,18 @@ export default function EventForm({
                 required
                 value={venueAddress}
               />
+            </div>
+            <div className="field span-full">
+              <label htmlFor="accessNotes">{t("create.accessNotes")}</label>
+              <textarea
+                defaultValue={initial?.accessNotes || ""}
+                id="accessNotes"
+                maxLength={500}
+                name="accessNotes"
+                placeholder={t("create.accessNotesPlaceholder")}
+                rows={3}
+              />
+              <small>{t("create.accessNotesHelp")}</small>
             </div>
           </div>
         </section>

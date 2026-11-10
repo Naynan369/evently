@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
+import { FaApple, FaGoogle } from "react-icons/fa";
 import { api } from "@/lib/client";
 import { safeNext } from "@/lib/format";
 import type { User, EmailDeliveryMode } from "@/lib/types";
@@ -11,10 +12,12 @@ import { useApp } from "./AppProvider";
 export default function AuthForm({
   register = false,
   next,
+  oauthError,
   emailDelivery = "unavailable",
 }: {
   register?: boolean;
   next?: string;
+  oauthError?: string;
   emailDelivery?: EmailDeliveryMode;
 }) {
   const [busy, setBusy] = useState(false);
@@ -55,45 +58,63 @@ export default function AuthForm({
     }
   }
   return (
-    <main id="main" className="auth-layout">
+    <main
+      id="main"
+      className={`auth-layout auth-layout--${register ? "register" : "login"}`}
+    >
       <aside className="auth-visual">
         <Image
-          src="/images/festival.jpg"
-          alt="Festival lights above a lively crowd"
+          src={register ? "/images/festival.jpg" : "/images/community-photo.jpg"}
+          alt=""
           fill
-          sizes="50vw"
+          sizes="(max-width: 900px) 100vw, 90vw"
         />
-        <div>
-          <span className="eyebrow" style={{ color: "#ffe2c2" }}>
+        <div className="auth-visual__top">
+          <span className="eyebrow">
             {t("auth.banner")}
           </span>
+        </div>
+        <div className="auth-visual__copy">
           <h2>
-            {t("auth.bannerLine1")}
-            <br />
-            {t("auth.bannerLine2")}
-            <br />
-            {t("auth.bannerLine3")}
+            <span>{t("auth.bannerLine1")}</span>
+            <span>{t("auth.bannerLine2")}</span>
+            <span>{t("auth.bannerLine3")}</span>
           </h2>
           <p>{t("auth.nextExperience")}</p>
         </div>
       </aside>
       <div className="auth-form-wrap">
         <div className="auth-form">
-          <span className="eyebrow">
-            {register ? t("auth.registerEyebrow") : t("auth.signInEyebrow")}
-          </span>
-          <h1>{register ? t("auth.register") : t("auth.signIn")}</h1>
-          <p>{register ? t("auth.registerIntro") : t("auth.signInIntro")}</p>
+          <div className="auth-form__intro">
+            <span className="eyebrow">
+              {register ? t("auth.registerEyebrow") : t("auth.signInEyebrow")}
+            </span>
+            <h1>{register ? t("auth.register") : t("auth.signIn")}</h1>
+            <p>{register ? t("auth.registerIntro") : t("auth.signInIntro")}</p>
+          </div>
+          {oauthError && (
+            <div className="error-box auth-social-error" role="alert">
+              {oauthError === "unavailable"
+                ? t("auth.socialUnavailable")
+                : oauthError === "cancelled"
+                  ? t("auth.socialCancelled")
+                  : t("auth.socialFailed")}
+            </div>
+          )}
+          <div className="auth-social">
+            <div className="auth-social__buttons">
+              <a href={`/api/auth/oauth/google?from=${register ? "register" : "login"}&next=${encodeURIComponent(destination)}`}>
+                <FaGoogle aria-hidden="true" />
+                <span>{t("auth.withGoogle")}</span>
+              </a>
+              <a href={`/api/auth/oauth/apple?from=${register ? "register" : "login"}&next=${encodeURIComponent(destination)}`}>
+                <FaApple aria-hidden="true" />
+                <span>{t("auth.withApple")}</span>
+              </a>
+            </div>
+            <div className="auth-social__divider"><span>{t("auth.orEmail")}</span></div>
+          </div>
           <form onSubmit={submit} className="form-stack" aria-busy={busy}>
-            {register &&
-              emailDelivery !== "gmail" &&
-              emailDelivery !== "resend" && (
-                <div className="notice" role="status">
-                  {emailDelivery === "preview"
-                    ? t("auth.previewNotice")
-                    : t("auth.emailSetupNotice")}
-                </div>
-              )}
             {register && (
               <div className="field">
                 <label htmlFor="name">{t("auth.name")}</label>
@@ -121,7 +142,14 @@ export default function AuthForm({
               />
             </div>
             <div className="field">
-              <label htmlFor="password">{t("auth.password")}</label>
+              <div className="auth-password-label">
+                <label htmlFor="password">{t("auth.password")}</label>
+                {!register && (
+                  <Link className="forgot-link" href="/forgot-password">
+                    {t("auth.forgot")}
+                  </Link>
+                )}
+              </div>
               <div className="password-field">
                 <input
                   id="password"
@@ -149,12 +177,16 @@ export default function AuthForm({
                 </button>
               </div>
               {register && <small>{t("auth.passwordHint")}</small>}
-              {!register && (
-                <Link className="forgot-link" href="/forgot-password">
-                  {t("auth.forgot")}
-                </Link>
-              )}
             </div>
+            {register &&
+              emailDelivery !== "gmail" &&
+              emailDelivery !== "resend" && (
+                <div className="notice auth-delivery-note" role="status">
+                  {emailDelivery === "preview"
+                    ? t("auth.previewNotice")
+                    : t("auth.emailSetupNotice")}
+                </div>
+              )}
             {error && (
               <div className="error-box" role="alert">
                 {error}
@@ -169,7 +201,7 @@ export default function AuthForm({
               </div>
             )}
             <button
-              className="button button-primary button-wide"
+              className="button button-primary button-wide auth-submit"
               disabled={busy}
             >
               {busy
@@ -180,21 +212,23 @@ export default function AuthForm({
               <FiArrowRight />
             </button>
           </form>
-          <div className="auth-switch">
-            {register ? t("auth.haveAccount") : t("auth.noAccount")}{" "}
-            <Link
-              href={
-                (register ? "/login" : "/register") +
-                "?next=" +
-                encodeURIComponent(destination)
-              }
-            >
-              {register ? t("nav.signIn") : t("auth.createAccountLink")}
-            </Link>
+          <div className="auth-form__footer">
+            <div className="auth-switch">
+              {register ? t("auth.haveAccount") : t("auth.noAccount")}{" "}
+              <Link
+                href={
+                  (register ? "/login" : "/register") +
+                  "?next=" +
+                  encodeURIComponent(destination)
+                }
+              >
+                {register ? t("nav.signIn") : t("auth.createAccountLink")}
+              </Link>
+            </div>
+            <p className="form-note">
+              {register ? t("auth.joinNote") : t("auth.signInNote")}
+            </p>
           </div>
-          <p className="form-note" style={{ marginTop: 22 }}>
-            {register ? t("auth.joinNote") : t("auth.signInNote")}
-          </p>
         </div>
       </div>
     </main>

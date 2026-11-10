@@ -4,11 +4,13 @@ A working event discovery and ticketing application built with Next.js, React, P
 
 ## What works
 
-- A cinematic homepage with a procedural Three.js music visualizer, pause/select controls, reduced-motion support, neutral charcoal dark mode and responsive discovery pages.
-- Featured events arranged as one lead card and a shortlist; discovery supports grid and list layouts.
-- Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Inter typography.
+- A cinematic homepage with event photography, Three.js motion, pause/select controls, reduced-motion support, neutral charcoal dark mode and responsive discovery pages.
+- Equal-size featured event cards in a horizontal row; discovery supports grid and list layouts.
+- Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Space Grotesk typography.
 - City/text search, category/date/price filters and saved events.
+- Messina area browsing, Italian as the first-visit language, and optional access and arrival details on event pages.
 - Accounts with salted password hashes, six-digit email verification through Gmail SMTP, verification resend, forgot-password and one-use password reset links.
+- Google and Apple account sign-in when their OAuth credentials and callback URLs are configured.
 - Revocable server-backed sessions; password recovery signs out every existing session.
 - Recommendations based on selected interests, saved categories, artist lineups and music genres, with booked and unavailable events excluded.
 - Optional Apple Music and gated Spotify connections: consent, playlist selection, bounded import, explicit match reasons and disconnect/delete controls. Manual artist and genre preferences work without provider credentials.
@@ -71,6 +73,15 @@ Set `APP_URL` to the exact application origin, including its port. In developmen
 Gmail SMTP delivery failures leave the account unverified and offer a resend action. Password recovery returns the same generic response for existing and unknown emails. The mailer sends plain text and HTML. Gmail credentials remain server-side. If only legacy Resend settings are present, Evently can still deliver its previous verification links and password-reset messages.
 
 For a local preview without sending email, set `EMAIL_DELIVERY=preview`. Messages are written to private `data/mail-preview/*.json` files and are never served by a public API. Preview mode keeps the existing link-based verification path; open the message's `url` locally to verify or reset. Production-build previews additionally require `EVENTLY_TEST_MODE=true` and a loopback `APP_URL`. Never enable this mode or copy its outbox into a live deployment.
+
+## Google and Apple sign-in
+
+The sign-in and registration pages include Google and Apple buttons. Both use the same Evently accounts and sessions as email sign-in. Provider identity is tied to the provider's stable user ID; verified email is used only when linking a provider for the first time. Until credentials are set, the buttons return to the form with an availability message.
+
+- **Google:** Create a web OAuth client in [Google Cloud](https://developers.google.com/identity/protocols/oauth2/web-server). Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local`, and register the exact redirect URI `APP_URL/api/auth/oauth/google/callback`. A loopback `APP_URL`, including `http://127.0.0.1:3000`, works for local testing.
+- **Apple:** Configure a Services ID and Sign in with Apple key in [Apple Developer](https://developer.apple.com/documentation/signinwithapple/configuring-your-environment-for-sign-in-with-apple). Set `APPLE_SIGN_IN_CLIENT_ID`, `APPLE_SIGN_IN_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID` and `APPLE_SIGN_IN_PRIVATE_KEY`. Register `APP_URL/api/auth/oauth/apple/callback` as the return URL. Apple web sign-in requires a registered HTTPS domain, so it cannot complete against the local HTTP address. The Apple sign-in keys are separate from Apple Music keys.
+
+Restart Evently after changing `.env.local`. Keep the client secrets and private key server-side. The sign-in callback verifies the provider's signed identity token and one-time state before creating an Evently session.
 
 ## Music-based event recommendations
 
@@ -142,7 +153,8 @@ This edition uses PostgreSQL as shared persistent storage and can run behind mul
 
 - Restrict network access to PostgreSQL and use TLS when required by your provider.
 - Set `DATABASE_POOL_SIZE` to fit the database connection limit across all application instances.
-- Set `SEED_DEMO=false` before the first run with a fresh production database. This setting does not delete samples from an existing database.
+- Keep `SEED_DEMO=false` for deployment. Fictional listings appear only when explicitly enabled in local development or isolated automated tests; existing sample rows are hidden from public discovery in production. This setting does not delete rows from an existing database.
+- Give real Messina events an area when creating or editing them so neighborhood links can find them. Existing events without an area remain visible in the all-area results.
 - Use HTTPS and set the correct `APP_URL`; session cookies are secure when that URL uses HTTPS.
 - Back up PostgreSQL with regular, tested `pg_dump` snapshots and protect the backup location.
 - Keep credentials, databases and backups out of Git. Do not copy development databases into production.
@@ -185,10 +197,10 @@ Event photos are local copies from Unsplash, used as illustrative imagery:
 - Outdoors: `photo-1500530855697-b586d89ba3ee`
 - Community: `photo-1511988617509-a57c8a288659`
 
-The homepage background is drawn procedurally with Three.js and uses no video or poster image. Each collection has its own visualizer: a pulsing equalizer for Club Nights, softly orbiting clay-like forms for Good Company, and slow horizon waves for Open Horizons. The event cover photos remain local files and are used by listings, forms and account screens.
+The homepage combines a local event photograph with Three.js motion. Each collection has its own visualizer. Event cover photos are local files used by listings, forms and account screens; credits for the newer event photos are in `public/images/photo-credits.txt`.
 
-Source images: `https://images.unsplash.com/IMAGE_IDENTIFIER`. Manrope is bundled locally under the SIL Open Font License; see `public/fonts/OFL.txt`. Icons use React Icons / Feather. Fonts and event images do not require a third-party request at runtime.
+Source images: `https://images.unsplash.com/IMAGE_IDENTIFIER`. Icons use React Icons / Feather. Fonts and event images do not require a third-party request at runtime.
 
 ## Fonts
 
-Interface typography uses [Inter 4.1](https://rsms.me/inter/), served locally through Next.js font optimization. The brand wordmark retains Manrope. Font licenses are included in `public/fonts/INTER-LICENSE.txt` and `public/fonts/OFL.txt`.
+Interface typography uses [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk), served locally through Next.js font optimization. Its license is included in `public/fonts/SPACE-GROTESK-OFL.txt`.

@@ -2,8 +2,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID, randomBytes } from "node:crypto";
 import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 import { categories, imageOptions, seedEvents } from "./catalog.ts";
+import { isMessinaArea, isMessinaCity } from "./messina.ts";
 import { AppError, integer, textField } from "./security.ts";
-import { eventIsPrivate, organizerDemoMode } from "./demo.ts";
+import { eventIsPrivate, organizerDemoMode, sampleListingsEnabled } from "./demo.ts";
 import type {
   Booking,
   BusinessProfile,
@@ -39,6 +40,19 @@ const schema = `
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
     expires_at BIGINT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS social_identities (
+    provider TEXT NOT NULL, subject TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at BIGINT NOT NULL,
+    PRIMARY KEY(provider,subject)
+  );
+  CREATE INDEX IF NOT EXISTS social_identities_user ON social_identities(user_id);
+  CREATE TABLE IF NOT EXISTS oauth_login_states (
+    state_hash TEXT PRIMARY KEY, provider TEXT NOT NULL,
+    binding_hash TEXT NOT NULL, nonce TEXT NOT NULL,
+    verifier TEXT NOT NULL, next_path TEXT NOT NULL,
+    auth_page TEXT NOT NULL, expires_at BIGINT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
@@ -150,7 +164,7 @@ async function initialize() {
     await client.query(
       "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS demo_guest_name TEXT",
     );
-    if (process.env.SEED_DEMO !== "false") {
+    if (sampleListingsEnabled()) {
       const count = await client.query<{ n: number }>(
         "SELECT COUNT(*)::integer AS n FROM events",
       );
@@ -216,7 +230,7 @@ export async function resetDatabaseForTests() {
     throw new Error("Test database reset requires EVENTLY_TEST_MODE=true.");
   await initializeDatabase();
   await pool().query(
-    "TRUNCATE TABLE demo_feedback,oauth_states,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
+    "TRUNCATE TABLE demo_feedback,oauth_states,oauth_login_states,social_identities,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
   );
 }
 
@@ -331,7 +345,7 @@ export async function listEvents() {
     (await all<{ data: string }>("SELECT data FROM events")).map(hydrateEvent),
   );
   return events
-    .filter((event) => !eventIsPrivate(event))
+    .filter((event) => !eventIsPrivate(event) && (!event.sample || sampleListingsEnabled()))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 export async function getEvent(id: string) {
@@ -340,7 +354,9 @@ export async function getEvent(id: string) {
     id,
     id,
   );
-  return row ? await hydrateEvent(row) : null;
+  if (!row) return null;
+  const event = await hydrateEvent(row);
+  return event.sample && !sampleListingsEnabled() ? null : event;
 }
 export async function getBusinessProfile(id: string) {
   const row = await one<{ data: string }>(
@@ -755,14 +771,23 @@ export function validateEvent(
     throw new AppError(
       "Paid tickets must cost at least 1 in the selected currency.",
     );
+  const city = textField(input.city, "City", 2, 80);
+  const area = input.area === undefined || input.area === "" ? undefined : input.area;
+  if (area !== undefined && (!isMessinaCity(city) || !isMessinaArea(area)))
+    throw new AppError("Choose a valid Messina area.");
+  const accessNotes = input.accessNotes === undefined || input.accessNotes === ""
+    ? undefined
+    : textField(input.accessNotes, "Access and arrival details", 1, 500);
   return {
     ownerId: owner.id,
     title: textField(input.title, "Event title", 5, 100),
     description: textField(input.description, "Description", 40, 8000),
     category,
-    city: textField(input.city, "City", 2, 80),
+    city,
+    ...(area ? { area } : {}),
     venue: textField(input.venue, "Venue", 2, 120),
     address: textField(input.address, "Address", 5, 300),
+    ...(accessNotes ? { accessNotes } : {}),
     startsAt: new Date(start).toISOString(),
     endsAt: new Date(end).toISOString(),
     timezone,

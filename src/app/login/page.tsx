@@ -6,9 +6,9 @@ export const metadata = { title: "Sign in" };
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; oauthError?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, oauthError } = await searchParams;
   if (await currentUser()) redirect(safeNext(next));
-  return <AuthForm next={next} />;
+  return <AuthForm next={next} oauthError={oauthError} />;
 }

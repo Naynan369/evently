@@ -10,8 +10,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import EventCardUnfurl from "./EventCardUnfurl";
-import EventCardScene from "./EventCardScene";
 import { categoryName } from "@/lib/catalog";
+import { messinaAreaLabel } from "@/lib/messina";
 import { eventDate, eventTime, money } from "@/lib/format";
 import type { Event } from "@/lib/types";
 import { useApp } from "./AppProvider";
@@ -24,7 +24,6 @@ export default function EventCard({
   motionStaggerMs = 90,
   showUnfurl = false,
   editorialMotion = false,
-  scene3D = false,
 }: {
   event: Event;
   reason?: string;
@@ -33,7 +32,6 @@ export default function EventCard({
   motionStaggerMs?: number;
   showUnfurl?: boolean;
   editorialMotion?: boolean;
-  scene3D?: boolean;
 }) {
   const { language, t } = useApp();
   const [hasEntered, setHasEntered] = useState(false);
@@ -146,7 +144,6 @@ export default function EventCard({
         variant +
         (showUnfurl ? " event-card--unfurl" : "") +
         (editorialMotion ? " event-card--editorial" : "") +
-        (scene3D ? " event-card--scene" : "") +
         (hasEntered ? " event-card--revealed" : "")
       }
     >
@@ -164,7 +161,6 @@ export default function EventCard({
             }
           />
         </Link>
-        {scene3D && <EventCardScene src={coverSrc} />}
         {shouldShowUnfurl && hasEntered && (
           <EventCardUnfurl delay={motionDelay + 120} />
         )}
@@ -213,7 +209,7 @@ export default function EventCard({
           <p className="event-location">
             <FiMapPin aria-hidden="true" />
             <span>
-              {event.venue} · {event.city}
+              {event.venue} · {event.area ? messinaAreaLabel(event.area, language) : event.city}
             </span>
           </p>
           <p className="event-time">

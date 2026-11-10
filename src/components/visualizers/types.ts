@@ -5,5 +5,3 @@ export type AnimatedScene = {
   update: (time: number, aspect: number) => void;
   dispose: () => void;
 };
-
-export type VisualMode = 0 | 1 | 2;

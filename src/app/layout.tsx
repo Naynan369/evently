@@ -10,11 +10,11 @@ import { translate } from "@/lib/i18n";
 import "./globals.css";
 import "./professional.css";
 import "./refinement.css";
-const inter = localFont({
-  src: "../../public/fonts/inter-variable.woff2",
+const spaceGrotesk = localFont({
+  src: "../../public/fonts/space-grotesk-variable.woff2",
   variable: "--font-interface",
   display: "swap",
-  weight: "100 900",
+  weight: "300 700",
 });
 export const metadata: Metadata = {
   title: {
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s · Evently",
   },
   description:
-    "Discover your next favorite experience. Find events, meet your people and make moments that matter.",
+    "Discover events, local experiences and community gatherings across Messina.",
 };
 export const runtime = "nodejs";
 export default async function RootLayout({
@@ -34,7 +34,7 @@ export default async function RootLayout({
   const language = await getLanguage();
   return (
     <html lang={language} suppressHydrationWarning>
-      <body className={inter.variable}>
+      <body className={spaceGrotesk.variable}>
         <ThemeProvider>
           <AppProvider
             initialUser={user}

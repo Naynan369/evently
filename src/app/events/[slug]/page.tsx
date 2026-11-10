@@ -14,6 +14,7 @@ import { getEvent, listEvents, discoveryData } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { eventIsPrivate } from "@/lib/demo";
 import { categories, categoryName } from "@/lib/catalog";
+import { messinaAreaLabel } from "@/lib/messina";
 import { eventDate, eventTime } from "@/lib/format";
 import { paymentConfigured } from "@/lib/payments";
 import BookingPanel from "@/components/BookingPanel";
@@ -228,7 +229,13 @@ export default async function EventDetail({
               <div>
                 <strong>{event.venue}</strong>
                 <p>{event.address}</p>
-                <span>{event.city}</span>
+                <span>{event.area ? `${messinaAreaLabel(event.area, language)} · ` : ""}{event.city}</span>
+                {event.accessNotes && (
+                  <div className="event-detail-access-notes">
+                    <span className="event-detail-fact-label">{t("events.accessNotes")}</span>
+                    <p>{event.accessNotes}</p>
+                  </div>
+                )}
               </div>
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
