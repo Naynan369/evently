@@ -151,8 +151,18 @@ Refund requests appear in the organizer's guest list. They do not cancel tickets
 
 This edition uses PostgreSQL as shared persistent storage and can run behind multiple Node.js instances. Configure every instance with the same private `DATABASE_URL`, use a suitably sized connection pool, and test concurrency limits for your hosting provider.
 
+### Vercel with Neon
+
+1. Create a Neon PostgreSQL project in a European region close to the Vercel Functions region you plan to use.
+2. In Neon’s connection details, select **Pooled connection** and copy its PostgreSQL URL. The pooled hostname includes `-pooler`; this is the connection string to use for the serverless app.
+3. In the Vercel project’s Environment Variables, set `DATABASE_URL` to that URL for Production. Give Preview its own Neon branch or database so preview deployments cannot change production data. Keep your current local database URL in `.env.local` for local development.
+4. Set `DATABASE_POOL_SIZE` to `5` initially. In Vercel project settings, place Functions in the same region as Neon or the nearest available region. For example, use Vercel’s Frankfurt region (`fra1`) if the Neon project is in Frankfurt.
+5. Before serving production traffic, run `npm run db:migrate` against the Neon database to create or update Evently’s schema. Evently can initialize the schema on first use too, but running the setup command explicitly makes database setup errors visible before launch.
+
+If you already have Evently data in another PostgreSQL database, copy it to Neon before switching Production’s `DATABASE_URL`. Keep the source database as a backup until you have confirmed the migrated records in Neon. Never point Preview or automated tests at production data.
+
 - Restrict network access to PostgreSQL and use TLS when required by your provider.
-- Set `DATABASE_POOL_SIZE` to fit the database connection limit across all application instances.
+- Keep `DATABASE_POOL_SIZE` sized for the database connection limit across all application instances; use Neon’s pooled URL for Vercel.
 - Keep `SEED_DEMO=false` for deployment. Fictional listings appear only when explicitly enabled in local development or isolated automated tests; existing sample rows are hidden from public discovery in production. This setting does not delete rows from an existing database.
 - Give real Messina events an area when creating or editing them so neighborhood links can find them. Existing events without an area remain visible in the all-area results.
 - Use HTTPS and set the correct `APP_URL`; session cookies are secure when that URL uses HTTPS.

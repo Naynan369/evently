@@ -123,11 +123,14 @@ function pool() {
     throw new Error("DATABASE_URL is required to connect Evently to PostgreSQL.");
   if (!runtime.__eventlyPostgresPool) {
     const schemaName = process.env.DATABASE_SCHEMA;
+    const poolSize = Number(process.env.DATABASE_POOL_SIZE || 5);
+    if (!Number.isSafeInteger(poolSize) || poolSize < 1)
+      throw new Error("DATABASE_POOL_SIZE must be a positive whole number.");
     if (schemaName && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schemaName))
       throw new Error("DATABASE_SCHEMA contains invalid characters.");
     runtime.__eventlyPostgresPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: Number(process.env.DATABASE_POOL_SIZE || 10),
+      max: poolSize,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
       allowExitOnIdle: true,
