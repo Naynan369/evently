@@ -975,8 +975,6 @@ const messages = {
       "Check {email} for a six-digit code. Enter it below to verify your email. It expires in 15 minutes.",
     "recovery.verifyFailed":
       "Your account is saved. Request another verification email below.",
-    "recovery.linkIntro":
-      "Check {email} for your verification link. Open it to finish setting up your account, or request a fresh link below.",
     "recovery.verifyIntro":
       "Your account needs email verification before you can book events or connect music.",
     "recovery.yourInbox": "your inbox",
@@ -2021,8 +2019,6 @@ const messages = {
       "Cerca nella posta di {email} il codice di sei cifre. Inseriscilo qui sotto per verificare l'email. Scade tra 15 minuti.",
     "recovery.verifyFailed":
       "Il tuo account è salvato. Richiedi qui sotto un'altra email di verifica.",
-    "recovery.linkIntro":
-      "Cerca nella posta di {email} il link di verifica. Aprilo per completare l'account oppure richiedine uno nuovo qui sotto.",
     "recovery.verifyIntro":
       "Devi verificare l'email prima di prenotare eventi o collegare la musica.",
     "recovery.yourInbox": "la tua posta",

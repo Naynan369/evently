@@ -178,15 +178,13 @@ export default function AuthForm({
               </div>
               {register && <small>{t("auth.passwordHint")}</small>}
             </div>
-            {register &&
-              emailDelivery !== "gmail" &&
-              emailDelivery !== "resend" && (
-                <div className="notice auth-delivery-note" role="status">
-                  {emailDelivery === "preview"
-                    ? t("auth.previewNotice")
-                    : t("auth.emailSetupNotice")}
-                </div>
-              )}
+            {register && emailDelivery !== "gmail" && (
+              <div className="notice auth-delivery-note" role="status">
+                {emailDelivery === "preview"
+                  ? t("auth.previewNotice")
+                  : t("auth.emailSetupNotice")}
+              </div>
+            )}
             {error && (
               <div className="error-box" role="alert">
                 {error}

@@ -25,11 +25,7 @@ export default defineConfig({
       DATABASE_URL: process.env.TEST_DATABASE_URL,
       DATABASE_SCHEMA: "evently_test_e2e",
       SEED_DEMO: "true",
-      EMAIL_DELIVERY: process.env.EVENTLY_E2E_EMAIL_DISABLED
-        ? "resend"
-        : "preview",
-      RESEND_API_KEY: "",
-      EMAIL_FROM: "",
+      EMAIL_DELIVERY: process.env.EVENTLY_E2E_EMAIL_DISABLED ? "" : "preview",
       MYEMAIL: "",
       MYPASS: "",
       EMAIL_PREVIEW_DIR: resolve("test-results/mail"),

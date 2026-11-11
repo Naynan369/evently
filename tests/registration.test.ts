@@ -8,9 +8,9 @@ import { prepareTestDatabase } from "./database.ts";
 
 await prepareTestDatabase("registration");
 process.env.APP_URL = "http://127.0.0.1:3100";
-process.env.EMAIL_DELIVERY = "resend";
-delete process.env.RESEND_API_KEY;
-delete process.env.EMAIL_FROM;
+delete process.env.EMAIL_DELIVERY;
+delete process.env.MYEMAIL;
+delete process.env.MYPASS;
 
 const details = () => ({
   name: "Test Guest",
@@ -18,10 +18,7 @@ const details = () => ({
   password: "A-unique-test-password!",
 });
 
-test("registration works without email configuration, saves a hashed password and remains unverified", async (t) => {
-  t.mock.method(globalThis, "fetch", async () => {
-    throw new Error("No email should be attempted");
-  });
+test("registration works without email configuration, saves a hashed password and remains unverified", async () => {
   const input = details();
   const result = await registerAccount({
     ...input,
@@ -45,35 +42,6 @@ test("registration works without email configuration, saves a hashed password an
     0,
   );
   await assert.rejects(registerAccount(input), { status: 409 });
-});
-
-test("an email provider failure preserves the new account without claiming that email was sent", async (t) => {
-  process.env.RESEND_API_KEY = "re_fixture";
-  process.env.EMAIL_FROM = "Evently <hello@example.test>";
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async () =>
-      new Response(JSON.stringify({ message: "Provider unavailable" }), {
-        status: 503,
-      }),
-  );
-  try {
-    const result = await registerAccount(details());
-    assert.equal(result.verificationDelivery, "failed");
-    assert.equal(result.verificationSent, false);
-    assert.equal(result.user.emailVerified, false);
-    assert.equal(
-      (await one<{ n: number }>(
-        "SELECT count(*) n FROM account_tokens WHERE user_id=?",
-        result.user.id,
-      ))?.n,
-      0,
-    );
-  } finally {
-    delete process.env.RESEND_API_KEY;
-    delete process.env.EMAIL_FROM;
-  }
 });
 
 test("signup continues to reject invalid details with email delivery unavailable", async () => {

@@ -107,8 +107,4 @@ export type Booking = {
   demoGuestName?: string | null;
 };
 export type Ticket = Booking & { event: Event };
-export type EmailDeliveryMode =
-  | "gmail"
-  | "resend"
-  | "preview"
-  | "unavailable";
+export type EmailDeliveryMode = "gmail" | "preview" | "unavailable";

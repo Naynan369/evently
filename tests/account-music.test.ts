@@ -7,7 +7,6 @@ import {
   issueAccountToken,
   verifyEmail,
   resetPassword,
-  deliverAccountToken,
 } from "../src/lib/account-tokens.ts";
 import {
   encryptMusic,
@@ -42,26 +41,25 @@ process.env.SPOTIFY_APPROVED_USE_CASE = "true";
 process.env.SPOTIFY_CONNECTION_TEST = "false";
 test("mail delivery clearly distinguishes live setup, missing settings and local preview", () => {
   const before = {
-    key: process.env.RESEND_API_KEY,
-    sender: process.env.EMAIL_FROM,
+    gmailUser: process.env.MYEMAIL,
+    gmailPassword: process.env.MYPASS,
     delivery: process.env.EMAIL_DELIVERY,
   };
   try {
     delete process.env.EMAIL_DELIVERY;
-    delete process.env.RESEND_API_KEY;
-    delete process.env.EMAIL_FROM;
+    delete process.env.MYEMAIL;
+    delete process.env.MYPASS;
     assert.equal(emailDeliveryMode(), "unavailable");
-    process.env.RESEND_API_KEY = "re_fixture";
-    process.env.EMAIL_FROM = "Evently <hello@your-domain.com>";
+    process.env.MYEMAIL = "hello@example.test";
     assert.equal(emailDeliveryMode(), "unavailable");
-    process.env.EMAIL_FROM = "Evently <hello@example.test>";
-    assert.equal(emailDeliveryMode(), "resend");
+    process.env.MYPASS = "fixture-app-password";
+    assert.equal(emailDeliveryMode(), "gmail");
     process.env.EMAIL_DELIVERY = "preview";
     assert.equal(emailDeliveryMode(), "preview");
   } finally {
     for (const [name, value] of Object.entries({
-      RESEND_API_KEY: before.key,
-      EMAIL_FROM: before.sender,
+      MYEMAIL: before.gmailUser,
+      MYPASS: before.gmailPassword,
       EMAIL_DELIVERY: before.delivery,
     })) {
       if (value === undefined) delete process.env[name];
@@ -154,57 +152,6 @@ test("password reset verifies mailbox ownership and revokes all sessions and tok
     resetPassword(token, "Another-secure-password"),
     /invalid or expired/,
   );
-});
-test("Resend delivery uses the configured origin and cleans up a rejected token", async (t) => {
-  process.env.RESEND_API_KEY = "re_fixture";
-  process.env.EMAIL_FROM = "Evently <hello@example.test>";
-    const id = await user();
-  let seen = false;
-  const mocked = t.mock.method(
-    globalThis,
-    "fetch",
-    async (input: string | URL | Request, init?: RequestInit) => {
-      assert.equal(String(input), "https://api.resend.com/emails");
-      const body = JSON.parse(String(init?.body));
-      assert.deepEqual(body.to, [(await userById(id))?.email]);
-      assert.match(body.text, /http:\/\/127.0.0.1:3100\/verify-email\?token=/);
-      assert.equal(
-        new Headers(init?.headers).get("Authorization"),
-        "Bearer re_fixture",
-      );
-      seen = true;
-      return new Response("{}", { status: 500 });
-    },
-  );
-  await assert.rejects(deliverAccountToken(id, "verify"), /couldn’t send/);
-  assert.equal(seen, true);
-  assert.equal(
-    await one("SELECT * FROM account_tokens WHERE user_id=?", id),
-    undefined,
-  );
-  mocked.mock.restore();
-});
-test("a verification email is addressed to the registered account through Resend", async (t) => {
-  process.env.RESEND_API_KEY = "re_fixture";
-  process.env.EMAIL_FROM = "Evently <hello@example.test>";
-  const id = await user();
-  let verification = "";
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async (input: string | URL | Request, init?: RequestInit) => {
-      assert.equal(String(input), "https://api.resend.com/emails");
-      const message = JSON.parse(String(init?.body));
-      assert.deepEqual(message.to, [(await userById(id))!.email]);
-      assert.equal(message.from, "Evently <hello@example.test>");
-      assert.match(message.subject, /Verify your email/);
-      verification = message.text.match(/token=([a-f0-9]{64})/)[1];
-      return Response.json({ id: "resend-message-fixture" });
-    },
-  );
-  await deliverAccountToken(id, "verify");
-  assert.equal((await userById(id))?.emailVerified, false);
-  assert.equal(await verifyEmail(verification), id);
 });
 test("production email preview cannot be enabled on a public origin", () => {
   process.env.EMAIL_DELIVERY = "preview";

@@ -46,7 +46,7 @@ export async function registerAccount(input: Record<string, unknown>) {
     throw error;
   }
   // Account creation does not depend on a third-party email service. The account
-  // remains unverified until the user follows a valid, single-use email link.
+  // remains unverified until the user uses a valid email code or link.
   let verificationDelivery: EmailDeliveryMode | "failed" = emailDeliveryMode();
   if (verificationDelivery !== "unavailable") {
     try {
@@ -60,8 +60,7 @@ export async function registerAccount(input: Record<string, unknown>) {
   return {
     user: (await userById(id))!,
     saved: [],
-    verificationSent:
-      verificationDelivery === "gmail" || verificationDelivery === "resend",
+    verificationSent: verificationDelivery === "gmail",
     verificationDelivery,
   };
 }

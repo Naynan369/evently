@@ -118,8 +118,7 @@ export default function EmailActions({
         ? t("recovery.titleReset")
         : token
           ? t("recovery.titleConfirm")
-          : (emailDelivery === "gmail" || emailDelivery === "resend") &&
-              !deliveryFailed
+          : emailDelivery === "gmail" && !deliveryFailed
             ? t("recovery.titleInbox")
             : t("recovery.titleVerify");
   const description = successState
@@ -127,7 +126,7 @@ export default function EmailActions({
       ? t("recovery.passwordUpdated")
       : t("recovery.emailConfirmed")
     : mode === "forgot"
-      ? emailDelivery === "gmail" || emailDelivery === "resend"
+      ? emailDelivery === "gmail"
         ? t("recovery.forgotEnabled")
         : t("recovery.forgotUnavailable")
       : mode === "reset"
@@ -142,11 +141,7 @@ export default function EmailActions({
                 })
             : deliveryFailed
               ? t("recovery.verifyFailed")
-              : emailDelivery === "resend"
-                ? t("recovery.linkIntro", {
-                    email: email || t("recovery.yourInbox"),
-                  })
-                : t("recovery.verifyIntro");
+              : t("recovery.verifyIntro");
   return (
     <main id="main" className="auth-recovery page-main container">
       <div className="panel recovery-card">
@@ -174,16 +169,14 @@ export default function EmailActions({
           </Link>
         ) : (
           <form onSubmit={submit} className="form-stack">
-            {!token &&
-              emailDelivery !== "gmail" &&
-              emailDelivery !== "resend" && (
-                <div className="notice" role="status">
-                  {emailDelivery === "preview"
-                    ? t("recovery.previewMode")
-                    : mode === "verify"
-                      ? t("recovery.deliveryNotReadyVerify")
-                      : t("recovery.deliveryNotReadyReset")}
-                </div>
+            {!token && emailDelivery !== "gmail" && (
+              <div className="notice" role="status">
+                {emailDelivery === "preview"
+                  ? t("recovery.previewMode")
+                  : mode === "verify"
+                    ? t("recovery.deliveryNotReadyVerify")
+                    : t("recovery.deliveryNotReadyReset")}
+              </div>
               )}
             {mode === "forgot" && (
               <div className="field">

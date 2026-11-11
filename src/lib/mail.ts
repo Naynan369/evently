@@ -48,14 +48,6 @@ function gmailConfigured() {
   return Boolean(process.env.MYEMAIL?.trim() && process.env.MYPASS?.trim());
 }
 
-function resendConfigured() {
-  return Boolean(
-    process.env.RESEND_API_KEY &&
-      process.env.EMAIL_FROM &&
-      !process.env.EMAIL_FROM.includes("your-domain.com"),
-  );
-}
-
 export function emailConfigured() {
   return emailDeliveryMode() !== "unavailable";
 }
@@ -65,7 +57,6 @@ export function emailDeliveryMode(): EmailDeliveryMode {
     applicationOrigin();
     if (previewMailEnabled()) return "preview";
     if (gmailConfigured()) return "gmail";
-    if (resendConfigured()) return "resend";
     return "unavailable";
   } catch {
     return "unavailable";
@@ -111,56 +102,31 @@ async function sendMessage(message: OutgoingMessage) {
 
   const gmailUser = process.env.MYEMAIL?.trim();
   const gmailPassword = process.env.MYPASS?.trim();
-  if (gmailUser && gmailPassword) {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: gmailUser, pass: gmailPassword },
-    });
-    const result = await transporter.sendMail({
-      from: gmailUser,
-      to: message.to,
-      subject: message.subject,
-      text: message.text,
-      html: message.html,
-    });
-    const accepted = Array.isArray(result.accepted) ? result.accepted : [];
-    const recipientAccepted = accepted.some((recipient) => {
-      const address =
-        typeof recipient === "string" ? recipient : recipient.address;
-      return (
-        typeof address === "string" &&
-        address.trim().toLowerCase() === message.to.trim().toLowerCase()
-      );
-    });
-    if (!recipientAccepted)
-      throw new AppError(
-        "The mail provider did not accept the email. Please try again shortly.",
-        503,
-      );
-    return;
-  }
-
-  if (!resendConfigured())
+  if (!gmailUser || !gmailPassword)
     throw new AppError("Email delivery is not configured.", 503);
-  const result = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    signal: AbortSignal.timeout(15000),
-    headers: {
-      Authorization: "Bearer " + process.env.RESEND_API_KEY,
-      "Content-Type": "application/json",
-      "Idempotency-Key": "evently-" + message.id,
-    },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
-      to: [message.to],
-      subject: message.subject,
-      html: message.html,
-      text: message.text,
-    }),
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: gmailUser, pass: gmailPassword },
   });
-  if (!result.ok)
+  const result = await transporter.sendMail({
+    from: gmailUser,
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  const accepted = Array.isArray(result.accepted) ? result.accepted : [];
+  const recipientAccepted = accepted.some((recipient) => {
+    const address =
+      typeof recipient === "string" ? recipient : recipient.address;
+    return (
+      typeof address === "string" &&
+      address.trim().toLowerCase() === message.to.trim().toLowerCase()
+    );
+  });
+  if (!recipientAccepted)
     throw new AppError(
-      "We couldn’t send the email just now. Please try again shortly.",
+      "The mail provider did not accept the email. Please try again shortly.",
       503,
     );
 }

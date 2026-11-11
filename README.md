@@ -70,7 +70,7 @@ Set `APP_URL` to the exact application origin, including its port. In developmen
 3. Register using an inbox you control and enter the six-digit code from the message. Codes expire after 15 minutes, are one-use, and are stored as salted password hashes in PostgreSQL. Resending replaces the previous code and is rate-limited.
 4. Test **Forgot password?** from the sign-in page. Password resets continue to use one-use email links.
 
-Gmail SMTP delivery failures leave the account unverified and offer a resend action. Password recovery returns the same generic response for existing and unknown emails. The mailer sends plain text and HTML. Gmail credentials remain server-side. If only legacy Resend settings are present, Evently can still deliver its previous verification links and password-reset messages.
+Gmail SMTP delivery failures leave the account unverified and offer a resend action. Password recovery returns the same generic response for existing and unknown emails. The mailer sends plain text and HTML. Gmail credentials remain server-side.
 
 For a local preview without sending email, set `EMAIL_DELIVERY=preview`. Messages are written to private `data/mail-preview/*.json` files and are never served by a public API. Preview mode keeps the existing link-based verification path; open the message's `url` locally to verify or reset. Production-build previews additionally require `EVENTLY_TEST_MODE=true` and a loopback `APP_URL`. Never enable this mode or copy its outbox into a live deployment.
 
