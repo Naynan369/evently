@@ -249,6 +249,8 @@ const messages = {
     "booking.ticketMany": "tickets",
     "booking.dueSample": "Due for sample booking",
     "booking.total": "Total",
+    "booking.testVatPreview":
+      "Test preview: {amount} sample VAT ({rate}%) is included in this total. This is not a tax calculation for sale.",
     "booking.paymentsUnavailable":
       "Payments aren’t available yet. Please check back after the organizer finishes payment setup.",
     "booking.reserving": "Reserving your place…",
@@ -341,6 +343,12 @@ const messages = {
       "Your entry code is only available for a confirmed booking.",
     "ticket.admission": "admission",
     "ticket.samplePayment": "Sample · no payment",
+    "ticket.testPreviewTitle": "Test ticket preview",
+    "ticket.testVatIncluded":
+      "Sample VAT included in the paid total: {amount} at {rate}%.",
+    "ticket.testPreviewWarning":
+      "These references are simulations for testing, not valid for event admission. They are not SIAE fiscal access tickets or Ticka-issued titles.",
+    "ticket.testReference": "Preview reference {number}",
     "ticket.refundHelp":
       "Need a refund? Your organizer, {organizer}, manages refunds through their organizer studio.",
     "ticketActions.refundRequested":
@@ -816,6 +824,10 @@ const messages = {
       "Evently adds no platform fee; Stripe’s processing fees apply.",
     "create.taxNote":
       "Ticket tax calculation and Italian fiscal ticket issuance are not configured here. Confirm the requirements for your event and business before opening sales.",
+    "create.taxPreviewNote":
+      "Stripe test preview: Evently will show an illustrative {rate}% VAT breakdown and simulated ticket references after test payment. No Italian fiscal ticket is issued; live sales still require a compliant provider.",
+    "create.demoTicketNote":
+      "Practice events use sample guests and tickets only. No payment, tax calculation, or Italian fiscal ticket is issued in this demo.",
     "create.back": "Back",
     "create.continue": "Continue",
     "create.saving": "Saving your event…",
@@ -1271,6 +1283,8 @@ const messages = {
     "booking.ticketMany": "biglietti",
     "booking.dueSample": "Totale per la prenotazione di prova",
     "booking.total": "Totale",
+    "booking.testVatPreview":
+      "Anteprima di prova: {amount} di IVA simulata ({rate}%) sono inclusi nel totale. Non è un calcolo fiscale per la vendita.",
     "booking.paymentsUnavailable":
       "I pagamenti non sono ancora disponibili. Riprova quando l'organizzatore avrà completato la configurazione.",
     "booking.reserving": "Stiamo riservando il tuo posto…",
@@ -1366,6 +1380,12 @@ const messages = {
       "Il codice d'ingresso è disponibile solo con una prenotazione confermata.",
     "ticket.admission": "ingresso",
     "ticket.samplePayment": "Prova · nessun pagamento",
+    "ticket.testPreviewTitle": "Anteprima del biglietto di prova",
+    "ticket.testVatIncluded":
+      "IVA simulata inclusa nel totale pagato: {amount} al {rate}%.",
+    "ticket.testPreviewWarning":
+      "Questi riferimenti sono simulazioni per i test e non sono validi per l'ingresso. Non sono titoli di accesso fiscali SIAE né biglietti emessi da Ticka.",
+    "ticket.testReference": "Riferimento di prova {number}",
     "ticket.refundHelp":
       "Ti serve un rimborso? L'organizzatore, {organizer}, gestisce i rimborsi dal proprio pannello.",
     "ticketActions.refundRequested":
@@ -1859,6 +1879,10 @@ const messages = {
       "Evently non applica commissioni aggiuntive; si applicano le commissioni di Stripe.",
     "create.taxNote":
       "Il calcolo delle imposte e l'emissione dei documenti fiscali italiani non sono configurati qui. Verifica i requisiti del tuo evento e della tua attività prima di aprire le vendite.",
+    "create.taxPreviewNote":
+      "Anteprima con Stripe test: Evently mostrerà un'IVA indicativa del {rate}% e riferimenti simulati dopo il pagamento di prova. Non viene emesso alcun titolo fiscale italiano; le vendite reali richiedono un fornitore conforme.",
+    "create.demoTicketNote":
+      "Gli eventi di prova usano solo ospiti e biglietti dimostrativi. In questa modalità non vengono effettuati pagamenti, calcoli fiscali o emissioni di titoli fiscali italiani.",
     "create.back": "Indietro",
     "create.continue": "Continua",
     "create.saving": "Salvataggio dell'evento…",

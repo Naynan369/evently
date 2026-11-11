@@ -12,6 +12,7 @@ import EventForm from "@/components/EventForm";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n";
 import { organizerDemoMode } from "@/lib/demo";
+import { previewVatPercent } from "@/lib/ticket-preview";
 export const metadata = { title: "Create an event" };
 export default async function CreateEvent({
   searchParams,
@@ -77,6 +78,7 @@ export default async function CreateEvent({
           organizerProfiles={organizerProfiles}
           venueProfiles={venueProfiles}
           demoMode={demoMode}
+          testVatPercent={previewVatPercent()}
         />
       </div>
     </main>

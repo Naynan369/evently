@@ -17,6 +17,7 @@ import { categories, categoryName } from "@/lib/catalog";
 import { messinaAreaLabel } from "@/lib/messina";
 import { eventDate, eventTime } from "@/lib/format";
 import { paymentConfigured } from "@/lib/payments";
+import { previewVatPercent } from "@/lib/ticket-preview";
 import BookingPanel from "@/components/BookingPanel";
 import EventCard from "@/components/EventCard";
 import { getLanguage } from "@/lib/i18n-server";
@@ -296,6 +297,7 @@ export default async function EventDetail({
               event={event}
               acceptingPayments={paymentConfigured()}
               past={Date.parse(event.startsAt) <= now}
+              testVatPercent={previewVatPercent()}
             />
           )}
         </div>

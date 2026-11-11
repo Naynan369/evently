@@ -128,6 +128,26 @@ export default async function TicketPage({
                 : money(booking.total, booking.currency, language)}
             </strong>
           </div>
+          {booking.status === "confirmed" && booking.previewTicketRefs.length > 0 && (
+            <div className="ticket-test-preview">
+              <strong>{t("ticket.testPreviewTitle")}</strong>
+              <p>
+                {t("ticket.testVatIncluded", {
+                  rate: booking.previewVatPercent,
+                  amount: money(booking.previewVatAmount, booking.currency, language),
+                })}
+              </p>
+              <p>{t("ticket.testPreviewWarning")}</p>
+              <ul>
+                {booking.previewTicketRefs.map((reference, index) => (
+                  <li key={reference}>
+                    <span>{t("ticket.testReference", { number: index + 1 })}</span>
+                    <code>{reference}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </article>
         <TicketActions booking={booking} />
         {booking.mode === "stripe" && booking.status === "confirmed" && (

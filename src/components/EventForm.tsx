@@ -38,12 +38,14 @@ export default function EventForm({
   organizerProfiles,
   venueProfiles,
   demoMode = false,
+  testVatPercent = 0,
 }: {
   initial?: Event;
   venues: Venue[];
   organizerProfiles: BusinessProfile[];
   venueProfiles: BusinessProfile[];
   demoMode?: boolean;
+  testVatPercent?: number;
 }) {
   const { language, t } = useApp();
   const router = useRouter();
@@ -641,7 +643,11 @@ export default function EventForm({
             </div>
           )}
           <p className="event-compliance-note">
-            {t("create.taxNote")}
+            {demoMode
+              ? t("create.demoTicketNote")
+              : testVatPercent > 0
+                ? t("create.taxPreviewNote", { rate: testVatPercent })
+                : t("create.taxNote")}
           </p>
         </section>
 

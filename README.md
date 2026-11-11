@@ -137,6 +137,14 @@ Payments are **direct charges on each organizer's connected account**. Evently d
 
 Ticket prices and capacity are checked on the server. Tickets are confirmed only after Evently retrieves a paid session from Stripe and verifies the booking, amount, currency and connected account. Returning to the success URL alone never issues a ticket. With no webhook, this check happens when the attendee returns to the ticket page; a configured webhook can also confirm or expire sessions in the background. Webhook retries are safe to repeat.
 
+### Test ticket and tax preview
+
+With a Stripe **test** secret key, paid bookings show an illustrative VAT amount already included in the advertised total, and each confirmed test ticket receives a `PREVIEW-` reference. The default sample rate is 10%; set `EVENTLY_TEST_TICKET_VAT_PERCENT` to another whole number from 1 to 30 to change this testing assumption. The displayed amount does not change the Stripe Checkout total. The preview appears only after the existing paid-session verification, whether reached through the return page or an optional webhook.
+
+This is a payment-flow simulation only. The references are not SIAE fiscal access tickets, and no Ticka MF API call, legal tax determination, or fiscal reporting occurs. Real Italian ticket sales need a selected, configured compliant provider and verified tax treatment for the organizer and event. This preview turns off automatically with a live Stripe key.
+
+For a Vercel test deployment, use a Stripe test secret key and test connected organizer account, set `APP_URL` to that deployment's origin, and leave `EVENTLY_ORGANIZER_DEMO=false`. Redeploy after changing environment variables. The database adds the preview columns automatically on first use; `npm run db:migrate` can prepare them explicitly. Existing confirmed bookings keep their previous record and do not receive backfilled preview references.
+
 Official references: [Connect direct charges](https://docs.stripe.com/connect/direct-charges), [Checkout fulfillment](https://docs.stripe.com/checkout/fulfillment), [Connect webhooks](https://docs.stripe.com/connect/webhooks), [webhook signature verification](https://docs.stripe.com/webhooks/signature).
 
 ### Payment operations

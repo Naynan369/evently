@@ -5,6 +5,7 @@ import { categories, imageOptions, seedEvents } from "./catalog.ts";
 import { isMessinaArea, isMessinaCity } from "./messina.ts";
 import { AppError, integer, textField } from "./security.ts";
 import { eventIsPrivate, organizerDemoMode, sampleListingsEnabled } from "./demo.ts";
+import { previewIncludedVat, previewTicketReferences, previewVatPercent } from "./ticket-preview.ts";
 import type {
   Booking,
   BusinessProfile,
@@ -83,6 +84,9 @@ const schema = `
     created_at BIGINT NOT NULL, checked_in BIGINT NOT NULL DEFAULT 0,
     request_key TEXT NOT NULL UNIQUE, stripe_account TEXT,
     refund_requested BIGINT NOT NULL DEFAULT 0,
+    preview_vat_percent INTEGER NOT NULL DEFAULT 0,
+    preview_vat_amount BIGINT NOT NULL DEFAULT 0,
+    preview_ticket_refs JSONB NOT NULL DEFAULT '[]'::jsonb,
     demo_guest_name TEXT
   );
   CREATE INDEX IF NOT EXISTS bookings_event_status ON bookings(event_id,status);
@@ -166,6 +170,15 @@ async function initialize() {
     );
     await client.query(
       "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS demo_guest_name TEXT",
+    );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS preview_vat_percent INTEGER NOT NULL DEFAULT 0",
+    );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS preview_vat_amount BIGINT NOT NULL DEFAULT 0",
+    );
+    await client.query(
+      "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS preview_ticket_refs JSONB NOT NULL DEFAULT '[]'::jsonb",
     );
     if (sampleListingsEnabled()) {
       const count = await client.query<{ n: number }>(
@@ -857,7 +870,7 @@ export async function createEvent(
   return event;
 }
 const bookingColumns =
-  'id, user_id AS "userId", event_id AS "eventId", ticket_type AS "ticketType", quantity, total, currency, status, mode, code, session_id AS "sessionId", checkout_url AS "checkoutUrl", expires_at AS "expiresAt", created_at AS "createdAt", checked_in AS "checkedIn", request_key AS "requestKey", stripe_account AS "stripeAccount", refund_requested AS "refundRequested", demo_guest_name AS "demoGuestName"';
+  'id, user_id AS "userId", event_id AS "eventId", ticket_type AS "ticketType", quantity, total, currency, status, mode, code, session_id AS "sessionId", checkout_url AS "checkoutUrl", expires_at AS "expiresAt", created_at AS "createdAt", checked_in AS "checkedIn", request_key AS "requestKey", stripe_account AS "stripeAccount", refund_requested AS "refundRequested", preview_vat_percent AS "previewVatPercent", preview_vat_amount AS "previewVatAmount", preview_ticket_refs AS "previewTicketRefs", demo_guest_name AS "demoGuestName"';
 export async function bookingById(id: string) {
   return one<Booking>(
     "SELECT " + bookingColumns + " FROM bookings WHERE id=?",
@@ -952,13 +965,15 @@ export async function reserveBooking(
       : unitPrice === 0
         ? "free"
         : "stripe";
+    const vatPercent = mode === "stripe" ? previewVatPercent() : 0;
+    const total = mode === "sample" ? 0 : quantity * unitPrice;
     const booking: Booking = {
       id: randomUUID(),
       userId,
       eventId,
       ticketType,
       quantity,
-      total: mode === "sample" ? 0 : quantity * unitPrice,
+      total,
       currency: event.currency,
       status: mode === "stripe" ? "pending" : "confirmed",
       mode,
@@ -969,6 +984,9 @@ export async function reserveBooking(
       createdAt: Date.now(),
       checkedIn: 0,
       refundRequested: 0,
+      previewVatPercent: vatPercent,
+      previewVatAmount: vatPercent ? previewIncludedVat(total, vatPercent) : 0,
+      previewTicketRefs: [],
       requestKey: key,
       stripeAccount: event.organizerProfileId
         ? (await getBusinessProfile(event.organizerProfileId))?.stripeAccount ||
@@ -978,7 +996,7 @@ export async function reserveBooking(
           : null,
     };
     await run(
-      "INSERT INTO bookings(id,user_id,event_id,ticket_type,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO bookings(id,user_id,event_id,ticket_type,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account,preview_vat_percent,preview_vat_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       booking.id,
       userId,
       eventId,
@@ -993,6 +1011,8 @@ export async function reserveBooking(
       booking.createdAt,
       key,
       booking.stripeAccount,
+      booking.previewVatPercent,
+      booking.previewVatAmount,
     );
     return booking;
   });
@@ -1017,6 +1037,7 @@ export async function confirmPayment(
     amount_total: number | null;
     currency: string | null;
     payment_status: string;
+    livemode?: boolean;
     metadata: Record<string, string> | null;
   },
   account: string | undefined,
@@ -1044,9 +1065,15 @@ export async function confirmPayment(
     if (booking.status === "confirmed" || booking.status === "refunded") return;
     if (booking.status !== "pending")
       throw new AppError("Booking is no longer pending.", 409);
+    if (booking.previewVatPercent && session.livemode === true)
+      throw new AppError("A test booking cannot be confirmed by a live payment.", 400);
+    const previewRefs = booking.previewVatPercent
+      ? previewTicketReferences(booking.id, booking.quantity)
+      : [];
     await run(
-      "UPDATE bookings SET status='confirmed',session_id=? WHERE id=?",
+      "UPDATE bookings SET status='confirmed',session_id=?,preview_ticket_refs=?::jsonb WHERE id=?",
       session.id,
+      JSON.stringify(previewRefs),
       booking.id,
     );
   });

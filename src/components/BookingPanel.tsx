@@ -10,10 +10,12 @@ export default function BookingPanel({
   event,
   acceptingPayments,
   past,
+  testVatPercent,
 }: {
   event: Event;
   acceptingPayments: boolean;
   past: boolean;
+  testVatPercent: number;
 }) {
   const { user, saved, toggleSave, toast, language, t } = useApp();
   const router = useRouter();
@@ -212,6 +214,18 @@ export default function BookingPanel({
             {money(event.sample ? 0 : selectedPrice * quantity, event.currency, language)}
           </span>
         </div>
+        {payable && testVatPercent > 0 && (
+          <p className="booking-tax-preview">
+            {t("booking.testVatPreview", {
+              rate: testVatPercent,
+              amount: money(
+                Math.round(selectedPrice * quantity * testVatPercent / (100 + testVatPercent)),
+                event.currency,
+                language,
+              ),
+            })}
+          </p>
+        )}
         {payable && !acceptingPayments && (
           <div className="notice">
             {t("booking.paymentsUnavailable")}

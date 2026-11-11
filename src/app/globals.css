@@ -1015,6 +1015,12 @@ svg {
   border-top: 1px solid var(--line);
   margin-top: 12px;
 }
+.booking-tax-preview {
+  margin: 4px 0 15px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
 .secure-note {
   display: flex;
   justify-content: center;
@@ -1185,6 +1191,32 @@ svg {
   justify-content: space-between;
   font-size: 11px;
   color: var(--muted);
+}
+.ticket-test-preview {
+  padding: 20px 35px 25px;
+  border-top: 1px dashed var(--line);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.ticket-test-preview p {
+  margin: 6px 0;
+  color: var(--muted);
+}
+.ticket-test-preview ul {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0 0;
+}
+.ticket-test-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.ticket-test-preview code {
+  font-size: 10px;
+  word-break: break-all;
 }
 .ticket-actions {
   display: flex;

@@ -102,6 +102,9 @@ export type Booking = {
   createdAt: number;
   checkedIn: number;
   refundRequested: number;
+  previewVatPercent: number;
+  previewVatAmount: number;
+  previewTicketRefs: string[];
   requestKey: string;
   stripeAccount: string | null;
   demoGuestName?: string | null;
