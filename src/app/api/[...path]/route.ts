@@ -174,9 +174,10 @@ async function webhook(request: Request) {
   return json({ received: true });
 }
 async function handle(request: Request, context: Context) {
+  let route = "";
   try {
     const { path } = await context.params;
-    const route = path.join("/");
+    route = path.join("/");
     const method = request.method;
     if (route === "stripe/webhook" && method === "POST")
       return await webhook(request);
@@ -694,7 +695,35 @@ async function handle(request: Request, context: Context) {
   } catch (error) {
     if (error instanceof AppError)
       return json({ error: error.message }, error.status);
-    if (error instanceof Stripe.errors.StripeError)
+    if (error instanceof Stripe.errors.StripeError) {
+      // Keep Stripe's full diagnostic on the server; never send key material to the browser.
+      console.error("Evently Stripe request failed:", {
+        route,
+        type: error.type,
+        code: error.code || null,
+        param: error.param || null,
+        statusCode: error.statusCode || null,
+        requestId: error.requestId || null,
+        message: error.message.replace(
+          /\b(?:sk|rk|pk)_(?:test|live)_[A-Za-z0-9]+\b/g,
+          "[redacted Stripe key]",
+        ),
+      });
+      if (route === "stripe/connect" || route === "stripe/status") {
+        const reason =
+          error instanceof Stripe.errors.StripeAuthenticationError
+            ? "Stripe rejected this deployment's API key. Check the key assigned to this Vercel environment."
+            : error instanceof Stripe.errors.StripePermissionError
+              ? "The Stripe key cannot access connected accounts. Check its Connect permissions and platform setup."
+              : error instanceof Stripe.errors.StripeInvalidRequestError
+                ? "Stripe rejected the connected-account request. Check your Connect setup and the Stripe request log."
+                : "Stripe could not complete the connected-account request. Check the Stripe request log.";
+        const detail = error.code ? ` Code: ${error.code}.` : "";
+        const reference = error.requestId
+          ? ` Stripe request: ${error.requestId}.`
+          : "";
+        return json({ error: reason + detail + reference }, 502);
+      }
       return json(
         {
           error:
@@ -702,6 +731,7 @@ async function handle(request: Request, context: Context) {
         },
         502,
       );
+    }
     console.error(
       "Evently request failed:",
       error instanceof Error ? error.name : "Unknown error",
