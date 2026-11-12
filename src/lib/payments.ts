@@ -11,6 +11,10 @@ import {
 } from "./db.ts";
 import type { Booking, BusinessProfile, Event, User } from "./types.ts";
 import { organizerDemoMode } from "./demo.ts";
+import {
+  isPlatformTestBooking,
+  PLATFORM_TEST_ACCOUNT,
+} from "./platform-checkout-test.ts";
 
 export function paymentConfigured() {
   return Boolean(
@@ -42,16 +46,65 @@ export function stripe() {
     timeout: 20000,
   });
 }
-export async function accountStatus(
-  user: User,
-  profile?: BusinessProfile,
-) {
+
+function bookingStripeOptions(booking: Booking): Stripe.RequestOptions {
+  if (isPlatformTestBooking(booking)) {
+    if (!/^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || ""))
+      throw new AppError("Test checkout requires a Stripe test key.", 503);
+    return {};
+  }
+  if (!booking.stripeAccount)
+    throw new AppError("The organizer has not connected payouts yet.", 409);
+  return { stripeAccount: booking.stripeAccount };
+}
+
+function isLegacyAccountError(error: unknown) {
+  return (
+    error instanceof Stripe.errors.StripeError &&
+    [
+      "v1_account_instead_of_v2_account",
+      "account_not_yet_compatible_with_v2",
+    ].includes(error.code || "")
+  );
+}
+
+async function connectedAccount(client: Stripe, accountId: string) {
+  try {
+    return {
+      version: 2 as const,
+      account: await client.v2.core.accounts.retrieve(accountId, {
+        include: ["configuration.merchant"],
+      }),
+    };
+  } catch (error) {
+    if (!isLegacyAccountError(error)) throw error;
+    return {
+      version: 1 as const,
+      account: await client.accounts.retrieve(accountId),
+    };
+  }
+}
+
+export async function accountStatus(user: User, profile?: BusinessProfile) {
   if (!paymentConfigured())
     return { configured: false, connected: false, ready: false };
   const stripeAccount = profile ? profile.stripeAccount : user.stripeAccount;
   if (!stripeAccount)
     return { configured: true, connected: false, ready: false };
-  const account = await stripe().accounts.retrieve(stripeAccount);
+  const connected = await connectedAccount(stripe(), stripeAccount);
+  if (connected.version === 2) {
+    const capabilities =
+      connected.account.configuration?.merchant?.capabilities;
+    return {
+      configured: true,
+      connected: true,
+      ready: Boolean(
+        capabilities?.card_payments?.status === "active" &&
+        capabilities?.stripe_balance?.payouts?.status === "active",
+      ),
+    };
+  }
+  const account = connected.account;
   return {
     configured: true,
     connected: true,
@@ -85,42 +138,66 @@ export async function connectAccount(
     });
   }
   let accountId = profile ? profile.stripeAccount : user.stripeAccount;
+  let accountVersion: 1 | 2 = 2;
   if (!accountId) {
-    const account = await client.accounts.create(
+    const account = await client.v2.core.accounts.create(
       {
-        country,
-        email: user.email,
+        contact_email: user.email,
+        display_name: profile?.name || user.email,
+        identity: { country },
+        dashboard: "full",
+        defaults: {
+          responsibilities: {
+            fees_collector: "stripe",
+            losses_collector: "stripe",
+          },
+        },
+        configuration: {
+          merchant: {
+            capabilities: { card_payments: { requested: true } },
+          },
+        },
         metadata: {
           evently_user_id: user.id,
           ...(profile ? { evently_business_profile_id: profile.id } : {}),
         },
-        controller: {
-          stripe_dashboard: { type: "full" },
-          fees: { payer: "account" },
-          losses: { payments: "stripe" },
-          requirement_collection: "stripe",
-        },
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
       },
       {
         idempotencyKey:
-          "evently-account-" + user.id + (profile ? "-" + profile.id : ""),
+          "evently-account-v2-" + user.id + (profile ? "-" + profile.id : ""),
       },
     );
     accountId = account.id;
     if (profile)
       await saveBusinessProfileStripeAccount(profile.id, user.id, accountId);
     else
-      await run("UPDATE users SET stripe_account=? WHERE id=?", accountId, user.id);
+      await run(
+        "UPDATE users SET stripe_account=? WHERE id=?",
+        accountId,
+        user.id,
+      );
+  } else {
+    accountVersion = (await connectedAccount(client, accountId)).version;
   }
-  return client.accountLinks.create({
+  const refreshUrl = appUrl() + "/organizer?connect=refresh";
+  const returnUrl = appUrl() + "/organizer?connect=returned";
+  if (accountVersion === 1)
+    return client.accountLinks.create({
+      account: accountId,
+      type: "account_onboarding",
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+    });
+  return client.v2.core.accountLinks.create({
     account: accountId,
-    type: "account_onboarding",
-    refresh_url: appUrl() + "/organizer?connect=refresh",
-    return_url: appUrl() + "/organizer?connect=returned",
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        configurations: ["merchant"],
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
+      },
+    },
   });
 }
 export async function startCheckout(
@@ -132,16 +209,15 @@ export async function startCheckout(
     throw new AppError("Payments are not connected yet.", 503);
   if (booking.status !== "pending")
     return { bookingId: booking.id, url: "/tickets/" + booking.id };
-  if (!booking.stripeAccount)
-    throw new AppError("The organizer has not connected payouts yet.", 409);
+  const accountOptions = bookingStripeOptions(booking);
   if (booking.sessionId) {
     const session = await stripe().checkout.sessions.retrieve(
       booking.sessionId,
       {},
-      { stripeAccount: booking.stripeAccount },
+      accountOptions,
     );
     if (session.payment_status === "paid") {
-      await confirmPayment(session, booking.stripeAccount);
+      await confirmPayment(session, booking.stripeAccount || undefined);
       return { bookingId: booking.id, url: "/tickets/" + booking.id };
     }
     if (session.status === "expired") {
@@ -165,8 +241,20 @@ export async function startCheckout(
       payment_method_types: ["card"],
       customer_email: user.email,
       client_reference_id: booking.id,
-      metadata: { booking_id: booking.id },
-      payment_intent_data: { metadata: { booking_id: booking.id } },
+      metadata: {
+        booking_id: booking.id,
+        ...(isPlatformTestBooking(booking)
+          ? { evently_payment_scope: PLATFORM_TEST_ACCOUNT }
+          : {}),
+      },
+      payment_intent_data: {
+        metadata: {
+          booking_id: booking.id,
+          ...(isPlatformTestBooking(booking)
+            ? { evently_payment_scope: PLATFORM_TEST_ACCOUNT }
+            : {}),
+        },
+      },
       line_items: [
         {
           quantity: booking.quantity,
@@ -175,6 +263,7 @@ export async function startCheckout(
             unit_amount: Math.round(booking.total / booking.quantity),
             product_data: {
               name:
+                (isPlatformTestBooking(booking) ? "TEST · " : "") +
                 event.title +
                 " — " +
                 (booking.ticketType === "vip" ? "VIP" : "Standard"),
@@ -193,7 +282,7 @@ export async function startCheckout(
       cancel_url: appUrl() + "/tickets/" + booking.id + "?checkout=cancelled",
     },
     {
-      stripeAccount: booking.stripeAccount,
+      ...accountOptions,
       idempotencyKey: "evently-checkout-" + booking.id,
     },
   );
@@ -210,14 +299,20 @@ export async function reconcileBooking(booking: Booking) {
     !paymentConfigured()
   )
     return booking;
+  if (
+    isPlatformTestBooking(booking) &&
+    !/^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || "")
+  )
+    return booking;
   const session = await stripe().checkout.sessions.retrieve(
     booking.sessionId,
     {},
-    { stripeAccount: booking.stripeAccount },
+    bookingStripeOptions(booking),
   );
   if (session.payment_status === "paid")
     await confirmPayment(session, booking.stripeAccount);
-  else if (session.status === "expired") await expireBooking(session.id, booking.id);
+  else if (session.status === "expired")
+    await expireBooking(session.id, booking.id);
   return (await bookingById(booking.id))!;
 }
 export async function cancelCheckout(booking: Booking) {
@@ -231,7 +326,7 @@ export async function cancelCheckout(booking: Booking) {
   const session = await stripe().checkout.sessions.expire(
     booking.sessionId,
     {},
-    { stripeAccount: booking.stripeAccount },
+    bookingStripeOptions(booking),
   );
   if (session.status === "expired") await expireBooking(session.id, booking.id);
 }
@@ -247,7 +342,7 @@ export async function refundBooking(booking: Booking) {
   const session = await client.checkout.sessions.retrieve(
     booking.sessionId,
     {},
-    { stripeAccount: booking.stripeAccount },
+    bookingStripeOptions(booking),
   );
   const paymentIntent =
     typeof session.payment_intent === "string"
@@ -258,7 +353,7 @@ export async function refundBooking(booking: Booking) {
   const refund = await client.refunds.create(
     { payment_intent: paymentIntent },
     {
-      stripeAccount: booking.stripeAccount,
+      ...bookingStripeOptions(booking),
       idempotencyKey: "evently-refund-" + booking.id,
     },
   );

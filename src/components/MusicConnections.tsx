@@ -20,7 +20,7 @@ import {
   type MusicProvider,
   type MusicStatus,
   type MusicPlaylist,
-} from "@/lib/music-types";
+} from "@/lib/music/music-types";
 type MusicKitInstance = {
   authorize: () => Promise<string>;
   unauthorize: () => Promise<void>;

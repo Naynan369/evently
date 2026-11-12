@@ -18,7 +18,7 @@ import { recommend } from "@/lib/recommendations";
 import { eventDate, eventTime, money } from "@/lib/format";
 import { api } from "@/lib/client";
 import type { Category, Event, User } from "@/lib/types";
-import { musicProviderName, type MusicProfile } from "@/lib/music-types";
+import { musicProviderName, type MusicProfile } from "@/lib/music/music-types";
 import { useApp } from "./AppProvider";
 import { CategoryIcon } from "./CategoryIcon";
 

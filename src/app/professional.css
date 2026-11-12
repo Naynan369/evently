@@ -1877,6 +1877,52 @@ h4 {
   padding-inline: 18px;
 }
 
+@media (max-width: 620px) {
+  .explore-page .search-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+  }
+
+  .explore-page .search-term {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    border-bottom: 1px solid var(--line);
+    padding-inline: 10px;
+  }
+
+  .explore-page .search-city {
+    grid-column: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: none;
+    border-left: 0;
+    padding-inline: 10px;
+  }
+
+  .explore-page .search-form .button {
+    grid-column: 2;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .explore-page .filter-selects {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .explore-page .filter-selects label {
+    min-width: 0;
+  }
+
+  .explore-page .filter-selects label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .filter-bar {
   gap: 15px;
   padding: 15px 0;
@@ -6440,6 +6486,19 @@ html:not(.dark) .filter-selects select {
 
   .event-detail-booking .booking-panel {
     padding: 18px;
+  }
+
+  .event-detail-booking .detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .event-detail-booking .detail-actions .button {
+    min-width: 0;
+    gap: 6px;
+    padding-inline: 8px;
+    font-size: 11px;
   }
 }
 

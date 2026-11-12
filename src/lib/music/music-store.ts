@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { all, one, run, transaction } from "./db.ts";
-import { AppError } from "./security.ts";
+import { all, one, run, transaction } from "../db.ts";
+import { AppError } from "../security.ts";
 import {
   type MusicProvider,
   type MusicProfile,

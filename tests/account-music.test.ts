@@ -16,7 +16,7 @@ import {
   saveMusicProfile,
   musicProfiles,
   disconnectMusic,
-} from "../src/lib/music-store.ts";
+} from "../src/lib/music/music-store.ts";
 import {
   startSpotify,
   finishSpotify,
@@ -26,8 +26,8 @@ import {
   providerAvailability,
   appleDeveloperToken,
   connectApple,
-} from "../src/lib/music-providers.ts";
-import { buildMusicProfile, matchMusic } from "../src/lib/music-matching.ts";
+} from "../src/lib/music/music-providers.ts";
+import { buildMusicProfile, matchMusic } from "../src/lib/music/music-matching.ts";
 import { seedEvents } from "../src/lib/catalog.ts";
 import { recommend } from "../src/lib/recommendations.ts";
 import { previewMailEnabled, emailDeliveryMode } from "../src/lib/mail.ts";

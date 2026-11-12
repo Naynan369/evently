@@ -8,14 +8,15 @@ import {
   FiArrowRight,
   FiArrowUpRight,
   FiCheck,
+  FiUpload,
 } from "react-icons/fi";
-import { categories, categoryName, imageOptions } from "@/lib/catalog";
+import { categories, categoryName } from "@/lib/catalog";
 import { isMessinaCity, messinaAreas } from "@/lib/messina";
 import { localDateTime, zonedToIso } from "@/lib/dates";
 import { api } from "@/lib/client";
+import { MAX_EVENT_IMAGE_BYTES } from "@/lib/event-image";
 import type { BusinessProfile, Event, Venue } from "@/lib/types";
-import { useApp } from "./AppProvider";
-import type { TranslationKey } from "@/lib/i18n";
+import { useApp } from "../AppProvider";
 
 const wizardSteps = [
   { title: "create.step1", summary: "create.step1Summary" },
@@ -23,14 +24,30 @@ const wizardSteps = [
   { title: "create.step3", summary: "create.step3Summary" },
   { title: "create.step4", summary: "create.step4Summary" },
 ] as const;
-const coverLabels: Record<string, TranslationKey> = {
-  festival: "create.coverFestival",
-  music: "create.coverMusic",
-  culture: "create.coverCulture",
-  technology: "create.coverTechnology",
-  outdoors: "create.coverOutdoors",
-  community: "create.coverCommunity",
-};
+async function prepareCover(file: File) {
+  if (file.size > 20_000_000)
+    throw new Error("Choose an image smaller than 20 MB.");
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("This image could not be prepared. Try a JPG or PNG.");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.82),
+    );
+    if (!blob || blob.size > MAX_EVENT_IMAGE_BYTES)
+      throw new Error("This image is too large after resizing. Try another photo.");
+    return new File([blob], "event-cover.jpg", { type: "image/jpeg" });
+  } finally {
+    bitmap.close();
+  }
+}
 
 export default function EventForm({
   initial,
@@ -38,6 +55,7 @@ export default function EventForm({
   organizerProfiles,
   venueProfiles,
   demoMode = false,
+  platformTestCheckout = false,
   testVatPercent = 0,
 }: {
   initial?: Event;
@@ -45,13 +63,21 @@ export default function EventForm({
   organizerProfiles: BusinessProfile[];
   venueProfiles: BusinessProfile[];
   demoMode?: boolean;
+  platformTestCheckout?: boolean;
   testVatPercent?: number;
 }) {
   const { language, t } = useApp();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const confirmIntentRef = useRef(false);
-  const [image, setImage] = useState(initial?.image || "festival");
+  const image = initial?.image || "festival";
+  const [coverImage, setCoverImage] = useState(
+    initial?.coverImage?.startsWith("/api/event-images/") ? initial.coverImage : "",
+  );
+  const coverPreview =
+    coverImage || (initial ? initial.coverImage || `/images/${image}.jpg` : "");
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverError, setCoverError] = useState("");
   const initialVenue = venues.find((venue) => venue.id === initial?.venueId);
   const [venueId, setVenueId] = useState(initialVenue?.id || "");
   const [venueName, setVenueName] = useState(
@@ -104,12 +130,41 @@ export default function EventForm({
     setEventTimezone(nextVenue.timezone);
   }
 
+  async function uploadCover(file: File) {
+    setUploadingCover(true);
+    setCoverError("");
+    try {
+      const prepared = await prepareCover(file);
+      const form = new FormData();
+      form.set("image", prepared);
+      const response = await fetch("/api/event-images", {
+        method: "POST",
+        credentials: "same-origin",
+        body: form,
+      });
+      const result = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !result.url)
+        throw new Error(result.error || "The image could not be uploaded.");
+      setCoverImage(result.url);
+    } catch (error) {
+      setCoverError((error as Error).message);
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
   function validateStep(stepIndex: number) {
     const form = formRef.current;
     const section = form?.querySelector<HTMLElement>(
       '[data-wizard-step="' + stepIndex + '"]',
     );
     if (!form || !section) return false;
+
+    if (stepIndex === 1 && !coverImage && !initial) {
+      setCoverError(t("create.photoRequired"));
+      form.querySelector<HTMLInputElement>("#cover-upload")?.focus();
+      return false;
+    }
 
     if (stepIndex === 2) {
       const start = form.elements.namedItem("start") as HTMLInputElement;
@@ -169,6 +224,7 @@ export default function EventForm({
       const body = {
         ...data,
         image,
+        coverImage,
         price: Math.round(Number(data.price) * 100),
         capacity: Number(data.capacity),
         vipCapacity: Number(data.vipCapacity || 0),
@@ -324,29 +380,35 @@ export default function EventForm({
         >
           <h2 id="event-step-two-title">{t("create.scene")}</h2>
           <p>{t("create.coverIntro")}</p>
-          <div className="cover-options" role="group" aria-label={t("create.cover")}>
-            {imageOptions.map((option) => (
-              <button
-                aria-pressed={image === option.id}
-                className={
-                  "cover-option" + (image === option.id ? " active" : "")
-                }
-                key={option.id}
-                onClick={() => setImage(option.id)}
-                type="button"
-              >
-                <Image
-                  alt=""
-                  fill
-                  sizes="160px"
-                  src={"/images/" + option.id + ".jpg"}
-                />
-                <span>
-                  {t(coverLabels[option.id])}
-                  {image === option.id ? " ✓" : ""}
-                </span>
-              </button>
-            ))}
+          <div className="cover-upload-panel">
+            <div className="cover-upload-preview">
+              {coverPreview ? (
+                <Image alt="" fill sizes="(max-width: 700px) 100vw, 360px" src={coverPreview} />
+              ) : (
+                <FiUpload aria-hidden="true" />
+              )}
+            </div>
+            <div className="cover-upload-content">
+              <span className="eyebrow">{t("create.yourPhoto")}</span>
+              <strong>{coverImage ? t("create.photoReady") : initial ? t("create.currentPhoto") : t("create.uploadPrompt")}</strong>
+              <p>{t("create.uploadHelp")}</p>
+              <label aria-disabled={uploadingCover} className="button button-outline cover-upload-button" htmlFor="cover-upload">
+                <FiUpload aria-hidden="true" />
+                {uploadingCover ? t("create.uploading") : coverPreview ? t("create.replacePhoto") : t("create.uploadPhoto")}
+              </label>
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploadingCover}
+                id="cover-upload"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  if (file) void uploadCover(file);
+                  event.currentTarget.value = "";
+                }}
+                type="file"
+              />
+              {coverError && <small className="cover-upload-error" role="alert">{coverError}</small>}
+            </div>
           </div>
           <div className="form-stack event-lineup-fields">
             <div className="field">
@@ -635,6 +697,12 @@ export default function EventForm({
                 ? "Le vendite non sono ancora disponibili. I prezzi vengono salvati per la pianificazione."
                 : "Ticket sales are not available yet. Prices are saved for planning."}
             </div>
+          ) : platformTestCheckout ? (
+            <div className="notice notice-warm">
+              {language === "it"
+                ? "Checkout di prova attivo: usa prezzi Standard e VIP per simulare gli acquisti. Non servono dati legali dell'organizzatore. I biglietti di prova non sono validi per l'ingresso."
+                : "Test checkout is active: use Standard and VIP prices to try purchases. Organizer legal details are not needed. Test tickets are not valid for entry."}
+            </div>
           ) : (
             <div className="notice">
               {t("create.stripeNotice")}{" "}
@@ -673,7 +741,7 @@ export default function EventForm({
           {activeStep < wizardSteps.length - 1 ? (
             <button
               className="button button-primary"
-              disabled={busy}
+              disabled={busy || uploadingCover}
               key="continue-step"
               onClick={continueToNextStep}
               type="button"

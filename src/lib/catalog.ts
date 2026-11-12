@@ -45,6 +45,7 @@ export const imageOptions = [
   { id: "technology", name: "Conference" },
   { id: "outdoors", name: "Outdoors" },
   { id: "community", name: "Together" },
+  { id: "concert", name: "Concert stage" },
 ];
 export function seedEvents(now = new Date()): Event[] {
   const date = (days: number, hour: number) => {

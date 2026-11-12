@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FiBriefcase, FiMapPin, FiPlus, FiUsers } from "react-icons/fi";
 import { api } from "@/lib/client";
 import type { BusinessProfile, BusinessProfileKind } from "@/lib/types";
-import { useApp } from "./AppProvider";
+import { useApp } from "../AppProvider";
 import type { TranslationKey } from "@/lib/i18n";
 
 const profileCopy: Record<

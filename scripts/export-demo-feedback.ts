@@ -1,8 +1,8 @@
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import { all, closeDatabase } from "../src/lib/db.ts";
 
 async function main() {
-  loadEnvConfig(process.cwd());
+  nextEnv.loadEnvConfig(process.cwd());
   try {
     const entries = await all<{
       createdAt: number;

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import VenueStudio from "@/components/VenueStudio";
+import VenueStudio from "@/components/organizer/VenueStudio";
 import type { BusinessProfile, Venue } from "@/lib/types";
 
 export const metadata = { title: "Venue workspace preview" };

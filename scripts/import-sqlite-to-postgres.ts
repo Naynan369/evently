@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { resolve } from "node:path";
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import {
   closeDatabase,
   initializeDatabase,
@@ -9,7 +9,7 @@ import {
 } from "../src/lib/db.ts";
 
 const sourcePath = resolve(process.argv[2] || "data/evently.sqlite");
-loadEnvConfig(process.cwd());
+nextEnv.loadEnvConfig(process.cwd());
 // Import the source rows as-is; demo rows would otherwise occupy the same IDs
 // and cause valid SQLite events to be skipped by the conflict-safe importer.
 process.env.SEED_DEMO = "false";

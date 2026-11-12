@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { resolve } from "node:path";
-import { loadEnvConfig } from "@next/env";
-loadEnvConfig(process.cwd());
+import nextEnv from "@next/env";
+nextEnv.loadEnvConfig(process.cwd());
 if (!process.env.TEST_DATABASE_URL)
   throw new Error("Set TEST_DATABASE_URL to an isolated PostgreSQL test database.");
 export default defineConfig({

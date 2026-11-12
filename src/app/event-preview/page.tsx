@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import EventForm from "@/components/EventForm";
+import EventForm from "@/components/organizer/EventForm";
 import type { BusinessProfile, Venue } from "@/lib/types";
 
 export const metadata = { title: "Event setup preview" };
@@ -51,7 +51,7 @@ export default function EventSetupPreview() {
   previewVenue.hostProfileId = venueProfile.id;
 
   return (
-    <main id="main" className="container page-main">
+    <main id="main" className="container page-main create-event-workspace">
       <div className="page-heading">
         <span className="eyebrow">DESIGN PREVIEW · MESSINA</span>
         <h1>Bring people together.</h1>

@@ -51,6 +51,15 @@ for (const user of [owner, guest])
     user.stripeAccount,
     Date.now(),
   );
+const coverImageId = randomUUID();
+await run(
+  "INSERT INTO event_images(id,owner_id,media_type,bytes,created_at) VALUES(?,?,?,?,?)",
+  coverImageId,
+  owner.id,
+  "image/jpeg",
+  Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+  Date.now(),
+);
 function eventInput(price = 0, capacity = 3) {
   return {
     title: "Community testing evening",
@@ -67,6 +76,7 @@ function eventInput(price = 0, capacity = 3) {
     currency: "gbp",
     capacity,
     image: "community",
+    coverImage: "/api/event-images/" + coverImageId,
   };
 }
 test("passwords use independent salted hashes and verify without trimming", async () => {

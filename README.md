@@ -135,6 +135,14 @@ Start in a Stripe test environment. Use a Stripe account with Connect enabled an
 
 Payments are **direct charges on each organizer's connected account**. Evently does not collect an application fee in this version. Stripe determines processing fees and account eligibility. Paid publishing is blocked until the organizer's payments and payouts are enabled.
 
+### Test paid tickets without organizer onboarding
+
+For a local or **Vercel Preview** deployment, set `EVENTLY_PLATFORM_CHECKOUT_TEST=true`, use an `sk_test_` or `rk_test_` Stripe key, set `APP_URL` to that deployment's exact origin, and leave `EVENTLY_ORGANIZER_DEMO=false`. Restart or redeploy. This setting is ignored on a Vercel Production deployment and whenever the Stripe key is live. Use a separate Preview deployment and database for this test so public events are not mistaken for real sales.
+
+In this mode, an organizer can publish an event with Standard and VIP prices without completing Stripe onboarding. Checkout uses the ticket price and quantity from Evently's database, but creates the test charge on **Evently's platform Stripe account**. The attendee can pay with a Stripe test card and return to a clearly marked test ticket. No real money moves, no organizer payout occurs, and test tickets cannot be checked in. This lets you verify Evently's checkout, payment reconciliation, ticket, and refund paths; it does not verify connected-account onboarding or organizer payouts. Disable the setting before testing those Connect paths. Return to Evently after checkout to reconcile the test booking; a webhook destination that listens only for connected-account events will not receive these platform test payments.
+
+The booking stores its payment scope when it is created, so an existing test booking remains test-only after the flag is disabled. Keep the same test key until any pending test checkouts have been reconciled or refunded. No database migration is needed.
+
 Ticket prices and capacity are checked on the server. Tickets are confirmed only after Evently retrieves a paid session from Stripe and verifies the booking, amount, currency and connected account. Returning to the success URL alone never issues a ticket. With no webhook, this check happens when the attendee returns to the ticket page; a configured webhook can also confirm or expire sessions in the background. Webhook retries are safe to repeat.
 
 ### Test ticket and tax preview
@@ -202,7 +210,7 @@ npm run test:e2e -- --grep 'organizer flow|account security API'
 
 The code is an integrated first version, not a completed live merchant deployment. Live Stripe checkout, onboarding and refunds still require account configuration and tests against Stripe.
 
-Gmail SMTP verification/recovery and Apple Music still need live account tests; Spotify additionally needs approval for the use case. Booking emails, custom image uploads, event cancellation notifications, moderation and operator-specific legal policy pages are not implemented. Define operational/refund/privacy policies before opening registration to the public. The music privacy page describes the implemented behavior and does not replace the operator’s complete privacy policy. QR codes contain a group ticket code; organizers currently enter that code in the studio rather than using an in-app camera scanner.
+Gmail SMTP verification/recovery and Apple Music still need live account tests; Spotify additionally needs approval for the use case. Booking emails, event cancellation notifications, moderation and operator-specific legal policy pages are not implemented. Define operational/refund/privacy policies before opening registration to the public. The music privacy page describes the implemented behavior and does not replace the operator’s complete privacy policy. QR codes contain a group ticket code; organizers currently enter that code in the studio rather than using an in-app camera scanner.
 
 ## Assets
 
@@ -215,7 +223,7 @@ Event photos are local copies from Unsplash, used as illustrative imagery:
 - Outdoors: `photo-1500530855697-b586d89ba3ee`
 - Community: `photo-1511988617509-a57c8a288659`
 
-The homepage combines a local event photograph with Three.js motion. Each collection has its own visualizer. Event cover photos are local files used by listings, forms and account screens; credits for the newer event photos are in `public/images/photo-credits.txt`.
+The homepage combines a local event photograph with Three.js motion. Each collection has its own visualizer. Organizers upload event covers in the creation wizard; the images are stored in PostgreSQL and served through `/api/event-images/`. Local image files remain for sample and existing listings, with credits in `public/images/photo-credits.txt`.
 
 Source images: `https://images.unsplash.com/IMAGE_IDENTIFIER`. Icons use React Icons / Feather. Fonts and event images do not require a third-party request at runtime.
 

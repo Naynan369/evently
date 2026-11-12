@@ -1,8 +1,8 @@
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import { closeDatabase, initializeDatabase } from "../src/lib/db.ts";
 
 async function main() {
-  loadEnvConfig(process.cwd());
+  nextEnv.loadEnvConfig(process.cwd());
   try {
     await initializeDatabase();
     console.log("Evently PostgreSQL schema is ready.");

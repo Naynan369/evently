@@ -18,9 +18,10 @@ import {
 import { api } from "@/lib/client";
 import { categoryName } from "@/lib/catalog";
 import { eventDate, money } from "@/lib/format";
-import { useApp } from "./AppProvider";
+import { useApp } from "../AppProvider";
 import type { Event, Booking, BusinessProfile } from "@/lib/types";
 import type { TranslationKey } from "@/lib/i18n";
+import { PLATFORM_TEST_ACCOUNT } from "@/lib/platform-checkout-test";
 
 type Guest = Booking & { name: string; email: string };
 const supportedCountries = ["GB", "US", "IT", "DE", "FR", "ES", "NL", "IE", "CA", "AU"];
@@ -34,11 +35,13 @@ export default function OrganizerStudio({
   bookings,
   profiles,
   demoMode = false,
+  platformTestCheckout = false,
 }: {
   events: Event[];
   bookings: Guest[];
   profiles: BusinessProfile[];
   demoMode?: boolean;
+  platformTestCheckout?: boolean;
 }) {
   const { toast, language, t } = useApp();
   const countryNames = new Intl.DisplayNames(language === "it" ? "it-IT" : "en-GB", {
@@ -89,7 +92,7 @@ export default function OrganizerStudio({
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   useEffect(() => {
-    if (!selectedProfileId || demoMode) return;
+    if (!selectedProfileId || demoMode || platformTestCheckout) return;
     let active = true;
     api<{ configured: boolean; connected: boolean; ready: boolean }>(
       "stripe/status?profileId=" + encodeURIComponent(selectedProfileId),
@@ -104,7 +107,7 @@ export default function OrganizerStudio({
     return () => {
       active = false;
     };
-  }, [selectedProfileId, demoMode]);
+  }, [selectedProfileId, demoMode, platformTestCheckout]);
 
   const defaultProfileId = profiles[0]?.id;
   const profileEvents = events.filter(
@@ -353,16 +356,26 @@ export default function OrganizerStudio({
           <div className="org-tool-head">
             <span className="org-tool-icon"><FiCreditCard aria-hidden="true" /></span>
             <span className="org-tool-state">{t("studio.payments")}</span>
-            <span className={"org-payment-status" + (payment?.ready ? " is-ready" : "")}>
+            <span className={"org-payment-status" + (platformTestCheckout || payment?.ready ? " is-ready" : "")}>
               <i aria-hidden="true" />
-              {payment?.ready ? t("studio.ready") : payment?.connected ? t("studio.setupProgress") : payment ? t("studio.notConnected") : t("studio.checkingStatus")}
+              {platformTestCheckout
+                ? language === "it" ? "Test attivo" : "Test active"
+                : payment?.ready ? t("studio.ready") : payment?.connected ? t("studio.setupProgress") : payment ? t("studio.notConnected") : t("studio.checkingStatus")}
             </span>
           </div>
-          <h2>{t("studio.keepPayouts")}</h2>
+          <h2>{platformTestCheckout
+            ? language === "it" ? "Prova i pagamenti dei biglietti." : "Try ticket checkout."
+            : t("studio.keepPayouts")}</h2>
           <p>
-              {t("studio.connectStripe", { profile: selectedProfile?.name || t("studio.thisOrganizer") })}
+            {platformTestCheckout
+              ? language === "it"
+                ? "I biglietti a pagamento usano l'account Stripe di test di Evently. Non servono dati legali dell'organizzatore. Non si sposta denaro reale."
+                : "Paid tickets use Evently’s Stripe test account. No organizer legal details are needed, and no real money moves."
+              : t("studio.connectStripe", { profile: selectedProfile?.name || t("studio.thisOrganizer") })}
           </p>
-          {payment?.ready ? (
+          {platformTestCheckout ? (
+            <div className="org-payment-ready"><FiCheckCircle aria-hidden="true" /> {language === "it" ? "Checkout di prova disponibile" : "Test checkout available"}</div>
+          ) : payment?.ready ? (
             <div className="org-payment-ready"><FiCheckCircle aria-hidden="true" /> {t("studio.stripeReady")}</div>
           ) : payment && !payment.configured ? (
             <div className="org-payment-notice">
@@ -404,7 +417,9 @@ export default function OrganizerStudio({
             </div>
           )}
           {paymentError && <div className="error-box" role="alert">{paymentError}</div>}
-          <div className="org-payment-footnote">{t("studio.fees")}</div>
+          <div className="org-payment-footnote">{platformTestCheckout
+            ? language === "it" ? "Solo prova · nessun accredito agli organizzatori · biglietti non validi per l'ingresso" : "Testing only · no organizer payouts · tickets are not valid for entry"
+            : t("studio.fees")}</div>
         </article>}
       </section>
 
@@ -553,6 +568,7 @@ export default function OrganizerStudio({
                     </td>
                     <td>
                       <span className={"org-booking-status is-" + booking.status}>{t(("tickets." + booking.status) as TranslationKey)}</span>
+                      {booking.stripeAccount === PLATFORM_TEST_ACCOUNT && <small>{language === "it" ? "Pagamento di prova" : "Test payment"}</small>}
                       {booking.refundRequested > 0 && booking.status === "confirmed" && <small>{t("studio.refundRequested")}</small>}
                     </td>
                     {!demoMode && <td>{money(booking.total, booking.currency, language)}</td>}

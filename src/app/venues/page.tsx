@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { businessProfilesForOwner, ensureBusinessProfile, venuesForOwner } from "@/lib/db";
-import VenueStudio from "@/components/VenueStudio";
+import VenueStudio from "@/components/organizer/VenueStudio";
 
 export const metadata = { title: "Venues" };
 

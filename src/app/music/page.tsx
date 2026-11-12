@@ -1,6 +1,6 @@
 import MusicConnections from "@/components/MusicConnections";
 import { currentUser } from "@/lib/auth";
-import { musicStatus } from "@/lib/music-api";
+import { musicStatus } from "@/lib/music/music-api";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n";
 export const metadata = { title: "Your music, live" };

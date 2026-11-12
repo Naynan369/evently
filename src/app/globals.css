@@ -1243,37 +1243,6 @@ svg {
   font-size: 12px;
   margin-bottom: 25px;
 }
-.cover-options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.cover-option {
-  position: relative;
-  border: 3px solid transparent;
-  padding: 0;
-  background: var(--soft);
-  border-radius: 10px;
-  overflow: hidden;
-  min-width: 0;
-  height: 90px;
-}
-.cover-option.active {
-  border-color: var(--accent);
-}
-.cover-option img {
-  object-fit: cover;
-}
-.cover-option span {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #111111e8;
-  color: white;
-  font-size: 9px;
-  padding: 4px;
-}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1679,9 +1648,6 @@ td small {
   .chip {
     padding: 8px 12px;
     font-size: 10px;
-  }
-  .cover-option {
-    height: 80px;
   }
 }
 @media (max-width: 520px) {

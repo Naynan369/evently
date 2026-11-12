@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { businessProfilesForOwner } from "@/lib/db";
-import BusinessProfileStudio from "@/components/BusinessProfileStudio";
+import BusinessProfileStudio from "@/components/organizer/BusinessProfileStudio";
 
 export const metadata = { title: "Business profiles" };
 

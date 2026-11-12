@@ -14,7 +14,7 @@ import {
 } from "react-icons/fi";
 import { api } from "@/lib/client";
 import type { BusinessProfile, Venue } from "@/lib/types";
-import { useApp } from "./AppProvider";
+import { useApp } from "../AppProvider";
 
 const venueTypes = [
   ["club", "venue.club"],

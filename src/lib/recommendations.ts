@@ -1,6 +1,6 @@
 import type { Event, User } from "./types.ts";
-import type { MusicProfile } from "./music-types.ts";
-import { matchMusic } from "./music-matching.ts";
+import type { MusicProfile } from "./music/music-types.ts";
+import { matchMusic } from "./music/music-matching.ts";
 export function recommend(
   events: Event[],
   interests: User["interests"],

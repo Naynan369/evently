@@ -18,6 +18,7 @@ import { messinaAreaLabel } from "@/lib/messina";
 import { eventDate, eventTime } from "@/lib/format";
 import { paymentConfigured } from "@/lib/payments";
 import { previewVatPercent } from "@/lib/ticket-preview";
+import { platformCheckoutTestEnabled } from "@/lib/platform-checkout-test";
 import BookingPanel from "@/components/BookingPanel";
 import EventCard from "@/components/EventCard";
 import { getLanguage } from "@/lib/i18n-server";
@@ -42,6 +43,9 @@ export async function generateMetadata({
   return {
     title: event?.title || "Event not found",
     description: event?.description.slice(0, 155),
+    ...(platformCheckoutTestEnabled()
+      ? { robots: { index: false, follow: false } }
+      : {}),
   };
 }
 
@@ -82,6 +86,10 @@ export default async function EventDetail({
     .slice(0, 3);
   const coverImage = event.coverImage || `/images/${event.image}.jpg`;
   const eventIsFull = event.available < 1;
+  const testCheckout =
+    platformCheckoutTestEnabled() &&
+    !event.sample &&
+    (event.price > 0 || Boolean(event.vipCapacity && event.vipPrice));
 
   return (
     <main id="main" className="container page-main event-detail-page">
@@ -109,6 +117,11 @@ export default async function EventDetail({
           {event.sample && (
             <span className="event-detail-sample">
               {t("events.sample")}
+            </span>
+          )}
+          {testCheckout && (
+            <span className="event-detail-sample">
+              {language === "it" ? "PAGAMENTO DI PROVA" : "TEST PAYMENT"}
             </span>
           )}
           {privatePreview && (
@@ -298,6 +311,7 @@ export default async function EventDetail({
               acceptingPayments={paymentConfigured()}
               past={Date.parse(event.startsAt) <= now}
               testVatPercent={previewVatPercent()}
+              testCheckout={testCheckout}
             />
           )}
         </div>

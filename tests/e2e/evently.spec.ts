@@ -177,6 +177,18 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
       ).status(),
     ).toBe(200);
   }
+  const uploadedCover = await owner.post("/api/event-images", {
+    multipart: {
+      image: {
+        name: "community-cover.jpg",
+        mimeType: "image/jpeg",
+        buffer: await readFile(resolve("public/images/community-photo.jpg")),
+      },
+    },
+  });
+  expect(uploadedCover.status()).toBe(201);
+  const coverImage = (await uploadedCover.json()).url as string;
+  expect((await owner.get(coverImage)).status()).toBe(200);
   const eventData = {
     title: "A real test gathering",
     description:
@@ -192,6 +204,7 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     currency: "gbp",
     capacity: 2,
     image: "community",
+    coverImage,
   };
   const created = await owner.post("/api/events", { data: eventData });
   expect(created.status()).toBe(201);
@@ -292,6 +305,7 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     options: "-c search_path=evently_test_e2e,public",
   });
   const paidId = randomUUID();
+  const checkoutSessionId = "cs_local_" + randomUUID();
   const user = (await (await guest.get("/api/session")).json()).user;
   await database.query(
     "INSERT INTO bookings(id,user_id,event_id,quantity,total,currency,status,mode,code,session_id,expires_at,created_at,request_key,stripe_account) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
@@ -305,17 +319,16 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
       "pending",
       "stripe",
       "EV-" + randomUUID(),
-      "cs_local_fixture",
+      checkoutSessionId,
       9999999999,
       Date.now(),
       randomUUID(),
       "acct_fixture",
     ],
   );
-  await database.end();
   const stripe = new Stripe("sk_test_local_fixture_only");
   const object = {
-    id: "cs_local_fixture",
+    id: checkoutSessionId,
     client_reference_id: paidId,
     amount_total: 1500,
     currency: "gbp",
@@ -323,7 +336,7 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     metadata: { booking_id: paidId },
   };
   const payload = JSON.stringify({
-    id: "evt_fixture",
+    id: "evt_" + randomUUID(),
     object: "event",
     type: "checkout.session.completed",
     account: "acct_fixture",

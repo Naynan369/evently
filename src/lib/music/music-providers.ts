@@ -1,7 +1,7 @@
 import { createHash, randomBytes, sign } from "node:crypto";
-import { one, run, transaction, takeRateLimit } from "./db.ts";
-import { AppError, tokenHash } from "./security.ts";
-import { applicationOrigin } from "./mail.ts";
+import { one, run, transaction, takeRateLimit } from "../db.ts";
+import { AppError, tokenHash } from "../security.ts";
+import { applicationOrigin } from "../mail.ts";
 import {
   connection,
   saveConnection,

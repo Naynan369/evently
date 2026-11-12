@@ -15,6 +15,9 @@ import {
   publicUser,
   listEvents,
   getEvent,
+  eventImageById,
+  saveEventImage,
+  assertOwnedEventImage,
   saveEvent,
   savedIds,
   updateInterests,
@@ -64,8 +67,17 @@ import {
   resetPassword,
 } from "@/lib/account-tokens";
 import { registerAccount } from "@/lib/registration";
-import { musicApi } from "@/lib/music-api";
+import { musicApi } from "@/lib/music/music-api";
 import { eventIsPrivate, organizerDemoMode } from "@/lib/demo";
+import {
+  paymentAccountFromWebhook,
+  platformCheckoutTestEnabled,
+} from "@/lib/platform-checkout-test";
+import {
+  eventImageMime,
+  MAX_EVENT_IMAGE_BYTES,
+  uploadedEventImageId,
+} from "@/lib/event-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,7 +156,15 @@ async function webhook(request: Request) {
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     const session = event.data.object;
-    if (session.metadata?.booking_id) await confirmPayment(session, event.account);
+    if (session.metadata?.booking_id)
+      await confirmPayment(
+        session,
+        paymentAccountFromWebhook(
+          event.account,
+          event.livemode,
+          session.metadata.evently_payment_scope,
+        ),
+      );
   } else if (
     event.type === "checkout.session.expired" ||
     event.type === "checkout.session.async_payment_failed"
@@ -153,7 +173,15 @@ async function webhook(request: Request) {
     const booking = session.client_reference_id
       ? await bookingById(session.client_reference_id)
       : undefined;
-    if (booking && booking.stripeAccount === event.account)
+    if (
+      booking &&
+      booking.stripeAccount ===
+        paymentAccountFromWebhook(
+          event.account,
+          event.livemode,
+          session.metadata?.evently_payment_scope,
+        )
+    )
       await expireBooking(session.id, booking.id);
   } else if (event.type === "charge.refunded") {
     const charge = event.data.object;
@@ -162,7 +190,12 @@ async function webhook(request: Request) {
       : undefined;
     if (
       booking &&
-      booking.stripeAccount === event.account &&
+      booking.stripeAccount ===
+        paymentAccountFromWebhook(
+          event.account,
+          event.livemode,
+          charge.metadata?.evently_payment_scope,
+        ) &&
       charge.refunded &&
       charge.amount_refunded >= booking.total
     )
@@ -175,6 +208,7 @@ async function webhook(request: Request) {
 }
 async function handle(request: Request, context: Context) {
   let route = "";
+  let checkoutStep = "";
   try {
     const { path } = await context.params;
     route = path.join("/");
@@ -188,6 +222,20 @@ async function handle(request: Request, context: Context) {
     }
     if (route === "events" && method === "GET")
       return json({ events: await listEvents() });
+    if (path[0] === "event-images" && path.length === 2 && method === "GET") {
+      const id = uploadedEventImageId("/api/" + route);
+      if (!id) throw new AppError("Image not found.", 404);
+      const image = await eventImageById(id);
+      if (!image) throw new AppError("Image not found.", 404);
+      return new Response(new Uint8Array(image.bytes), {
+        headers: {
+          "Content-Type": image.mediaType,
+          "Content-Length": String(image.bytes.length),
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     if (route === "auth/register" && method === "POST") {
       const registered = await registerAccount(await body(request));
       await createSession(registered.user.id);
@@ -277,6 +325,19 @@ async function handle(request: Request, context: Context) {
       return json({ ok: true, user: null });
     }
     const user = await requireVerifiedUser();
+    if (route === "event-images" && method === "POST") {
+      await takeRateLimit("event-images:" + user.id, 20, 3600000);
+      if (Number(request.headers.get("content-length") || 0) > MAX_EVENT_IMAGE_BYTES + 10000)
+        throw new AppError("Choose an image smaller than 3.5 MB.", 413);
+      const file = (await request.formData()).get("image");
+      if (!(file instanceof File) || file.size === 0 || file.size > MAX_EVENT_IMAGE_BYTES)
+        throw new AppError("Choose a JPG, PNG, or WebP image smaller than 3.5 MB.", 400);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const mediaType = eventImageMime(bytes);
+      if (!mediaType)
+        throw new AppError("Choose a JPG, PNG, or WebP image.", 400);
+      return json({ url: await saveEventImage(user.id, mediaType, bytes) }, 201);
+    }
     if (path[0] === "music")
       return await musicApi(
         request,
@@ -326,6 +387,8 @@ async function handle(request: Request, context: Context) {
         : null;
       if (profileId && !profile)
         throw new AppError("Choose one of your organizer profiles.", 400);
+      if (platformCheckoutTestEnabled())
+        return json({ configured: true, connected: false, ready: false, testCheckout: true });
       return json(await accountStatus(user, profile || undefined));
     }
     if (route === "venues" && method === "GET")
@@ -381,6 +444,7 @@ async function handle(request: Request, context: Context) {
         ((Number(input.price) > 0 &&
           Number(input.capacity) > Number(input.vipCapacity || 0)) ||
           (Number(input.vipCapacity) > 0 && Number(input.vipPrice) > 0)) &&
+        !platformCheckoutTestEnabled() &&
         !(await accountStatus(user, organizerProfile)).ready
       )
         throw new AppError(
@@ -415,11 +479,13 @@ async function handle(request: Request, context: Context) {
         throw new AppError("Choose one of your organizer profiles.", 400);
       input.organizerProfileId = organizerProfile.id;
       const updated = validateEvent(input, user, organizerProfile);
+      await assertOwnedEventImage(updated.coverImage, user.id);
       if (
         !organizerDemoMode() &&
         ((updated.price > 0 &&
           updated.capacity > (updated.vipCapacity || 0)) ||
           (updated.vipCapacity && (updated.vipPrice || 0) > 0)) &&
+        !platformCheckoutTestEnabled() &&
         !(await accountStatus(user, organizerProfile)).ready
       )
         throw new AppError(
@@ -496,7 +562,9 @@ async function handle(request: Request, context: Context) {
       return json({ event });
     }
     if (route === "checkout" && method === "POST") {
+      checkoutStep = "rate_limit";
       await takeRateLimit("checkout:" + user.id, 30);
+      checkoutStep = "load_event";
       const input = await body(request);
       const event = await getEvent(textField(input.eventId, "Event"));
       if (!event) throw new AppError("Event not found.", 404);
@@ -511,6 +579,7 @@ async function handle(request: Request, context: Context) {
       const ticketPrice =
         requestedTicketType === "vip" ? event.vipPrice || 0 : event.price;
       if (!event.sample && ticketPrice > 0) {
+        checkoutStep = "verify_payments";
         if (!paymentConfigured())
           throw new AppError(
             "Paid bookings will open once Stripe setup is complete.",
@@ -533,16 +602,18 @@ async function handle(request: Request, context: Context) {
           : null;
         if (
           !owner ||
-          !(await accountStatus(owner, organizerProfile || undefined)).ready
+          (!platformCheckoutTestEnabled() &&
+            !(await accountStatus(owner, organizerProfile || undefined)).ready)
         )
           throw new AppError(
             "The organizer has not activated payments yet.",
             409,
           );
+        checkoutStep = "reconcile_expired";
         const expired = await all<{ id: string }>(
           "SELECT id FROM bookings WHERE event_id=? AND status='pending' AND session_id IS NOT NULL AND expires_at<? LIMIT 10",
           event.id,
-          Date.now() / 1000,
+          Math.floor(Date.now() / 1000),
         );
         await Promise.all(
           expired.map(async (b) =>
@@ -550,6 +621,7 @@ async function handle(request: Request, context: Context) {
           ),
         );
       }
+      checkoutStep = "reserve_booking";
       const booking = await reserveBooking(
         user.id,
         event.id,
@@ -563,6 +635,7 @@ async function handle(request: Request, context: Context) {
         booking.status === "refunded"
       )
         throw new AppError("This booking has ended. Start a new booking.", 409);
+      checkoutStep = "create_checkout_session";
       return json(
         booking.mode === "stripe"
           ? await startCheckout(booking, event, user)
@@ -732,10 +805,28 @@ async function handle(request: Request, context: Context) {
         502,
       );
     }
-    console.error(
-      "Evently request failed:",
-      error instanceof Error ? error.name : "Unknown error",
-    );
+    const databaseError = error as {
+      code?: string;
+      table?: string;
+      column?: string;
+      constraint?: string;
+    };
+    console.error("Evently request failed:", {
+      route,
+      ...(checkoutStep ? { checkoutStep } : {}),
+      type: error instanceof Error ? error.name : "Unknown error",
+      message:
+        error instanceof Error
+          ? error.message.replace(
+              /\b(?:sk|rk|pk)_(?:test|live)_[A-Za-z0-9]+\b/g,
+              "[redacted Stripe key]",
+            )
+          : "Unknown error",
+      code: databaseError?.code || null,
+      table: databaseError?.table || null,
+      column: databaseError?.column || null,
+      constraint: databaseError?.constraint || null,
+    });
     return json({ error: "Something went wrong. Please try again." }, 500);
   }
 }

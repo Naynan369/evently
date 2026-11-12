@@ -1,8 +1,8 @@
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import { resetDatabaseForTests } from "../src/lib/db.ts";
 
 export async function prepareTestDatabase(name: string) {
-  loadEnvConfig(process.cwd());
+  nextEnv.loadEnvConfig(process.cwd());
   if (!process.env.TEST_DATABASE_URL)
     throw new Error(
       "Set TEST_DATABASE_URL to an isolated PostgreSQL test database before running tests.",

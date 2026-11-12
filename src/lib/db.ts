@@ -6,6 +6,12 @@ import { isMessinaArea, isMessinaCity } from "./messina.ts";
 import { AppError, integer, textField } from "./security.ts";
 import { eventIsPrivate, organizerDemoMode, sampleListingsEnabled } from "./demo.ts";
 import { previewIncludedVat, previewTicketReferences, previewVatPercent } from "./ticket-preview.ts";
+import { uploadedEventImageId } from "./event-image.ts";
+import {
+  isPlatformTestBooking,
+  PLATFORM_TEST_ACCOUNT,
+  platformCheckoutTestEnabled,
+} from "./platform-checkout-test.ts";
 import type {
   Booking,
   BusinessProfile,
@@ -59,6 +65,11 @@ const schema = `
     id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
     owner_id TEXT REFERENCES users(id), data TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS event_images (
+    id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    media_type TEXT NOT NULL, bytes BYTEA NOT NULL, created_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS event_images_owner ON event_images(owner_id);
   CREATE TABLE IF NOT EXISTS venues (
     id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id),
     data TEXT NOT NULL
@@ -373,6 +384,30 @@ export async function getEvent(id: string) {
   if (!row) return null;
   const event = await hydrateEvent(row);
   return event.sample && !sampleListingsEnabled() ? null : event;
+}
+export async function saveEventImage(ownerId: string, mediaType: string, bytes: Buffer) {
+  const id = randomUUID();
+  await run(
+    "INSERT INTO event_images(id,owner_id,media_type,bytes,created_at) VALUES(?,?,?,?,?)",
+    id,
+    ownerId,
+    mediaType,
+    bytes,
+    Date.now(),
+  );
+  return "/api/event-images/" + id;
+}
+export async function eventImageById(id: string) {
+  return one<{ mediaType: string; bytes: Buffer }>(
+    'SELECT media_type AS "mediaType", bytes FROM event_images WHERE id=?',
+    id,
+  );
+}
+export async function assertOwnedEventImage(path: string | undefined, ownerId: string) {
+  if (!path) return;
+  const id = uploadedEventImageId(path);
+  if (!id || !(await one("SELECT id FROM event_images WHERE id=? AND owner_id=?", id, ownerId)))
+    throw new AppError("Choose a cover image you uploaded.", 400);
 }
 export async function getBusinessProfile(id: string) {
   const row = await one<{ data: string }>(
@@ -739,6 +774,9 @@ export function validateEvent(
   const image = textField(input.image, "Cover");
   if (!imageOptions.some((i) => i.id === image))
     throw new AppError("Choose a cover image.");
+  const coverImage = input.coverImage ? textField(input.coverImage, "Cover image", 1, 100) : "";
+  if (coverImage && !uploadedEventImageId(coverImage))
+    throw new AppError("Choose a valid uploaded cover image.");
   const venueId = optionalText(input.venueId, "Venue", 100);
   const start = Date.parse(textField(input.startsAt, "Start date"));
   const end = Date.parse(textField(input.endsAt, "End date"));
@@ -766,6 +804,7 @@ export function validateEvent(
   const vipCapacity =
     input.vipCapacity === undefined ||
     input.vipCapacity === null ||
+    input.vipCapacity === 0 ||
     input.vipCapacity === ""
       ? 0
       : integer(input.vipCapacity, "VIP capacity", 1, 100000);
@@ -814,6 +853,7 @@ export function validateEvent(
     ...(vipCapacity > 0 ? { vipCapacity } : {}),
     available: capacity,
     image,
+    ...(coverImage ? { coverImage } : {}),
     host: organizerProfile?.name || owner.name,
     ...(venueId ? { venueId } : {}),
     ...(organizerProfile ? { organizerProfileId: organizerProfile.id } : {}),
@@ -845,6 +885,9 @@ export async function createEvent(
   if (!organizerProfile)
     throw new AppError("Choose one of your organizer profiles.", 400);
   const content = validateEvent(input, owner, organizerProfile);
+  if (!content.coverImage)
+    throw new AppError("Upload an event photo before publishing.");
+  await assertOwnedEventImage(content.coverImage, owner.id);
   const id = randomUUID();
   const slug =
     content.title
@@ -988,12 +1031,15 @@ export async function reserveBooking(
       previewVatAmount: vatPercent ? previewIncludedVat(total, vatPercent) : 0,
       previewTicketRefs: [],
       requestKey: key,
-      stripeAccount: event.organizerProfileId
-        ? (await getBusinessProfile(event.organizerProfileId))?.stripeAccount ||
-          (event.ownerId ? (await userById(event.ownerId))?.stripeAccount || null : null)
-        : event.ownerId
-          ? (await userById(event.ownerId))?.stripeAccount || null
-          : null,
+      stripeAccount:
+        mode === "stripe" && platformCheckoutTestEnabled()
+          ? PLATFORM_TEST_ACCOUNT
+          : event.organizerProfileId
+            ? (await getBusinessProfile(event.organizerProfileId))?.stripeAccount ||
+              (event.ownerId ? (await userById(event.ownerId))?.stripeAccount || null : null)
+            : event.ownerId
+              ? (await userById(event.ownerId))?.stripeAccount || null
+              : null,
     };
     await run(
       "INSERT INTO bookings(id,user_id,event_id,ticket_type,quantity,total,currency,status,mode,code,expires_at,created_at,request_key,stripe_account,preview_vat_percent,preview_vat_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -1054,6 +1100,8 @@ export async function confirmPayment(
       throw new AppError("Payment does not match a booking.", 400);
     if (!account || booking.stripeAccount !== account)
       throw new AppError("Payment account does not match.", 400);
+    if (isPlatformTestBooking(booking) && session.livemode !== false)
+      throw new AppError("A test booking requires a test payment.", 400);
     if (booking.sessionId && booking.sessionId !== session.id)
       throw new AppError("Unexpected payment session.", 400);
     if (
@@ -1114,6 +1162,8 @@ export async function checkIn(
     const event = booking ? await getEvent(booking.eventId) : null;
     if (!booking || event?.ownerId !== ownerId)
       throw new AppError("Ticket not found for one of your events.", 404);
+    if (isPlatformTestBooking(booking))
+      throw new AppError("Test checkout tickets are not valid for entry.", 409);
     if (organizerProfileId) {
       const eventProfileId =
         event.organizerProfileId ||

@@ -9,6 +9,7 @@ import { eventDate, eventTime, money } from "@/lib/format";
 import TicketActions from "@/components/TicketActions";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
+import { isPlatformTestBooking } from "@/lib/platform-checkout-test";
 export const metadata = {
   title: "Your ticket",
   robots: { index: false, follow: false },
@@ -49,6 +50,14 @@ export default async function TicketPage({
         ) : booking.mode === "sample" && (
           <div className="notice notice-warm">
             <strong>{t("ticket.sampleTitle")}</strong> {t("ticket.sampleBody")}
+          </div>
+        )}
+        {isPlatformTestBooking(booking) && (
+          <div className="notice notice-warm">
+            <strong>{language === "it" ? "Pagamento di prova" : "Test payment"}</strong>{" "}
+            {language === "it"
+              ? "Il pagamento è simulato da Stripe. Questo biglietto non è valido per l'ingresso e non genera un accredito all'organizzatore."
+              : "Stripe simulated this payment. This ticket is not valid for entry and does not pay the organizer."}
           </div>
         )}
         {paymentError && (
@@ -94,7 +103,14 @@ export default async function TicketPage({
               </p>
             </div>
             <div className="ticket-qr">
-              {booking.status === "confirmed" ? (
+              {isPlatformTestBooking(booking) ? (
+                <>
+                  <span className="status status-pending">
+                    {language === "it" ? "SOLO PROVA" : "TEST ONLY"}
+                  </span>
+                  <p>{language === "it" ? "Non valido per l'ingresso." : "Not valid for entry."}</p>
+                </>
+              ) : booking.status === "confirmed" ? (
                 <>
                   <Image
                     src={"/api/tickets/" + booking.id + "/qr"}
@@ -120,7 +136,10 @@ export default async function TicketPage({
           </div>
           <div className="ticket-footer">
             <span>
-              evently. · {booking.ticketType === "vip" ? "VIP" : t("booking.standard")} {t("ticket.admission")}
+              evently. · {booking.ticketType === "vip" ? "VIP" : t("booking.standard")}{" "}
+              {isPlatformTestBooking(booking)
+                ? language === "it" ? "prova checkout" : "checkout test"
+                : t("ticket.admission")}
             </span>
             <strong>
               {booking.mode === "sample"

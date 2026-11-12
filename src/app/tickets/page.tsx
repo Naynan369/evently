@@ -7,6 +7,7 @@ import { listTickets } from "@/lib/db";
 import { eventDate } from "@/lib/format";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
+import { isPlatformTestBooking } from "@/lib/platform-checkout-test";
 export const metadata = { title: "My tickets" };
 export default async function Tickets() {
   const language = await getLanguage();
@@ -37,6 +38,7 @@ export default async function Tickets() {
                 <span className={"status status-" + t.status}>
                   {translate(language, ("tickets." + t.status) as TranslationKey)}
                   {t.mode === "sample" ? " · " + translate(language, "tickets.sample") : ""}
+                  {isPlatformTestBooking(t) ? " · " + (language === "it" ? "Prova" : "Test") : ""}
                 </span>
                 <h2>
                   <Link href={"/tickets/" + t.id}>{t.event.title}</Link>

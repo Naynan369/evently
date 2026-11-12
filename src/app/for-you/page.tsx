@@ -1,7 +1,7 @@
 import Recommendations from "@/components/Recommendations";
 import { listEvents, listTickets } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
-import { musicProfiles } from "@/lib/music-store";
+import { musicProfiles } from "@/lib/music/music-store";
 export const metadata = { title: "For you" };
 export default async function ForYou() {
   const user = await currentUser();

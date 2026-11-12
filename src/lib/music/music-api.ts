@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
-import { sessionCookie } from "./auth.ts";
-import { all, parseTags, takeRateLimit } from "./db.ts";
-import { AppError, textField } from "./security.ts";
-import { applicationOrigin } from "./mail.ts";
+import { sessionCookie } from "../auth.ts";
+import { all, parseTags, takeRateLimit } from "../db.ts";
+import { AppError, textField } from "../security.ts";
+import { applicationOrigin } from "../mail.ts";
 import {
   providerAvailability,
   startSpotify,
@@ -24,7 +24,7 @@ import {
   type MusicSource,
   type MusicStatus,
 } from "./music-types.ts";
-import type { User } from "./types.ts";
+import type { User } from "../types.ts";
 export async function musicStatus(userId?: string): Promise<MusicStatus> {
   const connections = userId
     ? await all<{ provider: string }>(

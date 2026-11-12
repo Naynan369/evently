@@ -14,10 +14,11 @@ import {
   ensureBusinessProfile,
   organizerData,
 } from "@/lib/db";
-import OrganizerStudio from "@/components/OrganizerStudio";
+import OrganizerStudio from "@/components/organizer/OrganizerStudio";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n";
 import { organizerDemoMode } from "@/lib/demo";
+import { platformCheckoutTestEnabled } from "@/lib/platform-checkout-test";
 
 export const metadata = { title: "Organizer studio" };
 
@@ -89,6 +90,7 @@ export default async function Organizer() {
         bookings={data.bookings}
         profiles={profiles}
         demoMode={demoMode}
+        platformTestCheckout={platformCheckoutTestEnabled()}
       />
     </main>
   );

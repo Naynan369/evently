@@ -11,11 +11,13 @@ export default function BookingPanel({
   acceptingPayments,
   past,
   testVatPercent,
+  testCheckout = false,
 }: {
   event: Event;
   acceptingPayments: boolean;
   past: boolean;
   testVatPercent: number;
+  testCheckout?: boolean;
 }) {
   const { user, saved, toggleSave, toast, language, t } = useApp();
   const router = useRouter();
@@ -214,6 +216,13 @@ export default function BookingPanel({
             {money(event.sample ? 0 : selectedPrice * quantity, event.currency, language)}
           </span>
         </div>
+        {payable && testCheckout && (
+          <div className="notice notice-warm">
+            {language === "it"
+              ? "Pagamento di prova: non si sposta denaro reale e il biglietto non è valido per l'ingresso."
+              : "Test payment: no real money moves, and this ticket is not valid for entry."}
+          </div>
+        )}
         {payable && testVatPercent > 0 && (
           <p className="booking-tax-preview">
             {t("booking.testVatPreview", {
@@ -248,7 +257,9 @@ export default function BookingPanel({
               : event.sample
                 ? t("booking.trySample")
                 : payable
-                  ? t("booking.secureCheckout")
+                  ? testCheckout
+                    ? language === "it" ? "Prova il pagamento" : "Try test checkout"
+                    : t("booking.secureCheckout")
                   : t("booking.reserve")}
           <FiArrowRight />
         </button>

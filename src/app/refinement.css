@@ -357,29 +357,78 @@ body {
   min-height: 180px;
 }
 
-.create-event-workspace .cover-options {
-  gap: 12px;
+.create-event-workspace .cover-upload-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  min-height: 224px;
+  margin-bottom: 30px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--soft);
 }
 
-.create-event-workspace .cover-option {
-  height: 136px;
-  border-width: 2px;
-  border-radius: 12px;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease;
+.create-event-workspace .cover-upload-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 224px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
 }
 
-.create-event-workspace .cover-option:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgb(28 28 28 / 14%);
+.create-event-workspace .cover-upload-preview img {
+  object-fit: cover;
 }
 
-.create-event-workspace .cover-option span {
-  padding: 10px;
+.create-event-workspace .cover-upload-preview > svg {
+  width: 34px;
+  height: 34px;
+}
+
+.create-event-workspace .cover-upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: clamp(22px, 3vw, 38px);
+}
+
+.create-event-workspace .cover-upload-content strong {
+  font-size: clamp(20px, 2vw, 27px);
+  line-height: 1.2;
+}
+
+.create-event-workspace .cover-upload-content p {
+  max-width: 430px;
+  margin: 0 0 7px;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
-  text-align: left;
+  line-height: 1.6;
+}
+
+.create-event-workspace .cover-upload-button {
+  cursor: pointer;
+}
+
+.create-event-workspace #cover-upload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.create-event-workspace .cover-upload-content:has(#cover-upload:focus-visible) .cover-upload-button {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.create-event-workspace .cover-upload-error {
+  color: var(--danger, #a03030);
 }
 
 .create-event-workspace .form-grid {
@@ -445,6 +494,14 @@ body {
 }
 
 @media (max-width: 700px) {
+  .create-event-workspace .cover-upload-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .create-event-workspace .cover-upload-preview {
+    min-height: 210px;
+  }
+
   .create-shell-inner {
     grid-template-columns: 1fr auto;
     min-height: 66px;
@@ -484,6 +541,10 @@ body {
 }
 
 @media (max-width: 520px) {
+  .create-event-workspace .cover-upload-preview {
+    min-height: 175px;
+  }
+
   .create-event-hero h1 {
     font-size: clamp(38px, 11vw, 52px);
   }
@@ -498,13 +559,8 @@ body {
   }
 
   .event-basics-grid,
-  .create-event-workspace .form-grid,
-  .create-event-workspace .cover-options {
+  .create-event-workspace .form-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .create-event-workspace .cover-options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .create-event-workspace .event-wizard-step {
@@ -514,6 +570,10 @@ body {
 
   .create-event-workspace .event-wizard-step-title {
     font-size: 10px;
+    line-height: 1.2;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .create-event-workspace .event-wizard-step-mark {
@@ -541,8 +601,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .create-shell-exit,
-  .create-event-workspace .cover-option {
+  .create-shell-exit {
     transition: none;
   }
 }
@@ -2310,16 +2369,16 @@ body {
 }
 
 .home-category-card.is-pending {
-  clip-path: inset(0 0 100% 0);
+  opacity: 0;
   transform: perspective(1100px) translate3d(0, 38px, -60px) rotateX(-8deg) scale(0.96);
   transition: none;
 }
 
 .home-category-card.is-pending.is-visible {
-  clip-path: inset(0);
+  opacity: 1;
   transform: perspective(1100px) translate3d(0, 0, 0) rotateX(0) scale(1);
   transition:
-    clip-path 920ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 920ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 1160ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--reveal-delay);
 }
@@ -2389,7 +2448,7 @@ body {
 
   .home-category-card.is-pending,
   .home-category-card.is-pending.is-visible {
-    clip-path: none;
+    opacity: 1;
     transform: none;
   }
 
