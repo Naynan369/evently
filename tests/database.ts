@@ -10,6 +10,7 @@ export async function prepareTestDatabase(name: string) {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
   process.env.DATABASE_SCHEMA = "evently_test_" + name.replace(/[^a-z0-9_]/gi, "_");
   process.env.EVENTLY_TEST_MODE = "true";
+  process.env.EVENTLY_PLATFORM_CHECKOUT_TEST = "false";
   process.env.SEED_DEMO = "false";
   await resetDatabaseForTests();
 }

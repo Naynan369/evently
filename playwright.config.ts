@@ -32,6 +32,7 @@ export default defineConfig({
       MYPASS: "",
       EMAIL_PREVIEW_DIR: resolve("test-results/mail"),
       EVENTLY_TEST_MODE: "true",
+      EVENTLY_PLATFORM_CHECKOUT_TEST: "false",
       MUSIC_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
       SPOTIFY_CLIENT_ID: "fixture-client",
       SPOTIFY_CONNECTION_TEST: "true",

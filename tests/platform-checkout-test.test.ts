@@ -7,7 +7,7 @@ import {
   platformCheckoutTestEnabled,
 } from "../src/lib/platform-checkout-test.ts";
 
-test("platform checkout runs only in an explicit Stripe test preview", () => {
+test("platform checkout requires an explicit test key, including on Vercel Production", () => {
   const preview: NodeJS.ProcessEnv = {
     STRIPE_SECRET_KEY: "sk_test_fixture",
     APP_URL: "https://preview.example.test",
@@ -23,6 +23,14 @@ test("platform checkout runs only in an explicit Stripe test preview", () => {
   );
   assert.equal(
     platformCheckoutTestEnabled({ ...preview, VERCEL_ENV: "production" }),
+    true,
+  );
+  assert.equal(
+    platformCheckoutTestEnabled({ ...preview, EVENTLY_PLATFORM_CHECKOUT_TEST: "false" }),
+    false,
+  );
+  assert.equal(
+    platformCheckoutTestEnabled({ ...preview, APP_URL: "" }),
     false,
   );
   assert.equal(

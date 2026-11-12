@@ -5,12 +5,7 @@ export const PLATFORM_TEST_ACCOUNT = "evently_platform_test";
 
 export function platformCheckoutTestEnabled(env: NodeJS.ProcessEnv = process.env) {
   const key = env.STRIPE_SECRET_KEY || "";
-  const previewDeployment =
-    env.NODE_ENV === "development" ||
-    env.NODE_ENV === "test" ||
-    env.VERCEL_ENV === "preview";
   return (
-    previewDeployment &&
     env.EVENTLY_PLATFORM_CHECKOUT_TEST === "true" &&
     /^(sk|rk)_test_/.test(key) &&
     Boolean(env.APP_URL) &&
