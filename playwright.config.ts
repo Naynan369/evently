@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { resolve } from "node:path";
 import nextEnv from "@next/env";
+import { englishStorageState } from "./tests/e2e/fixtures";
 nextEnv.loadEnvConfig(process.cwd());
 if (!process.env.TEST_DATABASE_URL)
   throw new Error("Set TEST_DATABASE_URL to an isolated PostgreSQL test database.");
@@ -12,6 +13,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3100",
     channel: process.env.PLAYWRIGHT_CHANNEL || "chrome",
+    storageState: englishStorageState,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

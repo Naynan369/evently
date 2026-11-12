@@ -548,6 +548,9 @@ async function handle(request: Request, context: Context) {
           );
         const value: Event = {
           ...updated,
+          ...(original.coverImage && !updated.coverImage
+            ? { coverImage: original.coverImage }
+            : {}),
           id: original.id,
           slug: original.slug,
           visibility: original.visibility,

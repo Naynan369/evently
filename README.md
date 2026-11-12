@@ -20,6 +20,14 @@ A working event discovery and ticketing application built with Next.js, React, P
 
 The included listings are fictional examples. Sample bookings never charge money and do not grant admission to real events. The application does not come with Stripe credentials or a connected merchant account.
 
+## Project layout
+
+- `src/app` contains pages and API routes, following Next.js routing conventions.
+- `src/components/organizer` contains the event, business profile, venue, and organizer studio interfaces.
+- `src/lib/music` contains provider connections, matching, storage, and music types.
+- `src/components/visualizers` contains the homepage and discovery animation scenes.
+- `scripts` contains database and development utilities; `tests` contains unit and browser checks.
+
 ## Private organizer demo
 
 Set `EVENTLY_ORGANIZER_DEMO=true` in `.env.local` and restart the app. This is enabled in the current local workspace. In this mode:

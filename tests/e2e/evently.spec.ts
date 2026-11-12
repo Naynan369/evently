@@ -31,14 +31,18 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Life happens.",
+    "Events worth",
   );
   await page.getByLabel("Search events", { exact: true }).fill("Afterglow");
-  await page.getByRole("button", { name: "Find events" }).click();
-  await expect(page.locator(".event-card")).toHaveCount(1);
-  await expect(page.locator(".event-card")).toContainText("Afterglow");
+  await page.getByLabel("City", { exact: true }).fill("");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page.locator(".event-grid .home-feature-card")).toHaveCount(1);
+  await expect(page.locator(".event-grid .home-feature-card")).toContainText("Afterglow");
   await page.goto("/events?price=free");
-  await expect(page.locator(".event-card")).toHaveCount(2);
+  const freeCards = page.locator(".event-grid .home-feature-card");
+  await expect(freeCards.first()).toBeVisible();
+  for (const price of await freeCards.locator(".home-feature-card__price strong").allTextContents())
+    expect(price).toBe("Free");
   await page.goto("/events?q=does-not-exist");
   await expect(
     page.getByText("Let’s try a different direction."),
@@ -48,9 +52,9 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .locator("body")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   await page
-    .getByRole("button", { name: "Switch between light and dark theme" })
+    .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
-  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveClass(/dark/);
   expect(
     await page
       .locator("body")
@@ -61,26 +65,28 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .analyze();
   expect(dark.violations).toEqual([]);
   await page
-    .getByRole("button", { name: "Switch between light and dark theme" })
+    .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator(".messina-home-area").first()).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
   const light = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
   expect(light.violations).toEqual([]);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await expect(
-    page.getByRole("navigation", { name: "Mobile navigation" }),
-  ).toBeVisible();
+  await expect(page.locator("#mobile-nav")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("navigation", { name: "Mobile navigation" }),
-  ).toHaveCount(0);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  await expect(page.locator("#mobile-nav")).toHaveCount(0);
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBe(true);
+  }
   expect(errors).toEqual([]);
 });
 test("account, interests, saves, sample booking, QR and cancellation", async ({
@@ -102,7 +108,7 @@ test("account, interests, saves, sample booking, QR and cancellation", async ({
   );
   await page.goto("/for-you");
   await page.getByRole("button", { name: "Music", exact: true }).click();
-  await page.getByRole("button", { name: "Save my interests" }).click();
+  await page.getByRole("button", { name: "Save my taste" }).click();
   await expect(page.getByRole("status")).toContainText("interests are saved");
   await page.reload();
   await expect(
@@ -129,7 +135,7 @@ test("account, interests, saves, sample booking, QR and cancellation", async ({
   await page.getByRole("button", { name: "Cancel reservation" }).click();
   await page.getByRole("button", { name: "Yes, cancel booking" }).click();
   await expect(page.locator(".ticket-main .status").first()).toContainText(
-    "cancelled",
+    "Cancelled",
   );
   expect((await page.request.get("/api/tickets/" + id + "/qr")).status()).toBe(
     409,
@@ -209,6 +215,11 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
   const created = await owner.post("/api/events", { data: eventData });
   expect(created.status()).toBe(201);
   const event = (await created.json()).event;
+  const edited = await owner.put("/api/events/" + event.id, {
+    data: { ...eventData, coverImage: "" },
+  });
+  expect(edited.status()).toBe(200);
+  expect((await edited.json()).event.coverImage).toBe(coverImage);
   expect(
     (await guest.put("/api/events/" + event.id, { data: eventData })).status(),
   ).toBe(404);

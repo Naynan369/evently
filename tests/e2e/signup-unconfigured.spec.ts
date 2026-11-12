@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { englishStorageState } from "./fixtures";
 
 test("signup is enabled without email credentials and unverified accounts stay restricted", async ({
   playwright,
@@ -12,6 +13,7 @@ test("signup is enabled without email credentials and unverified accounts stay r
   const client = await playwright.request.newContext({
     baseURL: origin,
     extraHTTPHeaders: { Origin: origin },
+    storageState: englishStorageState,
   });
   const markup = await (await client.get("/register")).text();
   expect(markup).toContain("You can create your account now.");

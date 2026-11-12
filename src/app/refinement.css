@@ -1777,6 +1777,10 @@ body {
   color: #171717;
 }
 
+.site-footer .footer-links a {
+  transition: none;
+}
+
 .site-footer .footer-top p,
 .site-footer .footer-bottom,
 .site-footer .footer-links > div > span {
@@ -3024,6 +3028,10 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
+}
+
+.dark .messina-home-area__number {
+  color: #e5e5e5;
 }
 
 .messina-home-area strong {

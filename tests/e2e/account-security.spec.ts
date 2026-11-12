@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { englishStorageState } from "./fixtures";
 const origin = "http://127.0.0.1:3100";
 async function token(email: string, purpose: string) {
   const dir = resolve("test-results/mail");
@@ -22,14 +23,17 @@ test("account security API: verification, music preferences and password recover
   const client = await playwright.request.newContext({
     baseURL: origin,
     extraHTTPHeaders: { Origin: origin },
+    storageState: englishStorageState,
   });
   const second = await playwright.request.newContext({
     baseURL: origin,
     extraHTTPHeaders: { Origin: origin },
+    storageState: englishStorageState,
   });
   const anonymous = await playwright.request.newContext({
     baseURL: origin,
     extraHTTPHeaders: { Origin: origin },
+    storageState: englishStorageState,
   });
   const email = "security-" + randomUUID() + "@example.test",
     password = "Original-password-123!";
