@@ -29,10 +29,22 @@ type WorkspaceLink = { href: string; label: TranslationKey; icon: IconType };
 
 const workLinks: WorkspaceLink[] = [
   { href: "/organizer", label: "organizer.shell.overview", icon: FiGrid },
-  { href: "/organizer#org-event-list", label: "organizer.eventPortfolio", icon: FiCalendar },
-  { href: "/organizer#org-checkin", label: "organizer.checkin", icon: FiCheckCircle },
+  {
+    href: "/organizer#org-event-list",
+    label: "organizer.eventPortfolio",
+    icon: FiCalendar,
+  },
+  {
+    href: "/organizer#org-checkin",
+    label: "organizer.checkin",
+    icon: FiCheckCircle,
+  },
   { href: "/venues", label: "organizer.venuePortfolio", icon: FiMapPin },
-  { href: "/business-profiles", label: "organizer.shell.profiles", icon: FiUsers },
+  {
+    href: "/business-profiles",
+    label: "organizer.shell.profiles",
+    icon: FiUsers,
+  },
 ];
 
 const titles: Record<string, TranslationKey> = {
@@ -44,7 +56,11 @@ const titles: Record<string, TranslationKey> = {
   "/venue-preview": "organizer.shell.venuePreview",
 };
 
-export default function OrganizerShell({ children }: { children: React.ReactNode }) {
+export default function OrganizerShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const { user, language, setLanguage, t } = useApp();
   const { resolvedTheme, setTheme } = useTheme();
@@ -65,12 +81,13 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
   }, [menuOpen, closeMenu]);
 
   const title = t(titles[pathname] ?? "organizer.shell.overview");
-  const initials = user?.name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "E";
+  const initials =
+    user?.name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "E";
 
   return (
     <div className={styles.workspace}>
@@ -82,10 +99,15 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
           onClick={closeMenu}
         />
       )}
-      <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`} id="organizer-navigation">
+      <aside
+        className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}
+        id="organizer-navigation"
+      >
         <div className={styles.identity}>
           <Brand light />
-          <span className={styles.productLabel}>{t("organizer.shell.product")}</span>
+          <span className={styles.productLabel}>
+            {t("organizer.shell.product")}
+          </span>
           <button
             className={styles.mobileClose}
             type="button"
@@ -96,7 +118,11 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
           </button>
         </div>
 
-        <Link className={styles.createLink} href="/create-event" onClick={() => setMenuOpen(false)}>
+        <Link
+          className={styles.createLink}
+          href="/create-event"
+          onClick={() => setMenuOpen(false)}
+        >
           <FiPlus aria-hidden="true" />
           <span>{t("nav.createEvent")}</span>
           <FiArrowUpRight aria-hidden="true" />
@@ -122,12 +148,21 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
         </nav>
 
         <div className={styles.sidebarBottom}>
-          <span className={styles.groupLabel}>{t("organizer.shell.otherView")}</span>
-          <Link className={styles.switchLink} href="/account" onClick={() => setMenuOpen(false)}>
-            <FiArrowLeft aria-hidden="true" /> {t("organizer.shell.attendeeView")}
+          <span className={styles.groupLabel}>
+            {t("organizer.shell.otherView")}
+          </span>
+          <Link
+            className={styles.switchLink}
+            href="/account"
+            onClick={() => setMenuOpen(false)}
+          >
+            <FiArrowLeft aria-hidden="true" />{" "}
+            {t("organizer.shell.attendeeView")}
           </Link>
           <div className={styles.userCard}>
-            <span className={styles.avatar} aria-hidden="true">{initials}</span>
+            <span className={styles.avatar} aria-hidden="true">
+              {initials}
+            </span>
             <span className={styles.userDetails}>
               <strong>{user?.name ?? "Evently"}</strong>
               <small>{user?.email ?? ""}</small>
@@ -156,15 +191,18 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
             </div>
           </div>
           <div className={styles.topbarActions}>
-            <Link className={styles.siteLink} href="/events">
-              {t("organizer.shell.viewSite")} <FiArrowUpRight aria-hidden="true" />
+            <Link className={styles.siteLink} href="/account">
+              {t("organizer.shell.attendeeView")}{" "}
+              <FiArrowUpRight aria-hidden="true" />
             </Link>
             <label className={styles.languageControl}>
               <FiGlobe aria-hidden="true" />
               <span className={styles.srOnly}>{t("language.label")}</span>
               <select
                 value={language}
-                onChange={(event) => setLanguage(event.target.value as "en" | "it")}
+                onChange={(event) =>
+                  setLanguage(event.target.value as "en" | "it")
+                }
               >
                 <option value="en">EN</option>
                 <option value="it">IT</option>
@@ -174,9 +212,15 @@ export default function OrganizerShell({ children }: { children: React.ReactNode
               className={styles.themeButton}
               type="button"
               aria-label={t("nav.theme")}
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              onClick={() =>
+                setTheme(resolvedTheme === "dark" ? "light" : "dark")
+              }
             >
-              {resolvedTheme === "dark" ? <FiSun aria-hidden="true" /> : <FiMoon aria-hidden="true" />}
+              {resolvedTheme === "dark" ? (
+                <FiSun aria-hidden="true" />
+              ) : (
+                <FiMoon aria-hidden="true" />
+              )}
             </button>
           </div>
         </header>

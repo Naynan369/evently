@@ -63,7 +63,9 @@
   color: #122629;
   font-size: 12px;
   font-weight: 700;
-  transition: background 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 .createLink:hover {
@@ -98,7 +100,9 @@
   color: #c3cbcc;
   font-size: 12px;
   font-weight: 600;
-  transition: background 160ms ease, color 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
 }
 
 .navigationLink:hover,
@@ -231,14 +235,20 @@
 .siteLink {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--muted);
+  gap: 7px;
+  min-height: 35px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
   font-size: 11px;
   font-weight: 650;
 }
 
 .siteLink:hover {
-  color: var(--ink);
+  border-color: #8cbab8;
+  background: var(--soft);
 }
 
 .languageControl,
@@ -308,7 +318,9 @@
     min-height: 0;
     visibility: hidden;
     transform: translateX(-100%);
-    transition: transform 200ms ease, visibility 200ms ease;
+    transition:
+      transform 200ms ease,
+      visibility 200ms ease;
   }
 
   .sidebarOpen {

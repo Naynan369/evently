@@ -123,6 +123,7 @@ function MenuLink({
 export default function Navbar() {
   const path = usePathname();
   const { user, language, setLanguage, t } = useApp();
+  const attendeeWorkspace = Boolean(user);
   const { resolvedTheme, setTheme } = useTheme();
   const [panel, setPanel] = useState<
     "discover" | "account" | "language" | "mobile" | null
@@ -226,13 +227,15 @@ export default function Navbar() {
           >
             {t("nav.forYou")}
           </Link>
-          <Link
-            href="/organizer"
-            onClick={close}
-            aria-current={activePath(path, "/organizer") ? "page" : undefined}
-          >
-            {t("nav.organizers")}
-          </Link>
+          {!attendeeWorkspace && (
+            <Link
+              href="/organizer"
+              onClick={close}
+              aria-current={activePath(path, "/organizer") ? "page" : undefined}
+            >
+              {t("nav.organizers")}
+            </Link>
+          )}
         </nav>
         <div className="header-actions">
           <div className="header-utility">
@@ -348,17 +351,19 @@ export default function Navbar() {
               </Link>
             )}
           </div>
-          <Link
-            href="/create-event"
-            className="button button-dark header-create"
-            aria-current={
-              activePath(path, "/create-event") ? "page" : undefined
-            }
-            onClick={close}
-          >
-            {t("nav.createEvent")}
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>
+          {!attendeeWorkspace && (
+            <Link
+              href="/create-event"
+              className="button button-dark header-create"
+              aria-current={
+                activePath(path, "/create-event") ? "page" : undefined
+              }
+              onClick={close}
+            >
+              {t("nav.createEvent")}
+              <FiArrowUpRight aria-hidden="true" />
+            </Link>
+          )}
           <button
             ref={mobileButton}
             className="icon-button menu-button"
@@ -387,7 +392,9 @@ export default function Navbar() {
                 ...(user
                   ? [{ label: t("nav.yourAccount"), items: personal }]
                   : []),
-                { label: t("nav.organize"), items: organize },
+                ...(!attendeeWorkspace
+                  ? [{ label: t("nav.organize"), items: organize }]
+                  : []),
               ].map((group) => (
                 <section
                   key={group.label}
@@ -444,14 +451,16 @@ export default function Navbar() {
                 </button>
               </div>
             </section>
-            <Link
-              href="/create-event"
-              className="button button-dark button-wide mobile-menu-join"
-              onClick={close}
-            >
-              {t("nav.createEvent")}
-              <FiArrowUpRight aria-hidden="true" />
-            </Link>
+            {!attendeeWorkspace && (
+              <Link
+                href="/create-event"
+                className="button button-dark button-wide mobile-menu-join"
+                onClick={close}
+              >
+                {t("nav.createEvent")}
+                <FiArrowUpRight aria-hidden="true" />
+              </Link>
+            )}
           </div>
         </nav>
       )}

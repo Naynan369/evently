@@ -5,7 +5,6 @@ import {
   FiArrowRight,
   FiArrowUpRight,
   FiBookmark,
-  FiBriefcase,
   FiCalendar,
   FiMusic,
   FiStar,
@@ -160,74 +159,52 @@ export default async function Account() {
         </section>
       )}
 
-      <div className={styles.lowerGrid}>
-        <section className={styles.profile} aria-labelledby="profile-title">
-          <span className={styles.sectionIndex}>
-            {t("account.dashboard.accountDetails")}
-          </span>
-          <h2 id="profile-title">{t("account.profile")}</h2>
-          <dl>
-            <div>
-              <dt>{t("account.name")}</dt>
-              <dd>{user.name}</dd>
-            </div>
-            <div>
-              <dt>{t("auth.email")}</dt>
-              <dd>{user.email}</dd>
-            </div>
-            <div>
-              <dt>{t("account.interests")}</dt>
-              <dd>
-                {user.interests.length
-                  ? user.interests
-                      .map((id) => categoryName(id, language))
-                      .join(" · ")
-                  : t("account.noInterests")}
-              </dd>
-            </div>
-          </dl>
-          <div className={styles.profileStatus}>
-            <span>
-              {user.emailVerified
-                ? t("account.verified")
-                : t("account.unverified")}
-            </span>
-            {!user.emailVerified && (
-              <Link href="/verify-email">{t("account.verifyEmail")}</Link>
-            )}
+      <section className={styles.profile} aria-labelledby="profile-title">
+        <span className={styles.sectionIndex}>
+          {t("account.dashboard.accountDetails")}
+        </span>
+        <h2 id="profile-title">{t("account.profile")}</h2>
+        <dl>
+          <div>
+            <dt>{t("account.name")}</dt>
+            <dd>{user.name}</dd>
           </div>
-          <div className={styles.profileActions}>
-            <Link href="/for-you">{t("account.tune")}</Link>
-            <Link href="/forgot-password">{t("account.resetPassword")}</Link>
-            <AccountActions />
+          <div>
+            <dt>{t("auth.email")}</dt>
+            <dd>{user.email}</dd>
           </div>
-        </section>
-
-        <aside className={styles.organizerSwitch}>
-          <span className={styles.switchIcon}>
-            <FiBriefcase aria-hidden="true" />
+          <div>
+            <dt>{t("account.interests")}</dt>
+            <dd>
+              {user.interests.length
+                ? user.interests
+                    .map((id) => categoryName(id, language))
+                    .join(" · ")
+                : t("account.noInterests")}
+            </dd>
+          </div>
+        </dl>
+        <div className={styles.profileStatus}>
+          <span>
+            {user.emailVerified
+              ? t("account.verified")
+              : t("account.unverified")}
           </span>
-          <span className={styles.sectionIndex}>
-            {t("account.dashboard.otherWorkspace")}
-          </span>
-          <h2>
-            {home === "/organizer"
-              ? t("account.dashboard.organizerReturn")
-              : t("account.dashboard.organizerStart")}
-          </h2>
-          <p>
-            {home === "/organizer"
-              ? t("account.dashboard.organizerReturnDescription")
-              : t("account.dashboard.organizerStartDescription")}
-          </p>
-          <Link href="/organizer">
-            {home === "/organizer"
-              ? t("account.organizer")
-              : t("account.dashboard.startOrganizing")}
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>
-        </aside>
-      </div>
+          {!user.emailVerified && (
+            <Link href="/verify-email">{t("account.verifyEmail")}</Link>
+          )}
+        </div>
+        <div className={styles.profileActions}>
+          <Link href="/for-you">{t("account.tune")}</Link>
+          <Link href="/forgot-password">{t("account.resetPassword")}</Link>
+          {home === "/organizer" && (
+            <Link href="/organizer">
+              {t("account.dashboard.returnToOrganizer")}
+            </Link>
+          )}
+          <AccountActions />
+        </div>
+      </section>
     </main>
   );
 }

@@ -5,7 +5,8 @@ import { Brand } from "./Brand";
 import { FiArrowUpRight } from "react-icons/fi";
 import { useApp } from "./AppProvider";
 export default function Footer() {
-  const { t } = useApp();
+  const { user, t } = useApp();
+  const attendeeWorkspace = Boolean(user);
   return (
     <footer className="site-footer">
       <div className="container footer-top">
@@ -31,11 +32,13 @@ export default function Footer() {
             <Link href="/saved">{t("nav.personal.saved")}</Link>
             <Link href="/music">{t("nav.discovery.music")}</Link>
           </div>
-          <div>
-            <span>{t("footer.organizers")}</span>
-            <Link href="/create-event">{t("nav.organize.create")}</Link>
-            <Link href="/organizer">{t("nav.organize.dashboard")}</Link>
-          </div>
+          {!attendeeWorkspace && (
+            <div>
+              <span>{t("footer.organizers")}</span>
+              <Link href="/create-event">{t("nav.organize.create")}</Link>
+              <Link href="/organizer">{t("nav.organize.dashboard")}</Link>
+            </div>
+          )}
           <div>
             <span>{t("footer.support")}</span>
             <Link href="/about">

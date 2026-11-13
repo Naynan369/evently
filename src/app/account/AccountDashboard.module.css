@@ -58,8 +58,7 @@
 
 .primaryAction,
 .secondaryAction,
-.bookingAction,
-.organizerSwitch > a {
+.bookingAction {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -154,7 +153,9 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  transition: border-color 170ms ease, transform 170ms ease;
+  transition:
+    border-color 170ms ease,
+    transform 170ms ease;
 }
 
 .featureCard:hover {
@@ -238,40 +239,32 @@
   color: var(--ink);
 }
 
-.lowerGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-  gap: 18px;
-  margin-top: 48px;
-}
-
-.profile,
-.organizerSwitch {
+.profile {
   min-width: 0;
+  margin-top: 48px;
   padding: clamp(23px, 3vw, 34px);
   border: 1px solid var(--line);
   border-radius: 15px;
-}
-
-.profile {
   background: var(--surface);
 }
 
-.profile h2,
-.organizerSwitch h2 {
+.profile h2 {
   margin-top: 10px;
   font-size: clamp(23px, 2.3vw, 30px);
 }
 
 .profile dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
   margin: 21px 0 0;
 }
 
 .profile dl > div {
-  display: grid;
-  grid-template-columns: minmax(100px, 0.35fr) minmax(0, 1fr);
-  gap: 14px;
-  padding: 11px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
   border-top: 1px solid var(--line);
   font-size: 11px;
 }
@@ -321,38 +314,6 @@
   font-size: 11px;
 }
 
-.organizerSwitch {
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  background: var(--soft);
-}
-
-.switchIcon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 27px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 19px;
-}
-
-.organizerSwitch p {
-  max-width: 340px;
-  margin-top: 11px;
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.organizerSwitch > a {
-  margin-top: auto;
-  padding-top: 28px;
-  color: var(--ink);
-}
-
 @media (max-width: 1040px) {
   .featureGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,8 +326,12 @@
 
 @media (max-width: 760px) {
   .hero,
-  .lowerGrid {
+  .profile dl {
     grid-template-columns: 1fr;
+  }
+
+  .profile dl {
+    gap: 0;
   }
 
   .heroSummary {
