@@ -34,7 +34,7 @@ const runtime = globalThis as RuntimeState;
 const transactionClient = new AsyncLocalStorage<PoolClient>();
 let savepointNumber = 0;
 
-// Keep timestamp/count values as JavaScript numbers, matching the old SQLite API.
+// Parse PostgreSQL BIGINT timestamps and counts as JavaScript numbers.
 types.setTypeParser(20, Number);
 
 const schema = `

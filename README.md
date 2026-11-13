@@ -52,8 +52,6 @@ npm run dev
 
 Create an empty PostgreSQL database first, then set `DATABASE_URL` in `.env.local` to its connection string. Evently initializes the schema on first use; `npm run db:migrate` can also prepare it explicitly. Set `MYEMAIL` and `MYPASS` to the Gmail sender and Google app password used by Habesha Brokers, then open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords.
 
-To bring over an existing SQLite installation, keep its database file as a backup and run `npm run db:import:sqlite -- data/evently.sqlite` after setting `DATABASE_URL`. The importer copies users, events, bookings, sessions, saved events, tokens and music connections into PostgreSQL without overwriting rows already there. It does not delete or alter the SQLite source file.
-
 The development command loads `.env.local` and starts on the exact hostname and port in `APP_URL`. The terminal's Local address therefore matches your forms, cookies and email/music links. If the port is already occupied, stop the previous server; Evently will not silently move to another port. Conflicting port/hostname overrides are rejected with a setup message.
 
 Route discovery uses polling to avoid file-watcher limits that can otherwise make pages and API routes return 404. An explicit `WATCHPACK_POLLING` override is preserved. Keep this terminal running while using the app.
