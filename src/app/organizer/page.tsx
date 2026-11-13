@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  FiArrowUpRight,
-  FiCalendar,
-  FiCreditCard,
-  FiPlus,
-  FiMapPin,
-  FiUsers,
-} from "react-icons/fi";
+import { FiPlus } from "react-icons/fi";
 import { currentUser } from "@/lib/auth";
 import {
   businessProfilesForOwner,
@@ -38,51 +31,15 @@ export default async function Organizer() {
 
   return (
     <main id="main" className="container page-main organizer-page">
-      <header className="org-hero">
-        <div className="org-hero-copy">
+      <header className="org-dashboard-header">
+        <div>
           <span className="org-kicker"><i aria-hidden="true" /> {t("organizer.kicker")}</span>
-          <h1>
-            {t("organizer.title")}
-            <br />
-            <em>{t("organizer.titleEmphasis")}</em>
-          </h1>
+          <h1>{t("organizer.shell.dashboardTitle")}</h1>
           <p>{t("organizer.intro")}</p>
-          <div className="org-hero-actions">
-            <Link href="/create-event" className="button button-primary">
-              <FiPlus aria-hidden="true" /> {t("nav.createEvent")}
-            </Link>
-            <Link href="/events" className="org-browse-link">
-              {t("organizer.browse")} <FiArrowUpRight aria-hidden="true" />
-            </Link>
-          </div>
         </div>
-
-        <nav className="org-quick-links" aria-label={t("organizer.tools")}>
-          <div className="org-quick-links-heading">
-            <span>{t("organizer.workspace")}</span>
-            <span>{demoMode ? "01 — 02" : "01 — 04"}</span>
-          </div>
-          <Link href="#org-event-list">
-            <span className="org-quick-icon"><FiCalendar aria-hidden="true" /></span>
-            <span><strong>{t("organizer.eventPortfolio")}</strong><small>{t("organizer.eventPortfolioDescription")}</small></span>
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>
-          <Link href="#org-checkin">
-            <span className="org-quick-icon"><FiUsers aria-hidden="true" /></span>
-            <span><strong>{t("organizer.checkin")}</strong><small>{t("organizer.checkinDescription")}</small></span>
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>
-          {!demoMode && <Link href="#org-payments">
-            <span className="org-quick-icon"><FiCreditCard aria-hidden="true" /></span>
-            <span><strong>{t("organizer.payments")}</strong><small>{t("organizer.paymentsDescription")}</small></span>
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>}
-          {!demoMode && <Link href="/venues">
-            <span className="org-quick-icon"><FiMapPin aria-hidden="true" /></span>
-            <span><strong>{t("organizer.venuePortfolio")}</strong><small>{t("organizer.venuePortfolioDescription")}</small></span>
-            <FiArrowUpRight aria-hidden="true" />
-          </Link>}
-        </nav>
+        <Link href="/create-event" className="button button-primary">
+          <FiPlus aria-hidden="true" /> {t("nav.createEvent")}
+        </Link>
       </header>
 
       <OrganizerStudio
