@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth";
 import { safeNext } from "@/lib/format";
 import { isOrganizerRoute } from "@/lib/organizer-routes";
 import { emailDeliveryMode } from "@/lib/mail";
+import { accountHome } from "@/lib/account-home";
 export const metadata = { title: "Create an account" };
 export default async function Register({
   searchParams,
@@ -11,7 +12,15 @@ export default async function Register({
   searchParams: Promise<{ next?: string; oauthError?: string; type?: string }>;
 }) {
   const { next, oauthError, type } = await searchParams;
-  if (await currentUser()) redirect(safeNext(next));
+  const user = await currentUser();
+  if (user)
+    redirect(
+      next
+        ? safeNext(next)
+        : type === "organizer"
+          ? "/organizer"
+          : await accountHome(user.id),
+    );
   const organizerDestination = isOrganizerRoute(safeNext(next));
   const initialAccountType =
     type === "attendee"

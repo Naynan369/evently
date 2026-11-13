@@ -67,6 +67,7 @@ import {
   resetPassword,
 } from "@/lib/account-tokens";
 import { registerAccount } from "@/lib/registration";
+import { accountHome } from "@/lib/account-home";
 import { musicApi } from "@/lib/music/music-api";
 import { eventIsPrivate, organizerDemoMode } from "@/lib/demo";
 import {
@@ -264,7 +265,11 @@ async function handle(request: Request, context: Context) {
       await run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
       const user = publicUser(row)!;
       await createSession(user.id);
-      return json({ user, saved: await savedIds(user.id) });
+      return json({
+        user,
+        saved: await savedIds(user.id),
+        home: await accountHome(user.id),
+      });
     }
     if (route === "auth/logout" && method === "POST") {
       await endSession();

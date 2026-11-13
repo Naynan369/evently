@@ -1,6 +1,6 @@
 import EmailActions from "@/components/EmailActions";
 import { currentUser } from "@/lib/auth";
-import { businessProfilesForOwner } from "@/lib/db";
+import { accountHome } from "@/lib/account-home";
 import { emailDeliveryMode } from "@/lib/mail";
 export const metadata = {
   title: "Verify your email",
@@ -15,7 +15,7 @@ export default async function Verify({
   const { token, delivery } = await searchParams;
   const user = await currentUser();
   const organizerProfile = user
-    ? (await businessProfilesForOwner(user.id, "organizer")).length > 0
+    ? (await accountHome(user.id)) === "/organizer"
     : false;
   return (
     <EmailActions

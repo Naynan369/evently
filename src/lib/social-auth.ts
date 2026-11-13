@@ -2,6 +2,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from "jose";
 import { createSession } from "./auth.ts";
+import { accountHome } from "./account-home.ts";
 import { one, run, transaction } from "./db.ts";
 import { safeNext } from "./format.ts";
 import { hashPassword, randomToken, tokenHash } from "./security.ts";
@@ -95,7 +96,8 @@ export async function startSocialSignIn(
   const binding = randomToken();
   const nonce = randomToken();
   const verifier = randomToken();
-  const next = safeNext(request.nextUrl.searchParams.get("next"));
+  const requestedNext = request.nextUrl.searchParams.get("next");
+  const next = requestedNext ? safeNext(requestedNext) : "";
   await run("DELETE FROM oauth_login_states WHERE expires_at<?", Date.now());
   await run(
     "INSERT INTO oauth_login_states(state_hash,provider,binding_hash,nonce,verifier,next_path,auth_page,expires_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -320,7 +322,9 @@ export async function finishSocialSignIn(
               const identity = await verifyIdentity(
                 provider, token, stored.nonce, params.get("user"),
               );
-              await createSession(await userForIdentity(provider, identity));
+              const userId = await userForIdentity(provider, identity);
+              await createSession(userId);
+              if (!stored.next_path) target = await accountHome(userId);
               error = null;
             } catch {
               error = "failed";

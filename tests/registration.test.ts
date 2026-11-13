@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { registerAccount } from "../src/lib/registration.ts";
-import { businessProfilesForOwner, one } from "../src/lib/db.ts";
+import {
+  businessProfilesForOwner,
+  createBusinessProfile,
+  one,
+} from "../src/lib/db.ts";
+import { accountHome } from "../src/lib/account-home.ts";
+import { loadAttendeeDashboard } from "../src/lib/attendee-dashboard.ts";
 import { checkPassword } from "../src/lib/security.ts";
 import { prepareTestDatabase } from "./database.ts";
 
@@ -74,6 +80,17 @@ test("attendee signup saves chosen interests without creating an organizer profi
     await businessProfilesForOwner(result.user.id, "organizer"),
     [],
   );
+  assert.equal(await accountHome(result.user.id), "/account");
+  assert.deepEqual(await loadAttendeeDashboard(result.user.id), {
+    upcoming: [],
+    savedCount: 0,
+    home: "/account",
+  });
+  await createBusinessProfile(
+    { kind: "organizer", name: "Guest Events", countryCode: "IT" },
+    result.user,
+  );
+  assert.equal(await accountHome(result.user.id), "/organizer");
 });
 
 test("organizer signup creates a named business profile on the same user account", async () => {
@@ -88,6 +105,7 @@ test("organizer signup creates a named business profile on the same user account
   assert.equal(profiles.length, 1);
   assert.equal(profiles[0].name, "Messina Nights");
   assert.equal(profiles[0].countryCode, "IT");
+  assert.equal(await accountHome(result.user.id), "/organizer");
 });
 
 test("invalid organizer details leave no partial account", async () => {

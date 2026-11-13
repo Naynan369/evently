@@ -42,7 +42,9 @@ export default function AuthForm({
   const socialDestination =
     register && accountType === "attendee" && isOrganizerRoute(destination)
       ? "/account"
-      : destination;
+      : !register && !next
+        ? ""
+        : destination;
   const countryNames = new Intl.DisplayNames(
     language === "it" ? "it-IT" : "en-GB",
     {
@@ -61,6 +63,7 @@ export default function AuthForm({
       const result = await api<{
         user: User;
         saved: string[];
+        home?: "/account" | "/organizer";
         verificationSent?: boolean;
         verificationDelivery?: string;
       }>("auth/" + (register ? "register" : "login"), {
@@ -70,7 +73,9 @@ export default function AuthForm({
       setSession(result.user, result.saved);
       router.push(
         result.user.emailVerified
-          ? destination
+          ? !register && !next
+            ? result.home ?? destination
+            : destination
           : "/verify-email" +
               (result.verificationDelivery
                 ? "?delivery=" + result.verificationDelivery

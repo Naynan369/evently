@@ -16,6 +16,7 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Recommendations based on selected interests, saved categories, artist lineups and music genres, with booked and unavailable events excluded.
 - Optional Apple Music and gated Spotify connections: consent, playlist selection, bounded import, explicit match reasons and disconnect/delete controls. Manual artist and genre preferences work without provider credentials.
 - Organizer event publishing/editing, inventory limits, guest lists, CSV export and ticket-code check-in.
+- Distinct signed-in workspaces: an attendee dashboard for plans and preferences, and an organizer studio for event creation and operations. Both are available from one account.
 - Free reservations and clearly marked sample bookings; QR tickets, calendar downloads and print-to-PDF.
 - Stripe Connect onboarding, hosted Checkout, verified payment fulfillment, checkout resumption/cancellation, attendee refund requests and organizer full refunds.
 

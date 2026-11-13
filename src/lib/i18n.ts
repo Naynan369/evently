@@ -398,7 +398,7 @@ const messages = {
     "saved.emptyBody":
       "Save an event from its details page and your collection will be waiting whenever you’re ready to make a plan.",
     "saved.findSomething": "Find something to save",
-    "account.eyebrow": "YOUR LITTLE CORNER OF EVENTLY",
+    "account.eyebrow": "EVENTLY / YOUR ATTENDEE SPACE",
     "account.greeting": "Hey, {name}.",
     "account.intro":
       "Good to have you here. Keep your plans and preferences together.",
@@ -418,6 +418,27 @@ const messages = {
     "account.resetPassword": "Reset your password",
     "account.organizer": "Organizer studio",
     "account.help": "Help & questions",
+    "account.dashboard.summary": "Your plans at a glance",
+    "account.dashboard.upcomingCount": "Upcoming bookings",
+    "account.dashboard.savedCount": "Saved events",
+    "account.dashboard.yourSpace": "Your space",
+    "account.dashboard.plansTitle": "Everything for your next plan.",
+    "account.dashboard.ticketsDescription": "View bookings, tickets and event details.",
+    "account.dashboard.savedDescription": "Pick up where your shortlist left off.",
+    "account.dashboard.recommendationsReady": "Events matched to the things you enjoy.",
+    "account.dashboard.recommendationsSetup": "Choose interests to get more relevant picks.",
+    "account.dashboard.musicDescription": "Shape your discovery around your music taste.",
+    "account.dashboard.open": "Open",
+    "account.dashboard.nextUp": "Next up",
+    "account.dashboard.accountDetails": "Account details",
+    "account.dashboard.otherWorkspace": "Also on Evently",
+    "account.dashboard.organizerReturn": "Your organizer workspace.",
+    "account.dashboard.organizerReturnDescription":
+      "Switch to your events, guest list and publishing tools whenever you need them.",
+    "account.dashboard.organizerStart": "Have an event in mind?",
+    "account.dashboard.organizerStartDescription":
+      "Use this same account to set up an organizer profile and publish your first event.",
+    "account.dashboard.startOrganizing": "Start organizing",
     "auth.signOut": "Sign out",
     "auth.signingOut": "Signing out…",
     "verify.notice":
@@ -1461,7 +1482,7 @@ const messages = {
     "saved.emptyBody":
       "Salva un evento dalla pagina dei dettagli: la tua raccolta sarà qui quando vorrai scegliere il prossimo programma.",
     "saved.findSomething": "Trova qualcosa da salvare",
-    "account.eyebrow": "IL TUO SPAZIO SU EVENTLY",
+    "account.eyebrow": "EVENTLY / SPAZIO PARTECIPANTE",
     "account.greeting": "Ciao, {name}.",
     "account.intro":
       "Che piacere averti qui. Raccogli i tuoi programmi e le tue preferenze.",
@@ -1481,6 +1502,27 @@ const messages = {
     "account.resetPassword": "Reimposta la password",
     "account.organizer": "Spazio organizzatore",
     "account.help": "Aiuto e domande",
+    "account.dashboard.summary": "I tuoi programmi in breve",
+    "account.dashboard.upcomingCount": "Prenotazioni in arrivo",
+    "account.dashboard.savedCount": "Eventi salvati",
+    "account.dashboard.yourSpace": "Il tuo spazio",
+    "account.dashboard.plansTitle": "Tutto per il tuo prossimo programma.",
+    "account.dashboard.ticketsDescription": "Consulta prenotazioni, biglietti e dettagli degli eventi.",
+    "account.dashboard.savedDescription": "Riprendi da ciò che hai salvato.",
+    "account.dashboard.recommendationsReady": "Eventi in linea con i tuoi interessi.",
+    "account.dashboard.recommendationsSetup": "Scegli i tuoi interessi per ricevere consigli più pertinenti.",
+    "account.dashboard.musicDescription": "Scopri eventi partendo dai tuoi gusti musicali.",
+    "account.dashboard.open": "Apri",
+    "account.dashboard.nextUp": "Il prossimo evento",
+    "account.dashboard.accountDetails": "Dettagli dell'account",
+    "account.dashboard.otherWorkspace": "Anche su Evently",
+    "account.dashboard.organizerReturn": "Il tuo spazio organizzatore.",
+    "account.dashboard.organizerReturnDescription":
+      "Passa ai tuoi eventi, alla lista degli ospiti e agli strumenti di pubblicazione quando vuoi.",
+    "account.dashboard.organizerStart": "Hai un evento in mente?",
+    "account.dashboard.organizerStartDescription":
+      "Usa questo stesso account per creare un profilo organizzatore e pubblicare il tuo primo evento.",
+    "account.dashboard.startOrganizing": "Inizia a organizzare",
     "auth.signOut": "Esci",
     "auth.signingOut": "Uscita in corso…",
     "verify.notice":
