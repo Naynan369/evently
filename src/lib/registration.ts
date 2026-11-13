@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { run, takeRateLimit, userById } from "./db.ts";
+import {
+  createBusinessProfile,
+  run,
+  takeRateLimit,
+  transaction,
+  updateInterests,
+  userById,
+} from "./db.ts";
 import { AppError, hashPassword, textField, tokenHash } from "./security.ts";
 import {
   deliverAccountToken,
@@ -9,10 +16,17 @@ import { emailDeliveryMode } from "./mail.ts";
 import type { EmailDeliveryMode } from "./types.ts";
 
 export async function registerAccount(input: Record<string, unknown>) {
+  const accountType = input.accountType ?? "attendee";
+  if (accountType !== "attendee" && accountType !== "organizer")
+    throw new AppError("Choose attendee or organizer to continue.");
   const email = textField(input.email, "Email", 5, 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw new AppError("Enter a valid email address.");
   const name = textField(input.name, "Name", 2, 80);
+  const organizationName =
+    accountType === "organizer"
+      ? textField(input.organizationName, "Organizer name", 2, 120)
+      : null;
   if (
     typeof input.password !== "string" ||
     input.password.length < 10 ||
@@ -23,14 +37,30 @@ export async function registerAccount(input: Record<string, unknown>) {
   const password = await hashPassword(input.password);
   const id = randomUUID();
   try {
-    await run(
-      "INSERT INTO users(id,name,email,password_hash,created_at) VALUES(?,?,?,?,?)",
-      id,
-      name,
-      email,
-      password,
-      Date.now(),
-    );
+    await transaction(async () => {
+      await run(
+        "INSERT INTO users(id,name,email,password_hash,created_at) VALUES(?,?,?,?,?)",
+        id,
+        name,
+        email,
+        password,
+        Date.now(),
+      );
+      if (organizationName) {
+        const user = await userById(id);
+        if (!user) throw new Error("Could not create the account.");
+        await createBusinessProfile(
+          {
+            kind: "organizer",
+            name: organizationName,
+            countryCode: input.countryCode ?? "IT",
+          },
+          user,
+        );
+      } else {
+        await updateInterests(id, input.interests ?? []);
+      }
+    });
   } catch (error) {
     if (
       (typeof error === "object" &&
@@ -50,8 +80,7 @@ export async function registerAccount(input: Record<string, unknown>) {
   let verificationDelivery: EmailDeliveryMode | "failed" = emailDeliveryMode();
   if (verificationDelivery !== "unavailable") {
     try {
-      if (verificationDelivery === "gmail")
-        await deliverVerificationCode(id);
+      if (verificationDelivery === "gmail") await deliverVerificationCode(id);
       else await deliverAccountToken(id, "verify");
     } catch {
       verificationDelivery = "failed";

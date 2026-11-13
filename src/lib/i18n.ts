@@ -266,13 +266,31 @@ const messages = {
     "auth.signIn": "Welcome back.",
     "auth.register": "Create your account.",
     "auth.banner": "YOU’VE GOT GOOD PLANS AHEAD.",
+    "auth.organizerBanner": "MAKE ROOM FOR YOUR NEXT EVENT.",
     "auth.bannerLine1": "More moments.",
     "auth.bannerLine2": "More memories.",
     "auth.bannerLine3": "More you.",
+    "auth.organizerBannerLine1": "More ideas.",
+    "auth.organizerBannerLine2": "More people.",
+    "auth.organizerBannerLine3": "More moments.",
     "auth.registerEyebrow": "LET’S GET YOU OUT THERE",
     "auth.signInEyebrow": "GOOD TO SEE YOU AGAIN",
     "auth.registerIntro":
       "Save your favorites, find your people and keep every ticket in one place.",
+    "auth.organizerIntro":
+      "Set up your organizer identity, then publish events and manage your guests in one workspace.",
+    "auth.accountTypeLabel": "How will you start?",
+    "auth.attendee": "Attendee",
+    "auth.attendeeDetail": "Discover events and keep your tickets together.",
+    "auth.organizer": "Organizer",
+    "auth.organizerDetail": "Publish events and manage guest operations.",
+    "auth.sharedLogin": "One account can be used for both attending and organizing.",
+    "auth.organizerEmailNote": "Use email to create your organizer profile.",
+    "auth.organizationName": "Organizer or brand name",
+    "auth.organizationNamePlaceholder": "Your name or event brand",
+    "auth.businessCountry": "Business country",
+    "auth.interests": "Your interests",
+    "auth.interestsHint": "Choose a few for better recommendations. Optional.",
     "auth.signInIntro": "Your next good story is waiting for you.",
     "auth.withGoogle": "Continue with Google",
     "auth.withApple": "Continue with Apple",
@@ -306,9 +324,13 @@ const messages = {
     "auth.createAccountLink": "Create an account",
     "auth.joinNote":
       "Free to join. Verify your email, then make your next plan.",
+    "auth.organizerJoinNote":
+      "Free to join. Verify your email before publishing events.",
     "auth.signInNote": "Your plans, tickets and favorites, all in one place.",
     "auth.nextExperience":
       "Your next favorite experience starts with showing up.",
+    "auth.organizerNextExperience":
+      "Bring your idea to life and welcome your community.",
     "tickets.title": "Good times, booked.",
     "tickets.eyebrow": "YOU’VE GOT PLANS",
     "tickets.intro":
@@ -994,6 +1016,7 @@ const messages = {
     "recovery.yourInbox": "your inbox",
     "recovery.eyebrow": "YOUR NEXT CHAPTER STARTS HERE",
     "recovery.findExperience": "Find my next experience",
+    "recovery.openStudio": "Open organizer studio",
     "recovery.backToSignIn": "Back to sign in",
     "recovery.previewMode":
       "Preview mode: messages are saved locally for testing. No email is sent to your inbox.",
@@ -1303,13 +1326,31 @@ const messages = {
     "auth.signIn": "Bentornato.",
     "auth.register": "Crea il tuo account.",
     "auth.banner": "TI ASPETTANO BELLE ESPERIENZE.",
+    "auth.organizerBanner": "DAI SPAZIO AL TUO PROSSIMO EVENTO.",
     "auth.bannerLine1": "Più momenti.",
     "auth.bannerLine2": "Più ricordi.",
     "auth.bannerLine3": "Più te.",
+    "auth.organizerBannerLine1": "Più idee.",
+    "auth.organizerBannerLine2": "Più persone.",
+    "auth.organizerBannerLine3": "Più momenti.",
     "auth.registerEyebrow": "È IL MOMENTO DI USCIRE",
     "auth.signInEyebrow": "CHE PIACERE RIVEDERTI",
     "auth.registerIntro":
       "Salva i tuoi preferiti, trova la tua gente e raccogli tutti i biglietti in un unico posto.",
+    "auth.organizerIntro":
+      "Imposta la tua identità di organizzatore, poi pubblica eventi e gestisci gli ospiti in un unico spazio.",
+    "auth.accountTypeLabel": "Come vuoi iniziare?",
+    "auth.attendee": "Partecipante",
+    "auth.attendeeDetail": "Scopri gli eventi e tieni insieme i tuoi biglietti.",
+    "auth.organizer": "Organizzatore",
+    "auth.organizerDetail": "Pubblica eventi e gestisci gli ospiti.",
+    "auth.sharedLogin": "Un solo account per partecipare agli eventi e organizzarli.",
+    "auth.organizerEmailNote": "Usa la tua email per creare il profilo organizzatore.",
+    "auth.organizationName": "Nome dell'organizzatore o del brand",
+    "auth.organizationNamePlaceholder": "Il tuo nome o il tuo brand",
+    "auth.businessCountry": "Paese dell'attività",
+    "auth.interests": "I tuoi interessi",
+    "auth.interestsHint": "Scegline alcuni per ricevere consigli migliori. Facoltativo.",
     "auth.signInIntro": "La tua prossima bella storia ti aspetta.",
     "auth.withGoogle": "Continua con Google",
     "auth.withApple": "Continua con Apple",
@@ -1343,10 +1384,14 @@ const messages = {
     "auth.createAccountLink": "Crea un account",
     "auth.joinNote":
       "Iscrizione gratuita. Verifica la tua email e prepara il prossimo programma.",
+    "auth.organizerJoinNote":
+      "Iscrizione gratuita. Verifica la tua email prima di pubblicare eventi.",
     "auth.signInNote":
       "Programmi, biglietti e preferiti, tutto in un unico posto.",
     "auth.nextExperience":
       "La tua prossima esperienza preferita inizia partecipando.",
+    "auth.organizerNextExperience":
+      "Dai vita alla tua idea e accogli la tua comunità.",
     "tickets.title": "I tuoi eventi, prenotati.",
     "tickets.eyebrow": "HAI GIÀ UN PROGRAMMA",
     "tickets.intro":
@@ -2050,6 +2095,7 @@ const messages = {
     "recovery.yourInbox": "la tua posta",
     "recovery.eyebrow": "IL TUO PROSSIMO CAPITOLO INIZIA QUI",
     "recovery.findExperience": "Trova la prossima esperienza",
+    "recovery.openStudio": "Apri lo studio organizzatore",
     "recovery.backToSignIn": "Torna all'accesso",
     "recovery.previewMode":
       "Modalità anteprima: i messaggi vengono salvati in locale per i test. Non riceverai email.",

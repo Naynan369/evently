@@ -9,6 +9,7 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Space Grotesk typography.
 - City/text search, category/date/price filters and saved events.
 - Messina area browsing, Italian as the first-visit language, and optional access and arrival details on event pages.
+- Attendee and organizer choices on one sign-up page: attendees can choose interests, while organizers provide a public organizer name and business country. Both use the same account and login.
 - Accounts with salted password hashes, six-digit email verification through Gmail SMTP, verification resend, forgot-password and one-use password reset links.
 - Google and Apple account sign-in when their OAuth credentials and callback URLs are configured.
 - Revocable server-backed sessions; password recovery signs out every existing session.

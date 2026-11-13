@@ -12,12 +12,14 @@ export default function EmailActions({
   email,
   deliveryFailed = false,
   emailDelivery = "unavailable",
+  organizerProfile = false,
 }: {
   mode: "verify" | "forgot" | "reset";
   token?: string;
   email?: string;
   deliveryFailed?: boolean;
   emailDelivery?: EmailDeliveryMode;
+  organizerProfile?: boolean;
 }) {
   const { user, setSession, t } = useApp();
   const router = useRouter();
@@ -160,10 +162,18 @@ export default function EmailActions({
         {done || verified ? (
           <Link
             className="button button-primary button-wide"
-            href={mode === "verify" && user ? "/for-you" : "/login"}
+            href={
+              mode === "verify" && user
+                ? organizerProfile
+                  ? "/organizer"
+                  : "/for-you"
+                : "/login"
+            }
           >
             {mode === "verify" && user
-              ? t("recovery.findExperience")
+              ? organizerProfile
+                ? t("recovery.openStudio")
+                : t("recovery.findExperience")
               : t("recovery.backToSignIn")}{" "}
             <FiArrowRight />
           </Link>
@@ -177,7 +187,7 @@ export default function EmailActions({
                     ? t("recovery.deliveryNotReadyVerify")
                     : t("recovery.deliveryNotReadyReset")}
               </div>
-              )}
+            )}
             {mode === "forgot" && (
               <div className="field">
                 <label htmlFor="recovery-email">{t("recovery.email")}</label>

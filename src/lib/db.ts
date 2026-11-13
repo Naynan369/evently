@@ -7,6 +7,7 @@ import { AppError, integer, textField } from "./security.ts";
 import { eventIsPrivate, organizerDemoMode, sampleListingsEnabled } from "./demo.ts";
 import { previewIncludedVat, previewTicketReferences, previewVatPercent } from "./ticket-preview.ts";
 import { uploadedEventImageId } from "./event-image.ts";
+import { BUSINESS_COUNTRIES } from "./business-countries.ts";
 import {
   isPlatformTestBooking,
   PLATFORM_TEST_ACCOUNT,
@@ -458,7 +459,7 @@ function validateBusinessProfile(
     kind === "venue"
       ? "IT"
       : String(input.countryCode ?? existing?.countryCode ?? "IT").toUpperCase();
-  if (! ["GB", "US", "IT", "DE", "FR", "ES", "NL", "IE", "CA", "AU"].includes(countryCode))
+  if (!BUSINESS_COUNTRIES.some((country) => country === countryCode))
     throw new AppError("Choose a supported business country.");
   if (
     existing?.stripeAccount &&

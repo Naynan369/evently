@@ -3,10 +3,18 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
+import {
+  FiArrowRight,
+  FiBriefcase,
+  FiCalendar,
+  FiEye,
+  FiEyeOff,
+} from "react-icons/fi";
 import { FaApple, FaGoogle } from "react-icons/fa";
 import { api } from "@/lib/client";
 import { safeNext } from "@/lib/format";
+import { BUSINESS_COUNTRIES } from "@/lib/business-countries";
+import { isOrganizerRoute } from "@/lib/organizer-routes";
 import type { User, EmailDeliveryMode } from "@/lib/types";
 import { useApp } from "./AppProvider";
 export default function AuthForm({
@@ -14,23 +22,41 @@ export default function AuthForm({
   next,
   oauthError,
   emailDelivery = "unavailable",
+  initialAccountType = "attendee",
 }: {
   register?: boolean;
   next?: string;
   oauthError?: string;
   emailDelivery?: EmailDeliveryMode;
+  initialAccountType?: "attendee" | "organizer";
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
-  const { setSession, t } = useApp();
+  const [accountType, setAccountType] = useState(initialAccountType);
+  const { language, setSession, t } = useApp();
   const router = useRouter();
   const destination = safeNext(next);
+  const loginDestination =
+    register && accountType === "organizer" ? "/organizer" : destination;
+  const socialDestination =
+    register && accountType === "attendee" && isOrganizerRoute(destination)
+      ? "/account"
+      : destination;
+  const countryNames = new Intl.DisplayNames(
+    language === "it" ? "it-IT" : "en-GB",
+    {
+      type: "region",
+    },
+  );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
     const form = new FormData(event.currentTarget);
+    const payload: Record<string, unknown> = Object.fromEntries(form);
+    if (register && accountType === "attendee")
+      payload.interests = form.getAll("interests");
     try {
       const result = await api<{
         user: User;
@@ -39,7 +65,7 @@ export default function AuthForm({
         verificationDelivery?: string;
       }>("auth/" + (register ? "register" : "login"), {
         method: "POST",
-        body: Object.fromEntries(form),
+        body: payload,
       });
       setSession(result.user, result.saved);
       router.push(
@@ -64,23 +90,53 @@ export default function AuthForm({
     >
       <aside className="auth-visual">
         <Image
-          src={register ? "/images/festival.jpg" : "/images/community-photo.jpg"}
+          src={
+            register ? "/images/festival.jpg" : "/images/community-photo.jpg"
+          }
           alt=""
           fill
           sizes="(max-width: 900px) 100vw, 90vw"
         />
         <div className="auth-visual__top">
           <span className="eyebrow">
-            {t("auth.banner")}
+            {t(
+              register && accountType === "organizer"
+                ? "auth.organizerBanner"
+                : "auth.banner",
+            )}
           </span>
         </div>
         <div className="auth-visual__copy">
           <h2>
-            <span>{t("auth.bannerLine1")}</span>
-            <span>{t("auth.bannerLine2")}</span>
-            <span>{t("auth.bannerLine3")}</span>
+            <span>
+              {t(
+                register && accountType === "organizer"
+                  ? "auth.organizerBannerLine1"
+                  : "auth.bannerLine1",
+              )}
+            </span>
+            <span>
+              {t(
+                register && accountType === "organizer"
+                  ? "auth.organizerBannerLine2"
+                  : "auth.bannerLine2",
+              )}
+            </span>
+            <span>
+              {t(
+                register && accountType === "organizer"
+                  ? "auth.organizerBannerLine3"
+                  : "auth.bannerLine3",
+              )}
+            </span>
           </h2>
-          <p>{t("auth.nextExperience")}</p>
+          <p>
+            {t(
+              register && accountType === "organizer"
+                ? "auth.organizerNextExperience"
+                : "auth.nextExperience",
+            )}
+          </p>
         </div>
       </aside>
       <div className="auth-form-wrap">
@@ -90,8 +146,52 @@ export default function AuthForm({
               {register ? t("auth.registerEyebrow") : t("auth.signInEyebrow")}
             </span>
             <h1>{register ? t("auth.register") : t("auth.signIn")}</h1>
-            <p>{register ? t("auth.registerIntro") : t("auth.signInIntro")}</p>
+            <p>
+              {register
+                ? accountType === "organizer"
+                  ? t("auth.organizerIntro")
+                  : t("auth.registerIntro")
+                : t("auth.signInIntro")}
+            </p>
           </div>
+          {register && (
+            <fieldset className="auth-role-choice">
+              <legend>{t("auth.accountTypeLabel")}</legend>
+              <div className="auth-role-choice__options">
+                <label className={accountType === "attendee" ? "selected" : ""}>
+                  <input
+                    type="radio"
+                    name="signup-view"
+                    value="attendee"
+                    checked={accountType === "attendee"}
+                    onChange={() => setAccountType("attendee")}
+                  />
+                  <FiCalendar aria-hidden="true" />
+                  <span>
+                    <strong>{t("auth.attendee")}</strong>
+                    <small>{t("auth.attendeeDetail")}</small>
+                  </span>
+                </label>
+                <label
+                  className={accountType === "organizer" ? "selected" : ""}
+                >
+                  <input
+                    type="radio"
+                    name="signup-view"
+                    value="organizer"
+                    checked={accountType === "organizer"}
+                    onChange={() => setAccountType("organizer")}
+                  />
+                  <FiBriefcase aria-hidden="true" />
+                  <span>
+                    <strong>{t("auth.organizer")}</strong>
+                    <small>{t("auth.organizerDetail")}</small>
+                  </span>
+                </label>
+              </div>
+              <p>{t("auth.sharedLogin")}</p>
+            </fieldset>
+          )}
           {oauthError && (
             <div className="error-box auth-social-error" role="alert">
               {oauthError === "unavailable"
@@ -101,20 +201,36 @@ export default function AuthForm({
                   : t("auth.socialFailed")}
             </div>
           )}
-          <div className="auth-social">
-            <div className="auth-social__buttons">
-              <a href={`/api/auth/oauth/google?from=${register ? "register" : "login"}&next=${encodeURIComponent(destination)}`}>
-                <FaGoogle aria-hidden="true" />
-                <span>{t("auth.withGoogle")}</span>
-              </a>
-              <a href={`/api/auth/oauth/apple?from=${register ? "register" : "login"}&next=${encodeURIComponent(destination)}`}>
-                <FaApple aria-hidden="true" />
-                <span>{t("auth.withApple")}</span>
-              </a>
+          {(!register || accountType === "attendee") && (
+            <div className="auth-social">
+              <div className="auth-social__buttons">
+                <a
+                  href={`/api/auth/oauth/google?from=${register ? "register" : "login"}&next=${encodeURIComponent(socialDestination)}`}
+                >
+                  <FaGoogle aria-hidden="true" />
+                  <span>{t("auth.withGoogle")}</span>
+                </a>
+                <a
+                  href={`/api/auth/oauth/apple?from=${register ? "register" : "login"}&next=${encodeURIComponent(socialDestination)}`}
+                >
+                  <FaApple aria-hidden="true" />
+                  <span>{t("auth.withApple")}</span>
+                </a>
+              </div>
+              <div className="auth-social__divider">
+                <span>{t("auth.orEmail")}</span>
+              </div>
             </div>
-            <div className="auth-social__divider"><span>{t("auth.orEmail")}</span></div>
-          </div>
+          )}
+          {register && accountType === "organizer" && (
+            <p className="auth-organizer-email-note">
+              {t("auth.organizerEmailNote")}
+            </p>
+          )}
           <form onSubmit={submit} className="form-stack" aria-busy={busy}>
+            {register && (
+              <input type="hidden" name="accountType" value={accountType} />
+            )}
             {register && (
               <div className="field">
                 <label htmlFor="name">{t("auth.name")}</label>
@@ -128,6 +244,68 @@ export default function AuthForm({
                   required
                 />
               </div>
+            )}
+            {register && accountType === "organizer" && (
+              <>
+                <div className="field">
+                  <label htmlFor="organizationName">
+                    {t("auth.organizationName")}
+                  </label>
+                  <input
+                    id="organizationName"
+                    name="organizationName"
+                    autoComplete="organization"
+                    placeholder={t("auth.organizationNamePlaceholder")}
+                    minLength={2}
+                    maxLength={120}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="countryCode">
+                    {t("auth.businessCountry")}
+                  </label>
+                  <select
+                    id="countryCode"
+                    name="countryCode"
+                    defaultValue="IT"
+                    required
+                  >
+                    {BUSINESS_COUNTRIES.map((country) => (
+                      <option key={country} value={country}>
+                        {countryNames.of(country) ?? country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            {register && accountType === "attendee" && (
+              <fieldset className="auth-interests">
+                <legend>{t("auth.interests")}</legend>
+                <p>{t("auth.interestsHint")}</p>
+                <div className="auth-interests__options">
+                  {(
+                    [
+                      "music",
+                      "arts",
+                      "food",
+                      "technology",
+                      "wellness",
+                      "community",
+                    ] as const
+                  ).map((interest) => (
+                    <label key={interest}>
+                      <input
+                        type="checkbox"
+                        name="interests"
+                        value={interest}
+                      />
+                      <span>{t(`category.${interest}`)}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             )}
             <div className="field">
               <label htmlFor="email">{t("auth.email")}</label>
@@ -217,14 +395,18 @@ export default function AuthForm({
                 href={
                   (register ? "/login" : "/register") +
                   "?next=" +
-                  encodeURIComponent(destination)
+                  encodeURIComponent(loginDestination)
                 }
               >
                 {register ? t("nav.signIn") : t("auth.createAccountLink")}
               </Link>
             </div>
             <p className="form-note">
-              {register ? t("auth.joinNote") : t("auth.signInNote")}
+              {register
+                ? accountType === "organizer"
+                  ? t("auth.organizerJoinNote")
+                  : t("auth.joinNote")
+                : t("auth.signInNote")}
             </p>
           </div>
         </div>
