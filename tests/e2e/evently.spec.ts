@@ -183,6 +183,15 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
       ).status(),
     ).toBe(200);
   }
+  const paymentReadiness = await owner.get("/api/stripe/status?diagnostics=1");
+  expect(paymentReadiness.status()).toBe(200);
+  expect(await paymentReadiness.json()).toMatchObject({
+    flagEnabled: false,
+    testKey: true,
+    appUrlSet: true,
+    organizerDemoOff: true,
+    enabled: false,
+  });
   const uploadedCover = await owner.post("/api/event-images", {
     multipart: {
       image: {

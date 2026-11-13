@@ -72,6 +72,7 @@ import { eventIsPrivate, organizerDemoMode } from "@/lib/demo";
 import {
   paymentAccountFromWebhook,
   platformCheckoutTestEnabled,
+  platformCheckoutTestReadiness,
 } from "@/lib/platform-checkout-test";
 import {
   eventImageMime,
@@ -381,6 +382,12 @@ async function handle(request: Request, context: Context) {
       });
     }
     if (route === "stripe/status" && method === "GET") {
+      if (new URL(request.url).searchParams.get("diagnostics") === "1")
+        return json({
+          ...platformCheckoutTestReadiness(),
+          vercelEnvironment: process.env.VERCEL_ENV || null,
+          commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || null,
+        });
       const profileId = new URL(request.url).searchParams.get("profileId");
       const profile = profileId
         ? await getOwnedBusinessProfile(profileId, user.id, "organizer")

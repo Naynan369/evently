@@ -5,6 +5,7 @@ import {
   paymentAccountFromWebhook,
   PLATFORM_TEST_ACCOUNT,
   platformCheckoutTestEnabled,
+  platformCheckoutTestReadiness,
 } from "../src/lib/platform-checkout-test.ts";
 
 test("platform checkout requires an explicit test key, including on Vercel Production", () => {
@@ -17,6 +18,13 @@ test("platform checkout requires an explicit test key, including on Vercel Produ
     VERCEL_ENV: "preview",
   };
   assert.equal(platformCheckoutTestEnabled(preview), true);
+  assert.deepEqual(platformCheckoutTestReadiness(preview), {
+    flagEnabled: true,
+    testKey: true,
+    appUrlSet: true,
+    organizerDemoOff: true,
+    enabled: true,
+  });
   assert.equal(
     platformCheckoutTestEnabled({ ...preview, STRIPE_SECRET_KEY: "sk_live_fixture" }),
     false,
