@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   FiArrowUpRight,
   FiCalendar,
@@ -46,19 +47,28 @@ export default async function Home() {
     <main id="main" className="home-cinema">
       <EventCinema />
       <section className="messina-home-section" aria-labelledby="messina-home-title">
-        <div className="container messina-home-layout">
-          <div className="messina-home-heading">
-            <div>
-              <span className="eyebrow">{t("home.messinaEyebrow")}</span>
+        <div className="container">
+          <div className="messina-home-topline">
+            <span>{t("home.messinaEyebrow")}</span>
+            <span>{t("home.messinaLocation")}</span>
+          </div>
+          <div className="messina-home-hero">
+            <Image
+              src="/images/messina-night.jpg"
+              alt={t("home.messinaPhotoAlt")}
+              fill
+              sizes="(max-width: 760px) 100vw, 1280px"
+            />
+            <div className="messina-home-heading">
               <h2 id="messina-home-title">{t("home.messinaTitle")}</h2>
+              <p>{t("home.messinaIntro")}</p>
             </div>
-            <p>{t("home.messinaIntro")}</p>
+          </div>
+          <div className="messina-home-directory-heading" aria-hidden="true">
+            <span>{t("home.messinaAreas")}</span>
+            <span>{String(messinaAreas.length).padStart(2, "0")}</span>
           </div>
           <nav className="messina-home-areas" aria-label={t("home.messinaAreas")}>
-            <div className="messina-home-areas__meta" aria-hidden="true">
-              <span>{t("home.messinaAreas")}</span>
-              <span>{String(messinaAreas.length).padStart(2, "0")}</span>
-            </div>
             {messinaAreas.map((area, index) => (
               <Link
                 href={`/events?city=Messina&area=${area.id}`}
