@@ -90,11 +90,35 @@ export default function MessinaGuide({ language }: { language: Language }) {
 
           <figure className="messina-home-stage">
             <Image
+              className="messina-home-stage__photo messina-home-stage__photo--day"
+              src="/images/messina-day.jpg"
+              alt={t("home.messinaPhotoAlt")}
+              fill
+              sizes="(max-width: 700px) 100vw, 56vw"
+            />
+            <Image
+              className="messina-home-stage__photo messina-home-stage__photo--night"
               src="/images/messina-night.jpg"
               alt={t("home.messinaPhotoAlt")}
               fill
               sizes="(max-width: 700px) 100vw, 56vw"
             />
+            <a
+              className="messina-home-stage__credit messina-home-stage__credit--day"
+              href="https://commons.wikimedia.org/wiki/File:Messina_-_Panorama_dal_mare.jpg"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Lucamato · CC BY-SA 4.0
+            </a>
+            <a
+              className="messina-home-stage__credit messina-home-stage__credit--night"
+              href="https://unsplash.com/photos/city-skyline-during-night-time-EpQBnTJoOqY"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Giuseppe Famiani · Unsplash
+            </a>
             <span className="messina-home-stage__serial" aria-hidden="true">
               {String(activeIndex + 1).padStart(2, "0")} / {String(messinaAreas.length).padStart(2, "0")}
             </span>

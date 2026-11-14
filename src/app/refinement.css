@@ -3055,15 +3055,14 @@ body {
   --guide-mark: #75b9b5;
   --guide-arrow-opacity: 0.75;
   --guide-stage-bg: #dfe8e3;
-  --guide-stage-image-opacity: 0.42;
-  --guide-stage-image-filter: grayscale(1) contrast(0.9) brightness(1.6);
-  --guide-stage-overlay: linear-gradient(180deg, rgba(241, 245, 241, 0.25), rgba(233, 239, 233, 0.86));
-  --guide-stage-ink: #18251e;
-  --guide-stage-serial: #31473e;
-  --guide-stage-sketch: rgba(35, 57, 46, 0.78);
-  --guide-stage-sketch-shadow: none;
-  --guide-stage-progress: rgba(24, 37, 30, 0.27);
-  --guide-stage-progress-active: #23392e;
+  --guide-stage-image-filter: saturate(0.92) contrast(1.06);
+  --guide-stage-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 35%, rgba(4, 20, 26, 0.38) 100%);
+  --guide-stage-ink: #fff;
+  --guide-stage-serial: #19322e;
+  --guide-stage-sketch: rgba(25, 53, 50, 0.86);
+  --guide-stage-sketch-shadow: drop-shadow(0 1px 6px rgba(255, 255, 255, 0.45));
+  --guide-stage-progress: rgba(255, 255, 255, 0.45);
+  --guide-stage-progress-active: #fff;
   padding: clamp(72px, 8vw, 120px) 0 clamp(78px, 8vw, 118px);
   background: var(--guide-bg);
   color: var(--guide-ink);
@@ -3083,7 +3082,6 @@ body {
   --guide-mark: #c7e9e8;
   --guide-arrow-opacity: 0.55;
   --guide-stage-bg: #101d26;
-  --guide-stage-image-opacity: 1;
   --guide-stage-image-filter: saturate(0.72) brightness(0.76);
   --guide-stage-overlay: linear-gradient(180deg, rgba(3, 10, 14, 0.12) 22%, rgba(3, 10, 14, 0.76) 100%);
   --guide-stage-ink: #fff;
@@ -3248,8 +3246,22 @@ body {
 .messina-home-stage > img {
   object-fit: cover;
   object-position: 52% 62%;
-  opacity: var(--guide-stage-image-opacity);
   filter: var(--guide-stage-image-filter);
+}
+
+.messina-home-stage__photo--night,
+.messina-home-stage__credit--night {
+  display: none;
+}
+
+.dark .messina-home-stage__photo--day,
+.dark .messina-home-stage__credit--day {
+  display: none;
+}
+
+.dark .messina-home-stage__photo--night,
+.dark .messina-home-stage__credit--night {
+  display: block;
 }
 
 .messina-home-stage::after {
@@ -3257,6 +3269,23 @@ body {
   inset: 0;
   background: var(--guide-stage-overlay);
   content: "";
+}
+
+.messina-home-stage__credit {
+  position: absolute;
+  z-index: 1;
+  top: clamp(24px, 3vw, 42px);
+  left: clamp(28px, 4vw, 60px);
+  color: var(--guide-stage-serial);
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.messina-home-stage__credit:hover,
+.messina-home-stage__credit:focus-visible {
+  text-decoration: underline;
 }
 
 .messina-home-stage__serial {

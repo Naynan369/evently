@@ -51,10 +51,15 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   const cityGuide = page.locator(".messina-home-section");
   const selectedArea = cityGuide.locator('.messina-home-area[data-active="true"]');
   const cityStage = cityGuide.locator(".messina-home-stage");
+  const dayPhoto = cityStage.locator(".messina-home-stage__photo--day");
+  const nightPhoto = cityStage.locator(".messina-home-stage__photo--night");
   await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
   await expect(selectedArea).toHaveCSS("background-color", "rgb(35, 57, 46)");
   await expect(cityStage).toHaveCSS("background-color", "rgb(223, 232, 227)");
-  await expect(cityStage.locator("img")).toHaveCSS("opacity", "0.42");
+  await dayPhoto.scrollIntoViewIfNeeded();
+  await expect(dayPhoto).toBeVisible();
+  await expect(nightPhoto).toBeHidden();
+  await expect.poll(() => dayPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   const bg = await page
     .locator("body")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -65,7 +70,9 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   await expect(cityGuide).toHaveCSS("background-color", "rgb(20, 25, 23)");
   await expect(selectedArea).toHaveCSS("background-color", "rgb(229, 235, 230)");
   await expect(cityStage).toHaveCSS("background-color", "rgb(16, 29, 38)");
-  await expect(cityStage.locator("img")).toHaveCSS("opacity", "1");
+  await expect(dayPhoto).toBeHidden();
+  await expect(nightPhoto).toBeVisible();
+  await expect.poll(() => nightPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   expect(
     await page
       .locator("body")
@@ -81,6 +88,8 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
   await expect(cityStage).toHaveCSS("background-color", "rgb(223, 232, 227)");
+  await expect(dayPhoto).toBeVisible();
+  await expect(nightPhoto).toBeHidden();
   await expect(page.locator(".messina-home-area")).toHaveCount(6);
   await page.locator(".messina-home-area").nth(4).hover();
   await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
