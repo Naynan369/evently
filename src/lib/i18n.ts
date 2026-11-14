@@ -430,7 +430,6 @@ const messages = {
     "account.dashboard.open": "Open",
     "account.dashboard.nextUp": "Next up",
     "account.dashboard.accountDetails": "Account details",
-    "account.dashboard.returnToOrganizer": "Return to organizer studio",
     "auth.signOut": "Sign out",
     "auth.signingOut": "Signing out…",
     "verify.notice":
@@ -447,8 +446,6 @@ const messages = {
     "organizer.shell.profiles": "Business profiles",
     "organizer.shell.eventPreview": "Event preview",
     "organizer.shell.venuePreview": "Venue preview",
-    "organizer.shell.otherView": "Your Evently account",
-    "organizer.shell.attendeeView": "View as attendee",
     "organizer.eventPortfolio": "Event portfolio",
     "organizer.checkin": "Guest check-in",
     "organizer.payments": "Payments",
@@ -1505,7 +1502,6 @@ const messages = {
     "account.dashboard.open": "Apri",
     "account.dashboard.nextUp": "Il prossimo evento",
     "account.dashboard.accountDetails": "Dettagli dell'account",
-    "account.dashboard.returnToOrganizer": "Torna allo studio organizzatore",
     "auth.signOut": "Esci",
     "auth.signingOut": "Uscita in corso…",
     "verify.notice":
@@ -1522,8 +1518,6 @@ const messages = {
     "organizer.shell.profiles": "Profili attività",
     "organizer.shell.eventPreview": "Anteprima evento",
     "organizer.shell.venuePreview": "Anteprima locale",
-    "organizer.shell.otherView": "Il tuo account Evently",
-    "organizer.shell.attendeeView": "Vista partecipante",
     "organizer.eventPortfolio": "I tuoi eventi",
     "organizer.checkin": "Accoglienza ospiti",
     "organizer.payments": "Pagamenti",

@@ -27,7 +27,7 @@ export default async function Account() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/account");
 
-  const { upcoming, savedCount, home } = await loadAttendeeDashboard(user.id);
+  const { upcoming, savedCount } = await loadAttendeeDashboard(user.id);
 
   const features: {
     href: string;
@@ -197,11 +197,6 @@ export default async function Account() {
         <div className={styles.profileActions}>
           <Link href="/for-you">{t("account.tune")}</Link>
           <Link href="/forgot-password">{t("account.resetPassword")}</Link>
-          {home === "/organizer" && (
-            <Link href="/organizer">
-              {t("account.dashboard.returnToOrganizer")}
-            </Link>
-          )}
           <AccountActions />
         </div>
       </section>

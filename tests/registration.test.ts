@@ -84,7 +84,6 @@ test("attendee signup saves chosen interests without creating an organizer profi
   assert.deepEqual(await loadAttendeeDashboard(result.user.id), {
     upcoming: [],
     savedCount: 0,
-    home: "/account",
   });
   await createBusinessProfile(
     { kind: "organizer", name: "Guest Events", countryCode: "IT" },

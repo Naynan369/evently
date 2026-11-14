@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  FiArrowLeft,
   FiArrowUpRight,
   FiCalendar,
   FiCheckCircle,
@@ -21,6 +20,7 @@ import {
 } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { useApp } from "@/components/AppProvider";
+import AccountActions from "@/components/AccountActions";
 import { Brand } from "@/components/Brand";
 import type { TranslationKey } from "@/lib/i18n";
 import styles from "./OrganizerShell.module.css";
@@ -148,17 +148,6 @@ export default function OrganizerShell({
         </nav>
 
         <div className={styles.sidebarBottom}>
-          <span className={styles.groupLabel}>
-            {t("organizer.shell.otherView")}
-          </span>
-          <Link
-            className={styles.switchLink}
-            href="/account"
-            onClick={() => setMenuOpen(false)}
-          >
-            <FiArrowLeft aria-hidden="true" />{" "}
-            {t("organizer.shell.attendeeView")}
-          </Link>
           <div className={styles.userCard}>
             <span className={styles.avatar} aria-hidden="true">
               {initials}
@@ -168,6 +157,7 @@ export default function OrganizerShell({
               <small>{user?.email ?? ""}</small>
             </span>
           </div>
+          <AccountActions compact onSignOut={() => setMenuOpen(false)} />
         </div>
       </aside>
 
@@ -191,10 +181,6 @@ export default function OrganizerShell({
             </div>
           </div>
           <div className={styles.topbarActions}>
-            <Link className={styles.siteLink} href="/account">
-              {t("organizer.shell.attendeeView")}{" "}
-              <FiArrowUpRight aria-hidden="true" />
-            </Link>
             <label className={styles.languageControl}>
               <FiGlobe aria-hidden="true" />
               <span className={styles.srOnly}>{t("language.label")}</span>

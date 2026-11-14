@@ -89,8 +89,7 @@
   padding: 0 12px 10px;
 }
 
-.navigationLink,
-.switchLink {
+.navigationLink {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -105,14 +104,12 @@
     color 160ms ease;
 }
 
-.navigationLink:hover,
-.switchLink:hover {
+.navigationLink:hover {
   background: #303a3c;
   color: #fff;
 }
 
-.navigationLink svg,
-.switchLink svg {
+.navigationLink svg {
   width: 16px;
   height: 16px;
   color: #a5b2b4;
@@ -131,15 +128,10 @@
   margin-top: auto;
 }
 
-.switchLink {
-  border: 1px solid var(--workspace-rail-line);
-}
-
 .userCard {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 17px;
   padding: 14px 5px 1px;
   border-top: 1px solid var(--workspace-rail-line);
 }
@@ -177,6 +169,17 @@
 .userDetails small {
   color: var(--workspace-rail-muted);
   font-size: 10px;
+}
+
+.sidebarBottom :global(.account-signout) {
+  width: 100%;
+  margin-top: 10px;
+  color: #c3cbcc;
+}
+
+.sidebarBottom :global(.account-signout:hover) {
+  background: #303a3c;
+  color: #fff;
 }
 
 .mainColumn {
@@ -230,25 +233,6 @@
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.siteLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 35px;
-  padding: 0 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.siteLink:hover {
-  border-color: #8cbab8;
-  background: var(--soft);
 }
 
 .languageControl,
@@ -364,7 +348,6 @@
     gap: 9px;
   }
 
-  .siteLink,
   .pageIdentity span {
     display: none;
   }
@@ -377,8 +360,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
   .createLink,
-  .navigationLink,
-  .switchLink {
+  .navigationLink {
     transition: none;
   }
 }
