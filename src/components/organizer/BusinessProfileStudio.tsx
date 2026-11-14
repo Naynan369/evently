@@ -28,7 +28,7 @@ export default function BusinessProfileStudio({
 }: {
   initialProfiles: BusinessProfile[];
 }) {
-  const { language, t } = useApp();
+  const { language, t, user, setSession } = useApp();
   const countryNames = new Intl.DisplayNames(
     language === "it" ? "it-IT" : "en-GB",
     {
@@ -104,6 +104,8 @@ export default function BusinessProfileStudio({
       });
       setEditing(result.profile);
       setNotice(editing ? t("business.saved") : t("business.created"));
+      if (result.profile.kind === "organizer" && user && !user.isOrganizer)
+        setSession({ ...user, isOrganizer: true });
       router.refresh();
     } catch (saveError) {
       setError((saveError as Error).message);

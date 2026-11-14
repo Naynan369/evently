@@ -342,11 +342,15 @@ export function publicUser(
     interests: JSON.parse(String(row.interests)) as Category[],
     stripeAccount: row.stripe_account ? String(row.stripe_account) : null,
     emailVerified: Boolean(row.email_verified_at),
+    isOrganizer: row.is_organizer === true,
   };
 }
 export async function userById(id: string) {
   return publicUser(
-    await one<Record<string, unknown>>("SELECT * FROM users WHERE id = ?", id),
+    await one<Record<string, unknown>>(
+      "SELECT u.*, EXISTS(SELECT 1 FROM business_profiles b WHERE b.owner_id=u.id AND b.kind='organizer') AS is_organizer FROM users u WHERE u.id=?",
+      id,
+    ),
   );
 }
 async function hydrateEvent(row: { data: string }): Promise<Event> {

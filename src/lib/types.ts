@@ -84,6 +84,7 @@ export type User = {
   interests: Category[];
   stripeAccount: string | null;
   emailVerified: boolean;
+  isOrganizer?: boolean;
 };
 export type Booking = {
   id: string;

@@ -6,6 +6,7 @@ import {
   businessProfilesForOwner,
   createBusinessProfile,
   one,
+  userById,
 } from "../src/lib/db.ts";
 import { accountHome } from "../src/lib/account-home.ts";
 import { loadAttendeeDashboard } from "../src/lib/attendee-dashboard.ts";
@@ -76,6 +77,7 @@ test("attendee signup saves chosen interests without creating an organizer profi
     interests: ["music", "community"],
   });
   assert.deepEqual(result.user.interests, ["music", "community"]);
+  assert.equal(result.user.isOrganizer, false);
   assert.deepEqual(
     await businessProfilesForOwner(result.user.id, "organizer"),
     [],
@@ -90,6 +92,7 @@ test("attendee signup saves chosen interests without creating an organizer profi
     result.user,
   );
   assert.equal(await accountHome(result.user.id), "/organizer");
+  assert.equal((await userById(result.user.id))?.isOrganizer, true);
 });
 
 test("organizer signup creates a named business profile on the same user account", async () => {
@@ -100,6 +103,7 @@ test("organizer signup creates a named business profile on the same user account
     countryCode: "IT",
   });
   assert.equal(result.user.emailVerified, false);
+  assert.equal(result.user.isOrganizer, true);
   const profiles = await businessProfilesForOwner(result.user.id, "organizer");
   assert.equal(profiles.length, 1);
   assert.equal(profiles[0].name, "Messina Nights");

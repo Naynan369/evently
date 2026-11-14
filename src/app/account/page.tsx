@@ -26,6 +26,7 @@ export default async function Account() {
     translate(language, key, values);
   const user = await currentUser();
   if (!user) redirect("/login?next=/account");
+  if (user.isOrganizer) redirect("/organizer");
 
   const { upcoming, savedCount } = await loadAttendeeDashboard(user.id);
 

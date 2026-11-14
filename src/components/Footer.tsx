@@ -6,7 +6,6 @@ import { FiArrowUpRight } from "react-icons/fi";
 import { useApp } from "./AppProvider";
 export default function Footer() {
   const { user, t } = useApp();
-  const attendeeWorkspace = Boolean(user);
   return (
     <footer className="site-footer">
       <div className="container footer-top">
@@ -27,12 +26,23 @@ export default function Footer() {
           </div>
           <div>
             <span>{t("footer.account")}</span>
-            <Link href="/account">{t("nav.personal.account")}</Link>
-            <Link href="/tickets">{t("nav.personal.tickets")}</Link>
-            <Link href="/saved">{t("nav.personal.saved")}</Link>
-            <Link href="/music">{t("nav.discovery.music")}</Link>
+            {user?.isOrganizer ? (
+              <>
+                <Link href="/organizer">{t("nav.organize.dashboard")}</Link>
+                <Link href="/create-event">{t("nav.organize.create")}</Link>
+                <Link href="/venues">{t("organizer.venuePortfolio")}</Link>
+                <Link href="/business-profiles">{t("organizer.shell.profiles")}</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/account">{t("nav.personal.account")}</Link>
+                <Link href="/tickets">{t("nav.personal.tickets")}</Link>
+                <Link href="/saved">{t("nav.personal.saved")}</Link>
+                <Link href="/music">{t("nav.discovery.music")}</Link>
+              </>
+            )}
           </div>
-          {!attendeeWorkspace && (
+          {!user && (
             <div>
               <span>{t("footer.organizers")}</span>
               <Link href="/create-event">{t("nav.organize.create")}</Link>

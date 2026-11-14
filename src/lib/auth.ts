@@ -7,7 +7,7 @@ export async function currentUser() {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   return publicUser(
     await one<Record<string, unknown>>(
-      "SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?",
+      "SELECT u.*, EXISTS(SELECT 1 FROM business_profiles b WHERE b.owner_id=u.id AND b.kind='organizer') AS is_organizer FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?",
       tokenHash(token),
       Date.now(),
     ),

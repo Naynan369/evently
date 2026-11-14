@@ -14,6 +14,9 @@ import {
   FiMusic,
   FiBookmark,
   FiCalendar,
+  FiBriefcase,
+  FiMapPin,
+  FiUsers,
   FiUser,
   FiHelpCircle,
   FiBarChart2,
@@ -54,7 +57,7 @@ const recommendations: NavigationItem = {
   description: "nav.discovery.recommendationsDescription",
   icon: FiStar,
 };
-const personal: NavigationItem[] = [
+const attendeeAccount: NavigationItem[] = [
   {
     href: "/account",
     label: "nav.personal.account",
@@ -78,6 +81,32 @@ const personal: NavigationItem[] = [
     label: "nav.discovery.music",
     description: "nav.discovery.musicDescription",
     icon: FiMusic,
+  },
+];
+const organizerAccount: NavigationItem[] = [
+  {
+    href: "/organizer",
+    label: "nav.organize.dashboard",
+    description: "nav.organize.dashboardDescription",
+    icon: FiBriefcase,
+  },
+  {
+    href: "/create-event",
+    label: "nav.organize.create",
+    description: "nav.organize.createDescription",
+    icon: FiCalendar,
+  },
+  {
+    href: "/venues",
+    label: "organizer.venuePortfolio",
+    description: "nav.organize.venuesDescription",
+    icon: FiMapPin,
+  },
+  {
+    href: "/business-profiles",
+    label: "organizer.shell.profiles",
+    description: "nav.organize.profilesDescription",
+    icon: FiUsers,
   },
 ];
 const organize: NavigationItem[] = [
@@ -123,7 +152,8 @@ function MenuLink({
 export default function Navbar() {
   const path = usePathname();
   const { user, language, setLanguage, t } = useApp();
-  const attendeeWorkspace = Boolean(user);
+  const attendeeWorkspace = Boolean(user && !user.isOrganizer);
+  const accountItems = user?.isOrganizer ? organizerAccount : attendeeAccount;
   const { resolvedTheme, setTheme } = useTheme();
   const [panel, setPanel] = useState<
     "discover" | "account" | "language" | "mobile" | null
@@ -227,7 +257,7 @@ export default function Navbar() {
           >
             {t("nav.forYou")}
           </Link>
-          {!attendeeWorkspace && (
+          {!user && (
             <Link
               href="/organizer"
               onClick={close}
@@ -328,7 +358,7 @@ export default function Navbar() {
                       </span>
                       <strong className="account-menu-name">{user.name}</strong>
                     </div>
-                    {personal.map((item) => (
+                    {accountItems.map((item) => (
                       <MenuLink
                         key={item.href}
                         item={item}
@@ -390,9 +420,9 @@ export default function Navbar() {
                   items: [...discovery, recommendations],
                 },
                 ...(user
-                  ? [{ label: t("nav.yourAccount"), items: personal }]
+                  ? [{ label: t("nav.yourAccount"), items: accountItems }]
                   : []),
-                ...(!attendeeWorkspace
+                ...(!user
                   ? [{ label: t("nav.organize"), items: organize }]
                   : []),
               ].map((group) => (
@@ -422,6 +452,11 @@ export default function Navbar() {
                 {t("nav.about")} <FiArrowUpRight aria-hidden="true" />
               </Link>
             </div>
+            {user && (
+              <div className="mobile-account-actions">
+                <AccountActions compact onSignOut={close} />
+              </div>
+            )}
             <section
               className="mobile-language"
               aria-label={t("language.label")}

@@ -3199,6 +3199,9 @@ td small {
   color: var(--muted);
   min-height: 40px;
 }
+.mobile-account-actions {
+  padding: 4px 12px 0;
+}
 .mobile-language {
   display: grid;
   gap: 11px;

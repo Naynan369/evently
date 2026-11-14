@@ -13,6 +13,7 @@ import {
   one,
   run,
   publicUser,
+  userById,
   listEvents,
   getEvent,
   eventImageById,
@@ -263,7 +264,7 @@ async function handle(request: Request, context: Context) {
       if (!row || !valid)
         throw new AppError("Email or password is incorrect.", 401);
       await run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
-      const user = publicUser(row)!;
+      const user = (await userById(String(row.id)))!;
       await createSession(user.id);
       return json({
         user,
