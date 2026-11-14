@@ -68,9 +68,10 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
-  await expect(page.locator(".messina-home-area").first()).toHaveCSS(
-    "background-color",
-    "rgb(255, 255, 255)",
+  await expect(page.locator(".messina-home-area")).toHaveCount(6);
+  await page.locator(".messina-home-area").nth(4).hover();
+  await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
+    "Torre Faro",
   );
   const light = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])

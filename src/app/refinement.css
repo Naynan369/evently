@@ -3040,172 +3040,280 @@ body {
   }
 }
 
-/* Messina city guide: photographic masthead and a precise area directory. */
+/* Interactive city navigator: a living index, rather than a card grid. */
 .messina-home-section {
-  --city-ink: #171918;
-  --city-muted: #5f6461;
-  --city-line: #d1d4d1;
-  --city-hover: #e9ebe8;
-  padding: clamp(64px, 7vw, 104px) 0 clamp(72px, 8vw, 118px);
-  background: #f4f5f2;
-  color: var(--city-ink);
+  padding: clamp(72px, 8vw, 120px) 0 clamp(78px, 8vw, 118px);
+  background: #141917;
+  color: #f4f6f2;
 }
 
-.dark .messina-home-section {
-  --city-ink: #f1f2ef;
-  --city-muted: #afb5b1;
-  --city-line: #3f4441;
-  --city-hover: #292d2a;
-  background: #1b1f1c;
-}
-
-.messina-home-topline,
-.messina-home-directory-heading {
+.messina-home-topline {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #46514c;
+  color: #c0cac3;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
 
-.messina-home-topline {
-  padding: 14px 0 22px;
-  border-top: 1px solid var(--city-line);
-}
-
-.messina-home-topline span:last-child {
-  color: var(--city-muted);
-}
-
-.messina-home-hero {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  min-height: clamp(430px, 40vw, 570px);
-  overflow: hidden;
-  background: #14202b;
-  color: #fff;
-}
-
-.messina-home-hero > img {
-  object-fit: cover;
-  object-position: center 62%;
-  filter: saturate(0.72) brightness(0.8);
-}
-
-.messina-home-hero::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(4, 9, 13, 0.79) 0%, rgba(4, 9, 13, 0.38) 58%, rgba(4, 9, 13, 0.1) 100%);
-  content: "";
-}
-
 .messina-home-heading {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  padding: clamp(40px, 6vw, 82px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+  align-items: end;
+  gap: clamp(36px, 6vw, 90px);
+  margin: clamp(45px, 6vw, 82px) 0 clamp(42px, 5vw, 66px);
 }
 
 .messina-home-heading h2 {
-  max-width: 800px;
-  font-size: clamp(58px, 7vw, 104px);
-  font-weight: 620;
-  line-height: 0.96;
+  max-width: 880px;
+  font-size: clamp(60px, 7.2vw, 112px);
+  font-weight: 600;
+  line-height: 0.94;
   letter-spacing: -0.075em;
   text-wrap: balance;
 }
 
 .messina-home-heading p {
-  max-width: 510px;
-  margin-top: clamp(22px, 3vw, 34px);
-  color: #e0e3e2;
-  font-size: clamp(15px, 1.45vw, 18px);
-  line-height: 1.55;
+  max-width: 380px;
+  justify-self: end;
+  color: #b5c0b9;
+  font-size: clamp(16px, 1.35vw, 19px);
+  line-height: 1.6;
 }
 
-.messina-home-directory-heading {
-  margin-top: clamp(42px, 5vw, 70px);
-  padding-bottom: 17px;
-  border-bottom: 1px solid var(--city-line);
-  color: var(--city-muted);
+.messina-home-explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  min-height: 610px;
+  border: 1px solid #46514c;
 }
 
 .messina-home-areas {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 70px repeat(6, minmax(0, 1fr));
+  min-width: 0;
+  background: #1c2420;
+}
+
+.messina-home-areas__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-inline: clamp(22px, 2.6vw, 38px);
+  border-bottom: 1px solid #46514c;
+  color: #aebdb4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .messina-home-area {
+  position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 25px;
+  grid-template-columns: 34px minmax(0, 1fr) 26px;
   align-items: center;
-  gap: clamp(12px, 2vw, 28px);
-  min-height: clamp(100px, 9vw, 132px);
-  padding: 18px clamp(18px, 2.5vw, 38px);
-  border-bottom: 1px solid var(--city-line);
-  color: var(--city-ink);
-  transition: background 200ms ease;
+  gap: clamp(14px, 2vw, 28px);
+  min-height: 82px;
+  padding: 12px clamp(22px, 2.6vw, 38px);
+  border-bottom: 1px solid #46514c;
+  color: #e7eee8;
 }
 
-.messina-home-area:nth-child(odd) {
-  padding-left: 0;
-  border-right: 1px solid var(--city-line);
+.messina-home-area:last-child {
+  border-bottom: 0;
 }
 
-.messina-home-area:nth-child(even) {
-  padding-right: 0;
+.messina-home-area::before {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 3px;
+  background: #c7e9e8;
+  content: "";
+  opacity: 0;
+  transition: opacity 300ms ease;
 }
 
+.messina-home-area[data-active="true"],
 .messina-home-area:hover,
 .messina-home-area:focus-visible {
-  background: var(--city-hover);
+  background: #e5ebe6;
+  color: #151b18;
+}
+
+.messina-home-area[data-active="true"]::before,
+.messina-home-area:hover::before,
+.messina-home-area:focus-visible::before {
+  opacity: 1;
 }
 
 .messina-home-area__number {
-  align-self: center;
-  color: var(--city-muted);
+  color: #a1b0a6;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
+.messina-home-area[data-active="true"] .messina-home-area__number,
+.messina-home-area:hover .messina-home-area__number,
+.messina-home-area:focus-visible .messina-home-area__number {
+  color: #596960;
+}
+
 .messina-home-area strong {
   min-width: 0;
-  font-size: clamp(25px, 2.7vw, 38px);
-  font-weight: 580;
-  line-height: 1.08;
-  letter-spacing: -0.055em;
+  font-size: clamp(23px, 2.3vw, 34px);
+  font-weight: 570;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
 }
 
 .messina-home-area svg {
   width: 24px;
   height: 24px;
-  transition: transform 200ms ease;
+  opacity: 0.55;
+  transition: opacity 300ms ease, transform 300ms ease;
 }
 
+.messina-home-area[data-active="true"] svg,
 .messina-home-area:hover svg,
 .messina-home-area:focus-visible svg {
-  transform: translate(4px, -4px);
+  opacity: 1;
+  transform: translate(3px, -3px);
+}
+
+.messina-home-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 610px;
+  margin: 0;
+  overflow: hidden;
+  background: #101d26;
+}
+
+.messina-home-stage > img {
+  object-fit: cover;
+  object-position: 52% 62%;
+  filter: saturate(0.72) brightness(0.76);
+}
+
+.messina-home-stage::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(3, 10, 14, 0.12) 22%, rgba(3, 10, 14, 0.76) 100%);
+  content: "";
+}
+
+.messina-home-stage__serial {
+  position: absolute;
+  z-index: 1;
+  top: clamp(24px, 3vw, 42px);
+  right: clamp(28px, 4vw, 60px);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.messina-home-stage__sketch {
+  position: absolute;
+  z-index: 1;
+  top: 4%;
+  left: 5%;
+  width: 88%;
+  height: 72%;
+  overflow: visible;
+  stroke: rgba(242, 248, 245, 0.86);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
+}
+
+.messina-home-stage__sketch path {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: messina-sketch-draw 950ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+.messina-home-stage__caption {
+  position: absolute;
+  z-index: 1;
+  right: clamp(28px, 4vw, 60px);
+  bottom: 80px;
+  left: clamp(28px, 4vw, 60px);
+  display: grid;
+  gap: 10px;
+  color: #fff;
+}
+
+.messina-home-stage__caption span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.messina-home-stage__caption strong {
+  font-size: clamp(43px, 5vw, 74px);
+  font-weight: 570;
+  line-height: 1;
+  letter-spacing: -0.065em;
+  animation: messina-stage-enter 550ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.messina-home-stage__progress {
+  position: absolute;
+  z-index: 1;
+  right: clamp(28px, 4vw, 60px);
+  bottom: 38px;
+  left: clamp(28px, 4vw, 60px);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 7px;
+}
+
+.messina-home-stage__progress span {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.32);
+  transition: background 300ms ease;
+}
+
+.messina-home-stage__progress span[data-active="true"] {
+  background: #fff;
+}
+
+@keyframes messina-stage-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes messina-sketch-draw {
+  to { stroke-dashoffset: 0; }
 }
 
 .messina-home-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px clamp(22px, 3vw, 44px);
-  padding: 23px 0;
-  border-bottom: 1px solid var(--city-line);
+  justify-content: flex-end;
+  gap: 16px clamp(24px, 3vw, 45px);
+  padding: 24px 0;
+  border-bottom: 1px solid #46514c;
 }
 
 .messina-home-links a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--city-ink);
+  color: #e7eee8;
   font-size: 12px;
   font-weight: 650;
   text-decoration: none;
@@ -3221,45 +3329,41 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: clamp(22px, 4vw, 70px);
-  padding-top: clamp(42px, 5vw, 74px);
+  gap: 32px;
+  padding-top: clamp(48px, 6vw, 78px);
 }
 
 .messina-home-host h3 {
-  max-width: 450px;
-  color: var(--city-ink);
-  font-size: clamp(30px, 3.4vw, 50px);
-  font-weight: 600;
-  line-height: 1.07;
-  letter-spacing: -0.06em;
-  text-wrap: balance;
+  color: #f4f6f2;
+  font-size: clamp(34px, 3.5vw, 54px);
+  font-weight: 580;
+  line-height: 1.05;
+  letter-spacing: -0.065em;
 }
 
 .messina-home-host p {
-  max-width: 310px;
-  margin: 0;
-  color: var(--city-muted);
+  max-width: 520px;
+  margin-top: 10px;
+  color: #aebdb4;
   font-size: 15px;
-  line-height: 1.55;
 }
 
 .messina-home-host .button {
-  justify-self: end;
-  min-height: 48px;
-  padding: 10px 0;
+  min-height: 50px;
+  padding: 12px 0;
   border: 0;
-  border-bottom: 1px solid var(--city-ink);
+  border-bottom: 1px solid #e7eee8;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--city-ink);
+  color: #f4f6f2;
   font-size: 13px;
 }
 
 .messina-home-host .button:hover,
 .messina-home-host .button:focus-visible {
   background: transparent;
-  color: var(--city-ink);
+  color: #f4f6f2;
 }
 
 .messina-area-filter {
@@ -3305,86 +3409,118 @@ body {
   white-space: pre-line;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 900px) {
+  .messina-home-heading {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .messina-home-heading p {
+    justify-self: start;
+  }
+
+  .messina-home-explorer {
+    grid-template-columns: 1fr;
+  }
+
+  .messina-home-stage {
+    grid-row: 1;
+    min-height: 410px;
+  }
+
+  .messina-home-areas {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 560px) {
   .messina-home-section {
-    padding-block: 55px 70px;
+    padding-block: 60px 76px;
   }
 
   .messina-home-topline {
     font-size: 10px;
   }
 
-  .messina-home-hero {
-    min-height: 500px;
-  }
-
-  .messina-home-hero > img {
-    object-position: 64% center;
-  }
-
-  .messina-home-hero::after {
-    background: linear-gradient(180deg, rgba(4, 9, 13, 0.72), rgba(4, 9, 13, 0.1));
-  }
-
   .messina-home-heading {
-    padding: 36px 28px;
+    margin-block: 38px 36px;
   }
 
   .messina-home-heading h2 {
-    font-size: clamp(47px, 10vw, 65px);
+    font-size: clamp(49px, 11.4vw, 65px);
   }
 
-  .messina-home-heading p {
-    max-width: 370px;
+  .messina-home-stage {
+    min-height: 350px;
+  }
+
+  .messina-home-stage__caption {
+    bottom: 61px;
+  }
+
+  .messina-home-stage__caption strong {
+    font-size: clamp(39px, 10vw, 52px);
+  }
+
+  .messina-home-stage__progress {
+    bottom: 24px;
   }
 
   .messina-home-areas {
-    grid-template-columns: 1fr;
+    grid-template-rows: 58px repeat(6, minmax(0, 1fr));
   }
 
   .messina-home-area {
-    min-height: 82px;
-    padding: 16px 4px;
-  }
-
-  .messina-home-area:nth-child(odd) {
-    border-right: 0;
+    min-height: 70px;
   }
 
   .messina-home-area strong {
-    font-size: clamp(25px, 6vw, 31px);
+    font-size: 25px;
+  }
+
+  .messina-home-links {
+    justify-content: flex-start;
   }
 
   .messina-home-host {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 22px;
   }
 
   .messina-home-host .button {
-    grid-column: 1;
-    grid-row: auto;
     justify-self: start;
   }
 }
 
 @media (max-width: 380px) {
-  .messina-home-heading {
-    padding-inline: 22px;
-  }
-
   .messina-home-heading h2 {
     font-size: 44px;
   }
 
   .messina-home-area {
-    grid-template-columns: 28px minmax(0, 1fr) 22px;
+    grid-template-columns: 25px minmax(0, 1fr) 22px;
     gap: 10px;
+    padding-inline: 18px;
+  }
+
+  .messina-home-area strong {
+    font-size: 22px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .messina-home-area,
-  .messina-home-area svg {
+  .messina-home-area::before,
+  .messina-home-area svg,
+  .messina-home-stage__progress span {
     transition: none;
+  }
+
+  .messina-home-stage__caption strong {
+    animation: none;
+  }
+
+  .messina-home-stage__sketch path {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }

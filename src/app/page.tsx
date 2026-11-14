@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   FiArrowUpRight,
   FiCalendar,
@@ -9,8 +8,9 @@ import {
 import HomeFeatureCard from "@/components/HomeFeatureCard";
 import HomeCategoryCard from "@/components/HomeCategoryCard";
 import EventCinema from "@/components/EventCinema";
+import MessinaGuide from "@/components/MessinaGuide";
 import { categories, categoryName, categoryTagline } from "@/lib/catalog";
-import { messinaAreas, isMessinaCity } from "@/lib/messina";
+import { isMessinaCity } from "@/lib/messina";
 import { discoveryData } from "@/lib/db";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n";
@@ -46,57 +46,7 @@ export default async function Home() {
   return (
     <main id="main" className="home-cinema">
       <EventCinema />
-      <section className="messina-home-section" aria-labelledby="messina-home-title">
-        <div className="container">
-          <div className="messina-home-topline">
-            <span>{t("home.messinaEyebrow")}</span>
-            <span>{t("home.messinaLocation")}</span>
-          </div>
-          <div className="messina-home-hero">
-            <Image
-              src="/images/messina-night.jpg"
-              alt={t("home.messinaPhotoAlt")}
-              fill
-              sizes="(max-width: 760px) 100vw, 1280px"
-            />
-            <div className="messina-home-heading">
-              <h2 id="messina-home-title">{t("home.messinaTitle")}</h2>
-              <p>{t("home.messinaIntro")}</p>
-            </div>
-          </div>
-          <div className="messina-home-directory-heading" aria-hidden="true">
-            <span>{t("home.messinaAreas")}</span>
-            <span>{String(messinaAreas.length).padStart(2, "0")}</span>
-          </div>
-          <nav className="messina-home-areas" aria-label={t("home.messinaAreas")}>
-            {messinaAreas.map((area, index) => (
-              <Link
-                href={`/events?city=Messina&area=${area.id}`}
-                className="messina-home-area"
-                key={area.id}
-              >
-                <span className="messina-home-area__number">{String(index + 1).padStart(2, "0")}</span>
-                <strong>{area[language]}</strong>
-                <FiArrowUpRight aria-hidden="true" />
-              </Link>
-            ))}
-          </nav>
-          <div className="messina-home-links">
-            <Link href="/events?city=Messina">{t("home.messinaAll")} <FiArrowUpRight aria-hidden="true" /></Link>
-            <Link href="/events?city=Messina&price=free">{t("home.messinaFree")} <FiArrowUpRight aria-hidden="true" /></Link>
-            <Link href="/events?city=Messina&category=community">{t("home.messinaCommunity")} <FiArrowUpRight aria-hidden="true" /></Link>
-          </div>
-          <div className="messina-home-host">
-            <div>
-              <h3>{t("home.messinaHostTitle")}</h3>
-              <p>{t("home.messinaHostBody")}</p>
-            </div>
-            <Link href="/create-event" className="button button-primary">
-              {t("home.messinaHostAction")} <FiArrowUpRight aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      <MessinaGuide language={language} />
       <section className="featured-section">
         <div className="container section">
           <div className="section-heading">
