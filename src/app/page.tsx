@@ -46,7 +46,7 @@ export default async function Home() {
     <main id="main" className="home-cinema">
       <EventCinema />
       <section className="messina-home-section" aria-labelledby="messina-home-title">
-        <div className="container">
+        <div className="container messina-home-layout">
           <div className="messina-home-heading">
             <div>
               <span className="eyebrow">{t("home.messinaEyebrow")}</span>
@@ -54,7 +54,11 @@ export default async function Home() {
             </div>
             <p>{t("home.messinaIntro")}</p>
           </div>
-          <div className="messina-home-areas">
+          <nav className="messina-home-areas" aria-label={t("home.messinaAreas")}>
+            <div className="messina-home-areas__meta" aria-hidden="true">
+              <span>{t("home.messinaAreas")}</span>
+              <span>{String(messinaAreas.length).padStart(2, "0")}</span>
+            </div>
             {messinaAreas.map((area, index) => (
               <Link
                 href={`/events?city=Messina&area=${area.id}`}
@@ -66,7 +70,7 @@ export default async function Home() {
                 <FiArrowUpRight aria-hidden="true" />
               </Link>
             ))}
-          </div>
+          </nav>
           <div className="messina-home-links">
             <Link href="/events?city=Messina">{t("home.messinaAll")} <FiArrowUpRight aria-hidden="true" /></Link>
             <Link href="/events?city=Messina&price=free">{t("home.messinaFree")} <FiArrowUpRight aria-hidden="true" /></Link>
