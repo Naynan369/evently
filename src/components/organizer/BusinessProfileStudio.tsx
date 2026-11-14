@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FiBriefcase, FiMapPin, FiPlus, FiUsers } from "react-icons/fi";
 import { api } from "@/lib/client";
+import { BUSINESS_COUNTRIES } from "@/lib/business-countries";
 import type { BusinessProfile, BusinessProfileKind } from "@/lib/types";
 import { useApp } from "../AppProvider";
 import type { TranslationKey } from "@/lib/i18n";
@@ -27,7 +28,13 @@ export default function BusinessProfileStudio({
 }: {
   initialProfiles: BusinessProfile[];
 }) {
-  const { t } = useApp();
+  const { language, t } = useApp();
+  const countryNames = new Intl.DisplayNames(
+    language === "it" ? "it-IT" : "en-GB",
+    {
+      type: "region",
+    },
+  );
   const router = useRouter();
   const [profiles, setProfiles] = useState(initialProfiles);
   const [editing, setEditing] = useState<BusinessProfile | null>(null);
@@ -36,6 +43,19 @@ export default function BusinessProfileStudio({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!formOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById("business-profile-editor")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [formOpen, editing?.id]);
 
   function startCreate() {
     setEditing(null);
@@ -59,12 +79,18 @@ export default function BusinessProfileStudio({
     setError("");
     setNotice("");
     const data = Object.fromEntries(new FormData(event.currentTarget));
+    const details = {
+      name: data.name,
+      ...(kind === "organizer"
+        ? { countryCode: data.countryCode || editing?.countryCode || "IT" }
+        : {}),
+    };
     try {
       const result = await api<{ profile: BusinessProfile }>(
         editing ? "business-profiles/" + editing.id : "business-profiles",
         {
           method: editing ? "PUT" : "POST",
-          body: editing ? { name: data.name } : { kind, name: data.name },
+          body: editing ? details : { kind, ...details },
         },
       );
       setProfiles((current) => {
@@ -129,12 +155,19 @@ export default function BusinessProfileStudio({
                 <h2>{profile.name}</h2>
                 <p>{t(detail.detail)}</p>
                 {profile.kind === "organizer" && (
-                  <span className="business-profile-payout">
-                    <FiBriefcase aria-hidden="true" />
-                    {profile.stripeAccount
-                      ? t("business.payoutConnected")
-                      : t("business.payoutSeparate")}
-                  </span>
+                  <>
+                    <span className="business-profile-country">
+                      {t("business.country")}:{" "}
+                      {countryNames.of(profile.countryCode) ||
+                        profile.countryCode}
+                    </span>
+                    <span className="business-profile-payout">
+                      <FiBriefcase aria-hidden="true" />
+                      {profile.stripeAccount
+                        ? t("business.payoutConnected")
+                        : t("business.payoutSeparate")}
+                    </span>
+                  </>
                 )}
                 <button
                   className="button button-outline"
@@ -167,6 +200,7 @@ export default function BusinessProfileStudio({
       {formOpen && (
         <section
           className="business-profile-editor panel"
+          id="business-profile-editor"
           aria-labelledby="business-profile-editor-title"
         >
           <div className="venue-editor-heading">
@@ -187,7 +221,11 @@ export default function BusinessProfileStudio({
               ×
             </button>
           </div>
-          <form className="business-profile-form" onSubmit={save}>
+          <form
+            className="business-profile-form"
+            key={editing?.id ?? "new"}
+            onSubmit={save}
+          >
             {!editing && (
               <div className="field">
                 <label htmlFor="business-profile-kind">
@@ -227,6 +265,29 @@ export default function BusinessProfileStudio({
                 required
               />
             </div>
+            {kind === "organizer" && (
+              <div className="field">
+                <label htmlFor="business-profile-country">
+                  {t("business.country")}
+                </label>
+                <select
+                  defaultValue={editing?.countryCode ?? "IT"}
+                  disabled={Boolean(editing?.stripeAccount)}
+                  id="business-profile-country"
+                  name="countryCode"
+                  required
+                >
+                  {BUSINESS_COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {countryNames.of(country) || country}
+                    </option>
+                  ))}
+                </select>
+                {editing?.stripeAccount && (
+                  <small>{t("business.countryLocked")}</small>
+                )}
+              </div>
+            )}
             <div className="business-profile-form-actions">
               <button
                 className="button button-outline"

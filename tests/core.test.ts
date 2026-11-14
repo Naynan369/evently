@@ -135,7 +135,10 @@ test("reservation totals are server-derived, idempotent and cannot oversell", as
   const booking = await reserveBooking(guest.id, event.id, 2, nonce);
   assert.equal(booking.status, "confirmed");
   assert.equal(booking.total, 0);
-  assert.equal((await reserveBooking(guest.id, event.id, 2, nonce)).id, booking.id);
+  assert.equal(
+    (await reserveBooking(guest.id, event.id, 2, nonce)).id,
+    booking.id,
+  );
   assert.equal((await getEvent(event.id))?.available, 0);
   await assert.rejects(
     reserveBooking(owner.id, event.id, 1, randomUUID()),
@@ -250,6 +253,30 @@ test("saved lists and organizer data are scoped to their owners", async () => {
   assert.equal((await savedIds(guest.id)).includes(event.id), false);
   assert.equal((await organizerData(guest.id)).events.length, 0);
   assert.ok((await organizerData(owner.id)).events.length > 0);
+});
+test("organizer events place upcoming dates before past dates", async () => {
+  const upcoming = await createEvent(
+    { ...eventInput(), title: "Upcoming organizer gathering" },
+    owner,
+  );
+  const past = await createEvent(
+    { ...eventInput(), title: "Past organizer gathering" },
+    owner,
+  );
+  await run(
+    "UPDATE events SET data=? WHERE id=?",
+    JSON.stringify({
+      ...past,
+      startsAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+      endsAt: new Date(Date.now() - 86400000).toISOString(),
+    }),
+    past.id,
+  );
+  const events = (await organizerData(owner.id)).events;
+  assert.ok(
+    events.findIndex((event) => event.id === upcoming.id) <
+      events.findIndex((event) => event.id === past.id),
+  );
 });
 test("Stripe rejects forged, modified and stale webhook signatures", () => {
   const stripe = new Stripe("sk_test_local_fixture_only");

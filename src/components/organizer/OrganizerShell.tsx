@@ -65,6 +65,7 @@ export default function OrganizerShell({
   const { user, language, setLanguage, t } = useApp();
   const { resolvedTheme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeHash, setActiveHash] = useState("");
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -80,7 +81,20 @@ export default function OrganizerShell({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen, closeMenu]);
 
-  const title = t(titles[pathname] ?? "organizer.shell.overview");
+  useEffect(() => {
+    const syncHash = () => setActiveHash(window.location.hash);
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [pathname]);
+
+  const titleKey =
+    pathname === "/organizer" && activeHash === "#org-event-list"
+      ? "organizer.eventPortfolio"
+      : pathname === "/organizer" && activeHash === "#org-checkin"
+        ? "organizer.checkin"
+        : (titles[pathname] ?? "organizer.shell.overview");
+  const title = t(titleKey);
   const initials =
     user?.name
       .trim()
@@ -131,14 +145,21 @@ export default function OrganizerShell({
         <nav className={styles.navigation} aria-label={t("organizer.tools")}>
           <span className={styles.groupLabel}>{t("organizer.workspace")}</span>
           {workLinks.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href && !href.includes("#");
+            const [linkPath, section] = href.split("#");
+            const hash = section ? `#${section}` : "";
+            const active = pathname === linkPath && activeHash === hash;
             return (
               <Link
                 className={`${styles.navigationLink} ${active ? styles.activeLink : ""}`}
                 href={href}
                 key={href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setMenuOpen(false)}
+                aria-current={
+                  active ? (section ? "location" : "page") : undefined
+                }
+                onClick={() => {
+                  setActiveHash(hash);
+                  setMenuOpen(false);
+                }}
               >
                 <Icon aria-hidden="true" />
                 <span>{t(label)}</span>

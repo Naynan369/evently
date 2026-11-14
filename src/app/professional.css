@@ -4798,6 +4798,12 @@ h4 {
   background: var(--accent);
 }
 
+.org-payment-card .error-box .button {
+  display: flex;
+  width: fit-content;
+  margin-top: 10px;
+}
+
 .org-payment-notice {
   display: grid;
   gap: 4px;
@@ -4942,11 +4948,29 @@ h4 {
   padding: 18px 19px 16px;
 }
 
+.org-event-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .org-event-category {
   color: var(--accent);
   font-size: 8px;
   font-weight: 750;
   letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.org-event-draft {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -5486,6 +5510,12 @@ h4 {
 
 .business-profile-card p {
   margin: 0 0 15px;
+}
+
+.business-profile-country {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .business-profile-card > .button {
@@ -6362,14 +6392,6 @@ html:not(.dark) .filter-selects select {
 
 .org-demo-event-actions > .button {
   width: fit-content;
-}
-
-.org-demo-draft-label {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .org-practice-result {

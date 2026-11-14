@@ -1273,7 +1273,15 @@ export async function organizerData(userId: string) {
       userId,
     ),
   ]);
-  const events = allEvents.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const now = Date.now();
+  const events = allEvents.sort((a, b) => {
+    const aEnded = Date.parse(a.endsAt) < now;
+    const bEnded = Date.parse(b.endsAt) < now;
+    if (aEnded !== bEnded) return Number(aEnded) - Number(bEnded);
+    return aEnded
+      ? b.startsAt.localeCompare(a.startsAt)
+      : a.startsAt.localeCompare(b.startsAt);
+  });
   return { events, bookings };
 }
 export async function takeRateLimit(key: string, max: number, duration = 900000) {

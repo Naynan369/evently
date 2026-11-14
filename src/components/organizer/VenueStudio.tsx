@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -46,6 +46,19 @@ export default function VenueStudio({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  useEffect(() => {
+    if (!formOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById("venue-editor")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [formOpen, editing?.id]);
+
   const activeVenues = venues.filter((venue) => venue.active);
   const combinedCapacity = activeVenues.reduce(
     (total, venue) => total + venue.capacity,
@@ -68,9 +81,6 @@ export default function VenueStudio({
     setError("");
     setNotice("");
     setFormOpen(true);
-    document
-      .getElementById("venue-editor")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function saveVenue(event: FormEvent<HTMLFormElement>) {
