@@ -3042,9 +3042,36 @@ body {
 
 /* Interactive city navigator: a living index, rather than a card grid. */
 .messina-home-section {
+  --guide-bg: #f2f4f0;
+  --guide-ink: #18251e;
+  --guide-muted: #536259;
+  --guide-line: #bcc8bf;
+  --guide-nav-bg: #e5ebe5;
+  --guide-nav-ink: #1d2c22;
+  --guide-nav-muted: #53675b;
+  --guide-active-bg: #23392e;
+  --guide-active-ink: #f5f8f4;
+  --guide-active-number: #d2e5d7;
+  --guide-mark: #75b9b5;
+  --guide-arrow-opacity: 0.75;
   padding: clamp(72px, 8vw, 120px) 0 clamp(78px, 8vw, 118px);
-  background: #141917;
-  color: #f4f6f2;
+  background: var(--guide-bg);
+  color: var(--guide-ink);
+}
+
+.dark .messina-home-section {
+  --guide-bg: #141917;
+  --guide-ink: #f4f6f2;
+  --guide-muted: #b5c0b9;
+  --guide-line: #46514c;
+  --guide-nav-bg: #1c2420;
+  --guide-nav-ink: #e7eee8;
+  --guide-nav-muted: #a1b0a6;
+  --guide-active-bg: #e5ebe6;
+  --guide-active-ink: #151b18;
+  --guide-active-number: #596960;
+  --guide-mark: #c7e9e8;
+  --guide-arrow-opacity: 0.55;
 }
 
 .messina-home-topline {
@@ -3052,8 +3079,8 @@ body {
   justify-content: space-between;
   gap: 20px;
   padding-top: 15px;
-  border-top: 1px solid #46514c;
-  color: #c0cac3;
+  border-top: 1px solid var(--guide-line);
+  color: var(--guide-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -3080,7 +3107,7 @@ body {
 .messina-home-heading p {
   max-width: 380px;
   justify-self: end;
-  color: #b5c0b9;
+  color: var(--guide-muted);
   font-size: clamp(16px, 1.35vw, 19px);
   line-height: 1.6;
 }
@@ -3089,14 +3116,14 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   min-height: 610px;
-  border: 1px solid #46514c;
+  border: 1px solid var(--guide-line);
 }
 
 .messina-home-areas {
   display: grid;
   grid-template-rows: 70px repeat(6, minmax(0, 1fr));
   min-width: 0;
-  background: #1c2420;
+  background: var(--guide-nav-bg);
 }
 
 .messina-home-areas__meta {
@@ -3105,8 +3132,8 @@ body {
   justify-content: space-between;
   gap: 18px;
   padding-inline: clamp(22px, 2.6vw, 38px);
-  border-bottom: 1px solid #46514c;
-  color: #aebdb4;
+  border-bottom: 1px solid var(--guide-line);
+  color: var(--guide-nav-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.13em;
@@ -3121,8 +3148,8 @@ body {
   gap: clamp(14px, 2vw, 28px);
   min-height: 82px;
   padding: 12px clamp(22px, 2.6vw, 38px);
-  border-bottom: 1px solid #46514c;
-  color: #e7eee8;
+  border-bottom: 1px solid var(--guide-line);
+  color: var(--guide-nav-ink);
 }
 
 .messina-home-area:last-child {
@@ -3134,7 +3161,7 @@ body {
   inset-block: 0;
   left: 0;
   width: 3px;
-  background: #c7e9e8;
+  background: var(--guide-mark);
   content: "";
   opacity: 0;
   transition: opacity 300ms ease;
@@ -3143,8 +3170,8 @@ body {
 .messina-home-area[data-active="true"],
 .messina-home-area:hover,
 .messina-home-area:focus-visible {
-  background: #e5ebe6;
-  color: #151b18;
+  background: var(--guide-active-bg);
+  color: var(--guide-active-ink);
 }
 
 .messina-home-area[data-active="true"]::before,
@@ -3154,7 +3181,7 @@ body {
 }
 
 .messina-home-area__number {
-  color: #a1b0a6;
+  color: var(--guide-nav-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
@@ -3164,7 +3191,7 @@ body {
 .messina-home-area[data-active="true"] .messina-home-area__number,
 .messina-home-area:hover .messina-home-area__number,
 .messina-home-area:focus-visible .messina-home-area__number {
-  color: #596960;
+  color: var(--guide-active-number);
 }
 
 .messina-home-area strong {
@@ -3178,7 +3205,7 @@ body {
 .messina-home-area svg {
   width: 24px;
   height: 24px;
-  opacity: 0.55;
+  opacity: var(--guide-arrow-opacity);
   transition: opacity 300ms ease, transform 300ms ease;
 }
 
@@ -3306,14 +3333,14 @@ body {
   justify-content: flex-end;
   gap: 16px clamp(24px, 3vw, 45px);
   padding: 24px 0;
-  border-bottom: 1px solid #46514c;
+  border-bottom: 1px solid var(--guide-line);
 }
 
 .messina-home-links a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #e7eee8;
+  color: var(--guide-ink);
   font-size: 12px;
   font-weight: 650;
   text-decoration: none;
@@ -3334,7 +3361,7 @@ body {
 }
 
 .messina-home-host h3 {
-  color: #f4f6f2;
+  color: var(--guide-ink);
   font-size: clamp(34px, 3.5vw, 54px);
   font-weight: 580;
   line-height: 1.05;
@@ -3344,7 +3371,7 @@ body {
 .messina-home-host p {
   max-width: 520px;
   margin-top: 10px;
-  color: #aebdb4;
+  color: var(--guide-muted);
   font-size: 15px;
 }
 
@@ -3352,18 +3379,18 @@ body {
   min-height: 50px;
   padding: 12px 0;
   border: 0;
-  border-bottom: 1px solid #e7eee8;
+  border-bottom: 1px solid var(--guide-ink);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: #f4f6f2;
+  color: var(--guide-ink);
   font-size: 13px;
 }
 
 .messina-home-host .button:hover,
 .messina-home-host .button:focus-visible {
   background: transparent;
-  color: #f4f6f2;
+  color: var(--guide-ink);
 }
 
 .messina-area-filter {

@@ -48,6 +48,10 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     page.getByText("Let’s try a different direction."),
   ).toBeVisible();
   await page.goto("/");
+  const cityGuide = page.locator(".messina-home-section");
+  const selectedArea = cityGuide.locator('.messina-home-area[data-active="true"]');
+  await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
+  await expect(selectedArea).toHaveCSS("background-color", "rgb(35, 57, 46)");
   const bg = await page
     .locator("body")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -55,6 +59,8 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(cityGuide).toHaveCSS("background-color", "rgb(20, 25, 23)");
+  await expect(selectedArea).toHaveCSS("background-color", "rgb(229, 235, 230)");
   expect(
     await page
       .locator("body")
@@ -68,6 +74,7 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
   await expect(page.locator(".messina-home-area")).toHaveCount(6);
   await page.locator(".messina-home-area").nth(4).hover();
   await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
