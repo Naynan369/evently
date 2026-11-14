@@ -3054,6 +3054,16 @@ body {
   --guide-active-number: #d2e5d7;
   --guide-mark: #75b9b5;
   --guide-arrow-opacity: 0.75;
+  --guide-stage-bg: #dfe8e3;
+  --guide-stage-image-opacity: 0.42;
+  --guide-stage-image-filter: grayscale(1) contrast(0.9) brightness(1.6);
+  --guide-stage-overlay: linear-gradient(180deg, rgba(241, 245, 241, 0.25), rgba(233, 239, 233, 0.86));
+  --guide-stage-ink: #18251e;
+  --guide-stage-serial: #31473e;
+  --guide-stage-sketch: rgba(35, 57, 46, 0.78);
+  --guide-stage-sketch-shadow: none;
+  --guide-stage-progress: rgba(24, 37, 30, 0.27);
+  --guide-stage-progress-active: #23392e;
   padding: clamp(72px, 8vw, 120px) 0 clamp(78px, 8vw, 118px);
   background: var(--guide-bg);
   color: var(--guide-ink);
@@ -3072,6 +3082,16 @@ body {
   --guide-active-number: #596960;
   --guide-mark: #c7e9e8;
   --guide-arrow-opacity: 0.55;
+  --guide-stage-bg: #101d26;
+  --guide-stage-image-opacity: 1;
+  --guide-stage-image-filter: saturate(0.72) brightness(0.76);
+  --guide-stage-overlay: linear-gradient(180deg, rgba(3, 10, 14, 0.12) 22%, rgba(3, 10, 14, 0.76) 100%);
+  --guide-stage-ink: #fff;
+  --guide-stage-serial: rgba(255, 255, 255, 0.78);
+  --guide-stage-sketch: rgba(242, 248, 245, 0.86);
+  --guide-stage-sketch-shadow: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
+  --guide-stage-progress: rgba(255, 255, 255, 0.32);
+  --guide-stage-progress-active: #fff;
 }
 
 .messina-home-topline {
@@ -3222,19 +3242,20 @@ body {
   min-height: 610px;
   margin: 0;
   overflow: hidden;
-  background: #101d26;
+  background: var(--guide-stage-bg);
 }
 
 .messina-home-stage > img {
   object-fit: cover;
   object-position: 52% 62%;
-  filter: saturate(0.72) brightness(0.76);
+  opacity: var(--guide-stage-image-opacity);
+  filter: var(--guide-stage-image-filter);
 }
 
 .messina-home-stage::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(3, 10, 14, 0.12) 22%, rgba(3, 10, 14, 0.76) 100%);
+  background: var(--guide-stage-overlay);
   content: "";
 }
 
@@ -3243,7 +3264,7 @@ body {
   z-index: 1;
   top: clamp(24px, 3vw, 42px);
   right: clamp(28px, 4vw, 60px);
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--guide-stage-serial);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 600;
@@ -3258,11 +3279,11 @@ body {
   width: 88%;
   height: 72%;
   overflow: visible;
-  stroke: rgba(242, 248, 245, 0.86);
+  stroke: var(--guide-stage-sketch);
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
+  filter: var(--guide-stage-sketch-shadow);
 }
 
 .messina-home-stage__sketch path {
@@ -3279,7 +3300,7 @@ body {
   left: clamp(28px, 4vw, 60px);
   display: grid;
   gap: 10px;
-  color: #fff;
+  color: var(--guide-stage-ink);
 }
 
 .messina-home-stage__caption span {
@@ -3310,12 +3331,12 @@ body {
 
 .messina-home-stage__progress span {
   height: 2px;
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--guide-stage-progress);
   transition: background 300ms ease;
 }
 
 .messina-home-stage__progress span[data-active="true"] {
-  background: #fff;
+  background: var(--guide-stage-progress-active);
 }
 
 @keyframes messina-stage-enter {
