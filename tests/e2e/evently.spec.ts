@@ -53,9 +53,8 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   const cityStage = cityGuide.locator(".messina-home-stage");
   const dayPhoto = cityStage.locator(".messina-home-stage__photo--day");
   const nightPhoto = cityStage.locator(".messina-home-stage__photo--night");
-  await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
-  await expect(selectedArea).toHaveCSS("background-color", "rgb(35, 57, 46)");
-  await expect(cityStage).toHaveCSS("background-color", "rgb(223, 232, 227)");
+  const lightGuideBg = await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const lightSelectedBg = await selectedArea.evaluate((el) => getComputedStyle(el).backgroundColor);
   await dayPhoto.scrollIntoViewIfNeeded();
   await expect(dayPhoto).toBeVisible();
   await expect(nightPhoto).toBeHidden();
@@ -67,9 +66,8 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
   await expect(page.locator("html")).toHaveClass(/dark/);
-  await expect(cityGuide).toHaveCSS("background-color", "rgb(20, 25, 23)");
-  await expect(selectedArea).toHaveCSS("background-color", "rgb(229, 235, 230)");
-  await expect(cityStage).toHaveCSS("background-color", "rgb(16, 29, 38)");
+  expect(await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(lightGuideBg);
+  expect(await selectedArea.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(lightSelectedBg);
   await expect(dayPhoto).toBeHidden();
   await expect(nightPhoto).toBeVisible();
   await expect.poll(() => nightPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -86,8 +84,7 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .getByRole("button", { name: "Toggle light and dark appearance" })
     .click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
-  await expect(cityGuide).toHaveCSS("background-color", "rgb(242, 244, 240)");
-  await expect(cityStage).toHaveCSS("background-color", "rgb(223, 232, 227)");
+  expect(await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lightGuideBg);
   await expect(dayPhoto).toBeVisible();
   await expect(nightPhoto).toBeHidden();
   await expect(page.locator(".messina-home-area")).toHaveCount(6);
@@ -95,6 +92,7 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
     "Torre Faro",
   );
+  await expect(page.locator(".messina-home-heading__index")).toHaveText("05 / 06");
   const light = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();

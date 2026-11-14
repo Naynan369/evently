@@ -46,6 +46,15 @@ const areaSketches: Record<MessinaArea, string[]> = {
   ],
 };
 
+const areaNotes: Record<MessinaArea, Record<Language, string>> = {
+  centro: { en: "In and around the city centre", it: "Nel cuore della città" },
+  sud: { en: "South of the centre", it: "A sud del centro" },
+  nord: { en: "North of the centre", it: "A nord del centro" },
+  ganzirri: { en: "Along the water in Ganzirri", it: "Lungo l'acqua a Ganzirri" },
+  "torre-faro": { en: "At the edge of the Strait", it: "Sul bordo dello Stretto" },
+  colli: { en: "Above the city in the hills", it: "Sopra la città, tra i colli" },
+};
+
 export default function MessinaGuide({ language }: { language: Language }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeArea = messinaAreas[activeIndex];
@@ -55,13 +64,21 @@ export default function MessinaGuide({ language }: { language: Language }) {
     <section className="messina-home-section" aria-labelledby="messina-home-title">
       <div className="container">
         <div className="messina-home-topline">
-          <span>{t("home.messinaEyebrow")}</span>
-          <span>{t("home.messinaLocation")}</span>
+          <span className="messina-home-topline__lead">{t("home.messinaEyebrow")}</span>
+          <span>38°11′ N / 15°33′ E</span>
         </div>
 
         <div className="messina-home-heading">
-          <h2 id="messina-home-title">{t("home.messinaTitle")}</h2>
-          <p>{t("home.messinaIntro")}</p>
+          <div className="messina-home-heading__title">
+            <span className="messina-home-heading__index" aria-hidden="true">
+              {String(activeIndex + 1).padStart(2, "0")} / {String(messinaAreas.length).padStart(2, "0")}
+            </span>
+            <h2 id="messina-home-title">{t("home.messinaTitle")}</h2>
+          </div>
+          <div className="messina-home-heading__aside">
+            <p>{t("home.messinaIntro")}</p>
+            <span aria-hidden="true" />
+          </div>
         </div>
 
         <div className="messina-home-explorer">
@@ -140,6 +157,7 @@ export default function MessinaGuide({ language }: { language: Language }) {
             <figcaption className="messina-home-stage__caption" aria-hidden="true">
               <span>{t("home.messinaLocation")}</span>
               <strong key={activeArea.id}>{activeArea[language]}</strong>
+              <small key={`${activeArea.id}-note`}>{areaNotes[activeArea.id][language]}</small>
             </figcaption>
             <div className="messina-home-stage__progress" aria-hidden="true">
               {messinaAreas.map((area, index) => (
