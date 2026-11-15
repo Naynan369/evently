@@ -14,13 +14,22 @@ Free to use under the Unsplash License.
 
 Messina neighborhood section
 
-messina-day.jpg — “Messina - Panorama dal mare” by Lucamato, resized to 1920px by Wikimedia Commons
-https://commons.wikimedia.org/wiki/File:Messina_-_Panorama_dal_mare.jpg
-Licensed under CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+messina-cathedral-sunset.jpg — photo supplied by the user for Evently, resized and compressed for the website.
 
-messina-night.jpg — “City skyline during night time” by Giuseppe Famiani
-https://unsplash.com/photos/city-skyline-during-night-time-EpQBnTJoOqY
-Free to use under the Unsplash License.
+messina-areas/messina-giampilieri.webp — “Giampilieri Marina Spiaggia” by Ivitellisonobelli (Giampilieri Marina, South Messina). CC BY-SA 4.0. Resized and converted to WebP.
+https://commons.wikimedia.org/wiki/File:Giampilieri_Marina_Spiaggia.JPG
+
+messina-areas/messina-north.webp — “Stretto (Messina) 03 04 2024 04” by Effems (Pace, North Messina). CC0. Resized and converted to WebP.
+https://commons.wikimedia.org/wiki/File:Stretto_(Messina)_03_04_2024_04.jpg
+
+messina-areas/messina-ganzirri.webp — “Ganzirri (Messina) 03 04 2024 13” by Effems (Lake Ganzirri). CC0. Resized and converted to WebP.
+https://commons.wikimedia.org/wiki/File:Ganzirri_(Messina)_03_04_2024_13.jpg
+
+messina-areas/messina-torre-faro.webp — “Il Pilone di Torre Faro visto dai Laghi” by Sissi Sul. CC BY-SA 4.0. Resized and converted to WebP.
+https://commons.wikimedia.org/wiki/File:Il_Pilone_di_Torre_Faro_visto_dai_Laghi.jpg
+
+messina-areas/messina-peloritani.webp — “Pizzo russa, monti peloritani, sicily” (Peloritani Mountains). Public domain. Resized and converted to WebP.
+https://commons.wikimedia.org/wiki/File:Pizzo_russa,_monti_peloritani,_sicily.JPG
 
 Legacy event-cover photograph
 

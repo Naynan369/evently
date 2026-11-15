@@ -9,18 +9,26 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Organized discovery and account menus, grouped mobile navigation, keyboard dismissal and locally hosted Space Grotesk typography.
 - City/text search, category/date/price filters and saved events.
 - Messina area browsing, Italian as the first-visit language, and optional access and arrival details on event pages.
-- Attendee and organizer choices on one sign-up page: attendees can choose interests, while organizers provide a public organizer name and business country. Both use the same account and login.
+- Attendee and organizer choices on one sign-up page: attendees can choose interests, while organizers provide a public organizer name and business country. Both use the same sign-up and sign-in pages.
 - Accounts with salted password hashes, six-digit email verification through Gmail SMTP, verification resend, forgot-password and one-use password reset links.
 - Google and Apple account sign-in when their OAuth credentials and callback URLs are configured.
 - Revocable server-backed sessions; password recovery signs out every existing session.
 - Recommendations based on selected interests, saved categories, artist lineups and music genres, with booked and unavailable events excluded.
 - Optional Apple Music and gated Spotify connections: consent, playlist selection, bounded import, explicit match reasons and disconnect/delete controls. Manual artist and genre preferences work without provider credentials.
 - Organizer event publishing/editing, inventory limits, guest lists, CSV export and ticket-code check-in.
-- Distinct signed-in workspaces: an attendee dashboard for plans and preferences, and an organizer studio for event creation and operations. Both are available from one account.
+- Distinct signed-in workspaces: attendee accounts open a dashboard for plans and preferences; organizer accounts open a studio for event creation and operations. They share the same sign-in page, while organizer tools require an organizer account.
 - Free reservations and clearly marked sample bookings; QR tickets, calendar downloads and print-to-PDF.
 - Stripe Connect onboarding, hosted Checkout, verified payment fulfillment, checkout resumption/cancellation, attendee refund requests and organizer full refunds.
+- A private operations desk for listing review, reports, disputes, cancelled-event refund follow-up, and failed booking emails.
+- Attendee event ideas for Messina and an anonymous organizer demand board, with matching-event emails only for attendees who opt in.
 
 The included listings are fictional examples. Sample bookings never charge money and do not grant admission to real events. The application does not come with Stripe credentials or a connected merchant account.
+
+## Ticket intents and reverse marketplace
+
+Attendees open `/intent` to describe an event they would attend: category, Messina area, month, maximum per-person price, group size and an optional private note. One idea per category, area and month can be updated or removed. The form makes clear that an idea is not a booking or a promise of a future event. Matching published events appear under each idea. Attendees can independently opt in to one matching-event email at a time; turning that off before delivery skips the queued message.
+
+Organizers open `/organizer/demand` to see category/area/month groups only after three distinct attendees join a group. The board shows grouped attendee count, potential group size and average maximum budget; it never exposes individual names, email addresses or notes. A demand card can start an event draft with its category and area prefilled. When that event is published (or approved if listing review is enabled), matching email notifications enter the existing retryable message queue. Matching is limited to upcoming, available, non-sample Messina events priced in euros whose Standard ticket price meets the attendee's budget. The first version does not charge people or reserve tickets from an intent.
 
 ## Project layout
 
@@ -32,7 +40,7 @@ The included listings are fictional examples. Sample bookings never charge money
 
 ## Private organizer demo
 
-Set `EVENTLY_ORGANIZER_DEMO=true` in `.env.local` and restart the app. This is enabled in the current local workspace. In this mode:
+Set `EVENTLY_ORGANIZER_DEMO=true` in `.env.local` and restart the app. In this mode:
 
 - New organizer events are saved as private drafts. Only their owner can open the event preview; drafts do not appear in search, discovery, or recommendations.
 - Ticket prices are planning information. Stripe setup is hidden in Organizer studio and payment actions are disabled, even if a Stripe key is configured.
@@ -128,12 +136,13 @@ Start in a Stripe test environment. Use a Stripe account with Connect enabled an
 
 1. Put the platform's secret key in `STRIPE_SECRET_KEY` in `.env.local` or your host's secret manager. Never put secret keys into a `NEXT_PUBLIC_` variable.
 2. Set `APP_URL` to your application's origin. This and the Stripe secret key are enough to enable Checkout and reconcile card payments when the attendee returns to Evently.
-3. A webhook is optional. For background confirmation when an attendee closes Checkout before returning, create a webhook destination for **connected account events** at `https://YOUR_DOMAIN/api/stripe/webhook`. Subscribe to:
+3. A webhook is optional for a local Checkout trial. For reliable background confirmation and marketplace operations in production, create a webhook destination for **connected account events** at `https://YOUR_DOMAIN/api/stripe/webhook`. Subscribe to:
    - `checkout.session.completed`
    - `checkout.session.async_payment_succeeded`
    - `checkout.session.expired`
    - `checkout.session.async_payment_failed`
    - `charge.refunded`
+   - `charge.dispute.created`
    Then set `STRIPE_WEBHOOK_SECRET` to that destination's signing secret. For local development, the Stripe CLI can forward Connect events:
    `stripe listen --forward-connect-to localhost:3000/api/stripe/webhook`.
    Use the signing secret printed by that listener. Skip this step if you are testing without a webhook.
@@ -169,7 +178,15 @@ Checkouts reserve inventory for about 35 minutes. A configured signed expiry eve
 
 If Stripe accepts a checkout but the network fails before Evently receives its session ID, the reservation remains held conservatively. Retry promptly with the same booking; a matching signed webhook can resolve it. An operator should reconcile any unresolved pending bookings against Stripe before releasing capacity. Do not manually mark bookings paid based on a browser redirect.
 
-Refund requests appear in the organizer's guest list. They do not cancel tickets by themselves. Full refunds are issued by the organizer and the ticket is invalidated after Stripe confirms the refund. Partial refunds, disputes and automatic refund policy decisions are not implemented.
+The draft platform rule permits a full refund request until seven days before the event. A cancelled event qualifies for a full refund regardless of the deadline. Requests appear in the organizer's guest list and the operations desk; they do not cancel tickets by themselves. A full refund is issued manually by the organizer or operator and invalidates the ticket after Stripe confirms it. Cancellation creates a refund follow-up case for each paid booking. The operations desk lists still-open Checkouts on cancelled events so an operator can close them; a payment completed after cancellation enters the refund queue. Partial refunds and automatic refunds are not implemented. Stripe disputes create operator cases when a signed `charge.dispute.created` webhook arrives; resolve the financial dispute in Stripe, then close the Evently case.
+
+### Operator workspace and service messages
+
+1. Create and verify a dedicated operator account. Set its email in `EVENTLY_ADMIN_EMAILS` (comma-separated for multiple operators), restart or redeploy, then open `/admin`. The operations API checks the same verified-email allowlist. Do not use a shared organizer login as your only operator account.
+2. Once `/admin` works, set `EVENTLY_REQUIRE_EVENT_APPROVAL=true`. New organizer events then enter review and stay out of discovery until approved. Edits to reviewed events return to review; edits after ticket reservations require operator help. Existing published events stay published unless cancelled. Organizers cannot approve their own listings.
+3. Attendees can report an event from its page or a booking from its ticket. The operator can track and resolve cases. For payment disputes, use Stripe's evidence and dispute tools; Evently records the case, not the card-network decision.
+4. Booking confirmation, free-booking cancellation, event cancellation, and refund messages enter a database outbox. Evently attempts immediate delivery after key actions and the Stripe webhook. Set `MYEMAIL`, `MYPASS`, `EMAIL_DELIVERY=gmail`, and `APP_URL` for live delivery. Failed messages are visible in `/admin`; use **Send or retry messages** after fixing the sender. Set `CRON_SECRET` on Vercel for the daily retry route in `vercel.json`.
+5. Set `EVENTLY_LEGAL_NAME`, `EVENTLY_LEGAL_ADDRESS`, `EVENTLY_LEGAL_EMAIL`, and (if applicable) `EVENTLY_VAT_NUMBER`. The `/policies` page is a draft, kept out of search indexing. Obtain legal and privacy review before relying on it for public sales. The fixed refund rule is coded, but ticket tax and Italian fiscal ticket issuance remain separate launch requirements.
 
 ## Deployment and data
 

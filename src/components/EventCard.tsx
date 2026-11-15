@@ -9,7 +9,6 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import EventCardUnfurl from "./EventCardUnfurl";
 import { categoryName } from "@/lib/catalog";
 import { messinaAreaLabel } from "@/lib/messina";
 import { eventDate, eventTime, money } from "@/lib/format";
@@ -162,7 +161,11 @@ export default function EventCard({
           />
         </Link>
         {shouldShowUnfurl && hasEntered && (
-          <EventCardUnfurl delay={motionDelay + 120} />
+          <span
+            aria-hidden="true"
+            className="event-card-unfurl"
+            style={{ "--sweep-delay": `${motionDelay + 120}ms` } as CSSProperties}
+          />
         )}
         {variant !== "standard" && !(editorialMotion && variant === "compact") && (
           <div className="featured-image-caption">

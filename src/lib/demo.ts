@@ -11,6 +11,6 @@ export function sampleListingsEnabled() {
 }
 
 export function eventIsPrivate(event: Event) {
-  return event.visibility === "draft" ||
+  return (event.visibility !== undefined && event.visibility !== "published") ||
     (organizerDemoMode() && Boolean(event.ownerId));
 }

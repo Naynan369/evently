@@ -71,7 +71,7 @@ export type Event = {
   host: string;
   venueId?: string;
   organizerProfileId?: string;
-  visibility?: "draft" | "published";
+  visibility?: "draft" | "review" | "rejected" | "published" | "cancelled";
   sample: boolean;
   artists?: string[];
   genres?: string[];

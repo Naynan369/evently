@@ -98,7 +98,7 @@ export default async function EventDetail({
           <FiArrowLeft aria-hidden="true" />
           <span>{privatePreview ? (language === "it" ? "Torna allo studio" : "Back to studio") : t("events.back")}</span>
         </Link>
-        <span className="event-detail-page-label">{privatePreview ? (language === "it" ? "ANTEPRIMA" : "PREVIEW") : t("events.details")}</span>
+        <span className="event-detail-page-label">{event.visibility === "cancelled" ? (language === "it" ? "ANNULLATO" : "CANCELLED") : privatePreview ? (language === "it" ? "ANTEPRIMA" : "PREVIEW") : t("events.details")}</span>
       </div>
 
       <header className="event-detail-hero">
@@ -126,7 +126,7 @@ export default async function EventDetail({
           )}
           {privatePreview && (
             <span className="event-detail-sample">
-              {language === "it" ? "Bozza" : "Draft"}
+              {event.visibility === "cancelled" ? (language === "it" ? "Annullato" : "Cancelled") : event.visibility === "review" ? (language === "it" ? "In revisione" : "In review") : event.visibility === "rejected" ? (language === "it" ? "Da correggere" : "Needs changes") : (language === "it" ? "Bozza" : "Draft")}
             </span>
           )}
         </div>
@@ -227,6 +227,7 @@ export default async function EventDetail({
                 <p key={index}>{paragraph}</p>
               ))}
             </div>
+            {!privatePreview && <p><Link href={`/report?event=${encodeURIComponent(event.id)}`}>{language === "it" ? "Segnala un problema con questo evento" : "Report a problem with this event"} ↗</Link></p>}
           </section>
 
           <section className="event-detail-section event-detail-location">

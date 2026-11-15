@@ -14,16 +14,26 @@ import { translate } from "@/lib/i18n";
 import { organizerDemoMode } from "@/lib/demo";
 import { previewVatPercent } from "@/lib/ticket-preview";
 import { platformCheckoutTestEnabled } from "@/lib/platform-checkout-test";
+import { categories } from "@/lib/catalog";
+import { intentMonthOptions } from "@/lib/intents";
+import { isMessinaArea, messinaAreaLabel, type MessinaArea } from "@/lib/messina";
+import type { Category } from "@/lib/types";
 export const metadata = { title: "Create an event" };
 export default async function CreateEvent({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; demandCategory?: string; demandArea?: string; demandMonth?: string }>;
 }) {
-  const { edit } = await searchParams;
+  const { edit, demandCategory, demandArea, demandMonth } = await searchParams;
   const language = await getLanguage();
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   const demoMode = organizerDemoMode();
+  const demand = !edit &&
+    categories.some((item) => item.id === demandCategory) &&
+    (demandArea === "" || isMessinaArea(demandArea)) &&
+    typeof demandMonth === "string" && intentMonthOptions().includes(demandMonth)
+      ? { category: demandCategory as Category, area: (demandArea || "") as MessinaArea | "", month: demandMonth }
+      : undefined;
   const user = await currentUser();
   if (!user)
     redirect(
@@ -31,6 +41,7 @@ export default async function CreateEvent({
         encodeURIComponent("/create-event" + (edit ? "?edit=" + edit : "")),
     );
   if (!user.emailVerified) redirect("/verify-email");
+  if (!user.isOrganizer) redirect("/account");
   const initial = edit ? await getEvent(edit) : undefined;
   if (edit && (!initial || initial.ownerId !== user.id)) notFound();
   await ensureBusinessProfile(user, "organizer");
@@ -73,12 +84,15 @@ export default async function CreateEvent({
         </div>
       </section>
       <div className="container create-event-workspace">
+        {demand && <div className="notice" style={{ marginBottom: 24 }}><strong>{language === "it" ? "Creato da un interesse reale" : "Inspired by community demand"}</strong>{" · "}{demand.area ? messinaAreaLabel(demand.area, language) : (language === "it" ? "Tutta Messina" : "Anywhere in Messina")}{" · "}{demand.month}. {language === "it" ? "Categoria e zona sono precompilate; scegli tu i dettagli finali." : "Category and area are prefilled; you choose the final event details."}</div>}
         <EventForm
           initial={initial || undefined}
+          demand={demand}
           venues={venues}
           organizerProfiles={organizerProfiles}
           venueProfiles={venueProfiles}
           demoMode={demoMode}
+          approvalRequired={process.env.EVENTLY_REQUIRE_EVENT_APPROVAL === "true"}
           platformTestCheckout={platformCheckoutTestEnabled()}
           testVatPercent={previewVatPercent()}
         />

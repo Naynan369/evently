@@ -46,10 +46,14 @@ const messages = {
     "nav.personal.savedDescription": "Keep your shortlist together",
     "nav.personal.account": "Account overview",
     "nav.personal.accountDescription": "Your profile and preferences",
+    "nav.personal.intent": "Your event ideas",
+    "nav.personal.intentDescription": "Shape what happens next",
     "nav.organize.create": "Create an event",
     "nav.organize.createDescription": "Publish a new experience",
     "nav.organize.dashboard": "Organizer dashboard",
     "nav.organize.dashboardDescription": "Manage events and attendees",
+    "nav.organize.demand": "Community demand",
+    "nav.organize.demandDescription": "See what attendees want next",
     "nav.organize.venuesDescription": "Manage your venues and spaces",
     "nav.organize.profilesDescription": "Manage your organization details",
     "footer.discover": "Discover",
@@ -100,7 +104,7 @@ const messages = {
     "home.messinaIntro": "Find what is happening close to you, from the centre to the coast and the hills. Every area has room for more stories.",
     "home.messinaAreas": "Explore by area",
     "home.messinaLocation": "Sicily, Italy",
-    "home.messinaPhotoAlt": "Messina's waterfront and the Strait",
+    "home.messinaPhotoAlt": "Messina Cathedral and its clock tower at sunset",
     "home.messinaAll": "Explore Messina",
     "home.messinaFree": "Free plans",
     "home.messinaCommunity": "Community events",
@@ -268,7 +272,7 @@ const messages = {
     "booking.stripe": "Secure payment, hosted by Stripe",
     "booking.freeBooking": "Free booking. No card needed.",
     "booking.refundNote":
-      "Paid refunds are handled by the organizer. Free reservations can be cancelled before the event, until check-in.",
+      "Paid tickets may be fully refunded until seven days before the event, or whenever the event is cancelled. Free reservations can be cancelled before the event, until check-in.",
     "auth.signIn": "Welcome back.",
     "auth.register": "Create your account.",
     "auth.banner": "YOU’VE GOT GOOD PLANS AHEAD.",
@@ -378,9 +382,9 @@ const messages = {
       "These references are simulations for testing, not valid for event admission. They are not SIAE fiscal access tickets or Ticka-issued titles.",
     "ticket.testReference": "Preview reference {number}",
     "ticket.refundHelp":
-      "Need a refund? Your organizer, {organizer}, manages refunds through their organizer studio.",
+      "Need a refund? Request one here. The organizer, {organizer}, or Evently operations can issue it after review.",
     "ticketActions.refundRequested":
-      "Refund requested — awaiting your organizer’s review. Your tickets remain valid until a refund is issued.",
+      "Refund requested — awaiting review. Your ticket remains valid until a refund is issued, unless the event is cancelled.",
     "ticketActions.sending": "Sending request…",
     "ticketActions.requestRefund": "Request a refund",
     "ticketActions.print": "Print ticket / save PDF",
@@ -636,7 +640,7 @@ const messages = {
     "studio.finishSetup": "Finish setup",
     "studio.connect": "Connect Stripe",
     "studio.fees": "No Evently platform fee · Stripe processing fees apply",
-    "studio.publishedByYou": "PUBLISHED BY YOU",
+    "studio.publishedByYou": "YOUR EVENTS",
     "studio.events": "Your events",
     "studio.eventsIntro": "Keep every listing, date, and ticket count in view.",
     "studio.eventsCount": "{count} EVENTS",
@@ -969,7 +973,7 @@ const messages = {
       "The booking stays pending while Stripe holds your checkout open. You can resume or cancel it from My tickets. An expired checkout releases its places after Stripe confirms expiration. Payment delays do not cause Evently to issue an unverified ticket.",
     "help.q5": "How do refunds and cancellations work?",
     "help.a5":
-      "You can cancel a free or sample reservation before the event begins, provided it hasn’t been checked in. For a paid booking, open your ticket and choose Request a refund. The request appears in the organizer’s guest list for review. Your ticket stays valid until the organizer issues a refund. Check the event description for refund terms.",
+      "You can cancel a free or sample reservation before the event begins, provided it hasn’t been checked in. For a paid booking, request a full refund from your ticket until seven days before the event. Cancelled events qualify for a full refund regardless of that deadline. Your ticket remains valid until a refund is issued, unless the event is cancelled.",
     "help.q6": "How do I create a paid event?",
     "help.a6":
       "Open Organizer studio and connect your Stripe account. Finish Stripe’s identity and payout setup. Once the account can accept payments and payouts, you can publish an event with a paid ticket. The platform’s Stripe integration must also be configured. You can publish free events without Stripe.",
@@ -981,7 +985,7 @@ const messages = {
       "Evently stores your profile, selected interests, saved events and booking records in its application database. Passwords are stored as salted hashes. Stripe handles card details, which are never stored by Evently. Event organizers can see the names and emails of people who booked their events.",
     "help.q9": "Can I recover a forgotten password?",
     "help.a9":
-      "Automated password recovery is not configured in this edition. A verified email delivery service is needed before recovery emails can be enabled. Keep your password in a password manager and stay signed in on a trusted device.",
+      "Yes. Choose Reset password on the sign-in page and enter your email address. If email delivery is configured, we’ll send a one-use reset link. If no message arrives, check your spam folder or contact the site operator.",
     "page.notFoundEyebrow": "A SMALL DETOUR",
     "page.notFoundTitle": "This one got away.",
     "page.notFoundBody":
@@ -1124,10 +1128,14 @@ const messages = {
     "nav.personal.savedDescription": "Raccogli i tuoi preferiti",
     "nav.personal.account": "Panoramica account",
     "nav.personal.accountDescription": "Il tuo profilo e le tue preferenze",
+    "nav.personal.intent": "Le tue idee di eventi",
+    "nav.personal.intentDescription": "Dai forma ai prossimi eventi",
     "nav.organize.create": "Crea un evento",
     "nav.organize.createDescription": "Pubblica una nuova esperienza",
     "nav.organize.dashboard": "Pannello organizzatore",
     "nav.organize.dashboardDescription": "Gestisci eventi e partecipanti",
+    "nav.organize.demand": "Interessi della comunità",
+    "nav.organize.demandDescription": "Scopri cosa vorrebbero i partecipanti",
     "nav.organize.venuesDescription": "Gestisci i tuoi locali e spazi",
     "nav.organize.profilesDescription": "Gestisci i dati della tua attività",
     "footer.discover": "Scopri",
@@ -1178,7 +1186,7 @@ const messages = {
     "home.messinaIntro": "Scopri cosa succede vicino a te, dal centro alla costa e ai colli. Ogni zona ha nuove storie da vivere.",
     "home.messinaAreas": "Esplora per zona",
     "home.messinaLocation": "Sicilia, Italia",
-    "home.messinaPhotoAlt": "Il lungomare di Messina e lo Stretto",
+    "home.messinaPhotoAlt": "Il Duomo di Messina e il suo campanile al tramonto",
     "home.messinaAll": "Esplora Messina",
     "home.messinaFree": "Eventi gratuiti",
     "home.messinaCommunity": "Eventi di comunità",
@@ -1348,7 +1356,7 @@ const messages = {
     "booking.stripe": "Pagamento sicuro tramite Stripe",
     "booking.freeBooking": "Prenotazione gratuita. Non serve una carta.",
     "booking.refundNote":
-      "I rimborsi dei biglietti a pagamento sono gestiti dall'organizzatore. Le prenotazioni gratuite possono essere annullate prima del check-in.",
+      "I biglietti pagati possono essere rimborsati interamente fino a sette giorni prima dell'evento o in caso di annullamento. Le prenotazioni gratuite possono essere annullate prima dell'inizio, fino al check-in.",
     "auth.signIn": "Bentornato.",
     "auth.register": "Crea il tuo account.",
     "auth.banner": "TI ASPETTANO BELLE ESPERIENZE.",
@@ -1460,9 +1468,9 @@ const messages = {
       "Questi riferimenti sono simulazioni per i test e non sono validi per l'ingresso. Non sono titoli di accesso fiscali SIAE né biglietti emessi da Ticka.",
     "ticket.testReference": "Riferimento di prova {number}",
     "ticket.refundHelp":
-      "Ti serve un rimborso? L'organizzatore, {organizer}, gestisce i rimborsi dal proprio pannello.",
+      "Ti serve un rimborso? Richiedilo qui. L'organizzatore, {organizer}, o il team Evently può emetterlo dopo la verifica.",
     "ticketActions.refundRequested":
-      "Richiesta di rimborso inviata, in attesa dell'organizzatore. I biglietti restano validi finché il rimborso non viene emesso.",
+      "Richiesta di rimborso inviata, in attesa di verifica. Il biglietto resta valido fino all'emissione del rimborso, salvo annullamento dell'evento.",
     "ticketActions.sending": "Invio della richiesta…",
     "ticketActions.requestRefund": "Richiedi un rimborso",
     "ticketActions.print": "Stampa il biglietto / salva PDF",
@@ -1726,7 +1734,7 @@ const messages = {
     "studio.connect": "Collega Stripe",
     "studio.fees":
       "Nessuna commissione Evently · si applicano le commissioni di Stripe",
-    "studio.publishedByYou": "PUBBLICATI DA TE",
+    "studio.publishedByYou": "I TUOI EVENTI",
     "studio.events": "I tuoi eventi",
     "studio.eventsIntro":
       "Tieni sotto controllo annunci, date e numero di biglietti.",
@@ -2068,7 +2076,7 @@ const messages = {
       "La prenotazione resta in sospeso mentre Stripe mantiene aperto il pagamento. Puoi riprenderla o annullarla da I miei biglietti. Alla scadenza, i posti vengono liberati dopo la conferma di Stripe. Un ritardo nel pagamento non genera un biglietto non verificato.",
     "help.q5": "Come funzionano rimborsi e annullamenti?",
     "help.a5":
-      "Puoi annullare una prenotazione gratuita o dimostrativa prima dell'inizio dell'evento, se non è già stato registrato l'ingresso. Per una prenotazione a pagamento, apri il biglietto e scegli Richiedi un rimborso. L'organizzatore valuterà la richiesta; il biglietto resta valido finché il rimborso non viene emesso. Controlla le condizioni nella descrizione dell'evento.",
+      "Puoi annullare una prenotazione gratuita o dimostrativa prima dell'inizio dell'evento, se non è già stato registrato l'ingresso. Per un biglietto a pagamento, puoi richiedere un rimborso completo fino a sette giorni prima dell'evento. Se l'evento viene annullato, hai diritto a un rimborso completo anche dopo quel termine. Il biglietto resta valido fino all'emissione del rimborso, salvo annullamento dell'evento.",
     "help.q6": "Come pubblico un evento a pagamento?",
     "help.a6":
       "Apri lo Studio organizzatori e collega il tuo account Stripe. Completa la verifica dell'identità e la configurazione dei pagamenti. Quando l'account può ricevere pagamenti, puoi pubblicare biglietti a pagamento. Anche Stripe sulla piattaforma deve essere configurato. Puoi pubblicare eventi gratuiti senza Stripe.",
@@ -2080,7 +2088,7 @@ const messages = {
       "Evently conserva nel database il tuo profilo, gli interessi scelti, gli eventi salvati e le prenotazioni. Le password sono archiviate come hash con salt. Stripe gestisce i dati delle carte: Evently non li conserva. Gli organizzatori possono vedere nome ed email di chi prenota i loro eventi.",
     "help.q9": "Posso recuperare una password dimenticata?",
     "help.a9":
-      "In questa versione il recupero automatico non è ancora configurato. Serve un servizio email verificato per inviare i messaggi di recupero. Conserva la password in un gestore dedicato e resta connesso solo su un dispositivo fidato.",
+      "Sì. Seleziona Reimposta password nella pagina di accesso e inserisci il tuo indirizzo email. Se l'invio delle email è configurato, riceverai un link utilizzabile una sola volta. Se non arriva, controlla lo spam o contatta il gestore del sito.",
     "page.notFoundEyebrow": "UNA PICCOLA DEVIAZIONE",
     "page.notFoundTitle": "Questa pagina è sfuggita.",
     "page.notFoundBody":

@@ -358,6 +358,12 @@ export async function refundBooking(booking: Booking) {
     },
   );
   if (refund.status === "succeeded")
-    await run("UPDATE bookings SET status='refunded' WHERE id=?", booking.id);
+    {
+      await run("UPDATE bookings SET status='refunded' WHERE id=?", booking.id);
+      await run(
+        "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+        "refund-issued:" + booking.id, "refund-issued", booking.id, booking.userId, Date.now(),
+      );
+    }
   return refund.status;
 }

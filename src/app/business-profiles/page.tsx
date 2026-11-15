@@ -9,6 +9,7 @@ export default async function BusinessProfilesPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/business-profiles");
   if (!user.emailVerified) redirect("/verify-email");
+  if (!user.isOrganizer) redirect("/account");
 
   return (
     <main id="main" className="container page-main business-profile-page">

@@ -51,14 +51,14 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   const cityGuide = page.locator(".messina-home-section");
   const selectedArea = cityGuide.locator('.messina-home-area[data-active="true"]');
   const cityStage = cityGuide.locator(".messina-home-stage");
-  const dayPhoto = cityStage.locator(".messina-home-stage__photo--day");
-  const nightPhoto = cityStage.locator(".messina-home-stage__photo--night");
+  const cityPhoto = cityStage.locator(".messina-home-stage__photo");
   const lightGuideBg = await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor);
   const lightSelectedBg = await selectedArea.evaluate((el) => getComputedStyle(el).backgroundColor);
-  await dayPhoto.scrollIntoViewIfNeeded();
-  await expect(dayPhoto).toBeVisible();
-  await expect(nightPhoto).toBeHidden();
-  await expect.poll(() => dayPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await cityPhoto.scrollIntoViewIfNeeded();
+  await expect(cityPhoto).toBeVisible();
+  await expect(cityPhoto).toHaveAttribute("src", /messina-cathedral-sunset/);
+  await expect.poll(() => cityPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const lightPhotoFilter = await cityPhoto.evaluate((el) => getComputedStyle(el).filter);
   const bg = await page
     .locator("body")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -68,9 +68,8 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   await expect(page.locator("html")).toHaveClass(/dark/);
   expect(await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(lightGuideBg);
   expect(await selectedArea.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(lightSelectedBg);
-  await expect(dayPhoto).toBeHidden();
-  await expect(nightPhoto).toBeVisible();
-  await expect.poll(() => nightPhoto.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(cityPhoto).toBeVisible();
+  expect(await cityPhoto.evaluate((el) => getComputedStyle(el).filter)).not.toBe(lightPhotoFilter);
   expect(
     await page
       .locator("body")
@@ -85,14 +84,15 @@ test("discovery, mobile navigation, themes and accessibility", async ({
     .click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   expect(await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lightGuideBg);
-  await expect(dayPhoto).toBeVisible();
-  await expect(nightPhoto).toBeHidden();
+  await expect(cityPhoto).toBeVisible();
   await expect(page.locator(".messina-home-area")).toHaveCount(6);
+  const firstArtwork = await cityStage.locator(".messina-home-stage__art-subject").first().getAttribute("d");
   await page.locator(".messina-home-area").nth(4).hover();
   await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
     "Torre Faro",
   );
   await expect(page.locator(".messina-home-heading__index")).toHaveText("05 / 06");
+  expect(await cityStage.locator(".messina-home-stage__art-subject").first().getAttribute("d")).not.toBe(firstArtwork);
   const light = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
@@ -192,6 +192,10 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
         name,
         email,
         password: "Safe-password-123!",
+        accountType: name === "Guest" ? "attendee" : "organizer",
+        ...(name === "Guest"
+          ? {}
+          : { organizationName: `${name} Events`, countryCode: "IT" }),
       },
     });
     expect(result.status()).toBe(201);
@@ -213,6 +217,10 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     organizerDemoOff: true,
     enabled: false,
   });
+  expect((await guest.get("/api/organizer")).status()).toBe(403);
+  expect((await guest.post("/api/business-profiles", {
+    data: { kind: "organizer", name: "Guest Events", countryCode: "IT" },
+  })).status()).toBe(403);
   const uploadedCover = await owner.post("/api/event-images", {
     multipart: {
       image: {
@@ -252,7 +260,7 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
   expect((await edited.json()).event.coverImage).toBe(coverImage);
   expect(
     (await guest.put("/api/events/" + event.id, { data: eventData })).status(),
-  ).toBe(404);
+  ).toBe(403);
   const nonce = randomUUID();
   const reservation = await guest.post("/api/checkout", {
     data: { eventId: event.id, quantity: 2, requestKey: nonce, price: 999 },

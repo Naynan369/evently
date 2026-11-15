@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 import { hashPassword, checkPassword } from "../src/lib/security.ts";
 import { safeNext } from "../src/lib/format.ts";
+import { refundWindowOpen } from "../src/lib/refund-policy.ts";
 import { localDateTime, zonedToIso } from "../src/lib/dates.ts";
 import { seedEvents } from "../src/lib/catalog.ts";
 import { recommend } from "../src/lib/recommendations.ts";
@@ -112,6 +113,13 @@ test("event times respect timezone and DST gaps", () => {
     /doesn’t exist/,
   );
 });
+test("paid refund deadline includes the seventh day and cancelled events", () => {
+  const now = Date.parse("2026-11-15T12:00:00Z");
+  const deadline = { startsAt: "2026-11-22T12:00:00Z", visibility: "published" as const };
+  assert.equal(refundWindowOpen(deadline, now), true);
+  assert.equal(refundWindowOpen(deadline, now + 1), false);
+  assert.equal(refundWindowOpen({ ...deadline, visibility: "cancelled" }, now + 1), true);
+});
 test("recommendations rank interests and exclude booked and past events", () => {
   const now = new Date("2026-09-27T12:00:00Z");
   const events = seedEvents(now);
@@ -215,7 +223,11 @@ test("Stripe expiry releases only pending holds", async () => {
   assert.equal((await getEvent(event.id))?.available, 1);
 });
 test("refund requests require ownership and a confirmed payment and preserve ticket validity", async () => {
-  const event = await createEvent(eventInput(1000, 1), owner);
+  const event = await createEvent({
+    ...eventInput(1000, 1),
+    startsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+    endsAt: new Date(Date.now() + 15 * 86400000 + 3600000).toISOString(),
+  }, owner);
   const booking = await reserveBooking(guest.id, event.id, 1, randomUUID());
   await assert.rejects(requestRefund(booking.id, owner.id), /not found/);
   await assert.rejects(requestRefund(booking.id, guest.id), /confirmed paid/);

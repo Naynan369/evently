@@ -20,6 +20,7 @@ import {
   FiUser,
   FiHelpCircle,
   FiBarChart2,
+  FiTrendingUp,
   FiMenu,
   FiX,
   FiMoon,
@@ -65,6 +66,12 @@ const attendeeAccount: NavigationItem[] = [
     icon: FiUser,
   },
   {
+    href: "/intent",
+    label: "nav.personal.intent",
+    description: "nav.personal.intentDescription",
+    icon: FiStar,
+  },
+  {
     href: "/tickets",
     label: "nav.personal.tickets",
     description: "nav.personal.ticketsDescription",
@@ -89,6 +96,12 @@ const organizerAccount: NavigationItem[] = [
     label: "nav.organize.dashboard",
     description: "nav.organize.dashboardDescription",
     icon: FiBriefcase,
+  },
+  {
+    href: "/organizer/demand",
+    label: "nav.organize.demand",
+    description: "nav.organize.demandDescription",
+    icon: FiTrendingUp,
   },
   {
     href: "/create-event",

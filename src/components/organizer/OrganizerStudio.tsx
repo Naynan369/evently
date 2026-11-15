@@ -124,7 +124,7 @@ export default function OrganizerStudio({
       (!event.organizerProfileId && selectedProfile?.id === defaultProfileId),
   );
   const publishedCount = profileEvents.filter(
-    (event) => event.visibility !== "draft",
+    (event) => !event.visibility || event.visibility === "published",
   ).length;
   const profileEventIds = new Set(profileEvents.map((event) => event.id));
   const profileBookings = bookings.filter((booking) =>
@@ -372,8 +372,8 @@ export default function OrganizerStudio({
                   <div className="org-event-content">
                     <div className="org-event-meta">
                       <span className="org-event-category">{categoryName(event.category, language)}</span>
-                      {event.visibility === "draft" && (
-                        <span className="org-event-draft">{t("studio.draft")}</span>
+                      {event.visibility && event.visibility !== "published" && (
+                        <span className="org-event-draft">{event.visibility === "draft" ? t("studio.draft") : event.visibility === "review" ? (language === "it" ? "In revisione" : "In review") : event.visibility === "rejected" ? (language === "it" ? "Da correggere" : "Needs changes") : (language === "it" ? "Annullato" : "Cancelled")}</span>
                       )}
                     </div>
                     <h3><Link href={"/events/" + event.slug}>{event.title}</Link></h3>
@@ -400,9 +400,9 @@ export default function OrganizerStudio({
                         <Link href={"/events/" + event.slug} aria-label={t("studio.view") + " " + event.title}>
                           {demoMode ? (language === "it" ? "Anteprima" : "Preview") : t("studio.view")} <FiArrowUpRight aria-hidden="true" />
                         </Link>
-                        <Link href={"/create-event?edit=" + event.id} aria-label={t("studio.edit") + " " + event.title}>
+                        {event.visibility !== "cancelled" && <Link href={"/create-event?edit=" + event.id} aria-label={t("studio.edit") + " " + event.title}>
                           {t("studio.edit")} <FiArrowUpRight aria-hidden="true" />
-                        </Link>
+                        </Link>}
                       </div>
                     </div>
                     {demoMode && event.visibility === "draft" && (

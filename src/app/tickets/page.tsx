@@ -28,7 +28,7 @@ export default async function Tickets() {
             <article className="ticket-row" key={t.id}>
               <div className="ticket-thumb">
                 <Image
-                  src={"/images/" + t.event.image + ".jpg"}
+                  src={t.event.coverImage || "/images/" + t.event.image + ".jpg"}
                   alt=""
                   fill
                   sizes="150px"

@@ -5,9 +5,9 @@ import { FiPrinter, FiCalendar, FiArrowRight } from "react-icons/fi";
 import { api } from "@/lib/client";
 import { useApp } from "./AppProvider";
 import type { Booking } from "@/lib/types";
-export default function TicketActions({ booking }: { booking: Booking }) {
+export default function TicketActions({ booking, refundWindowOpen, eventCancelled }: { booking: Booking; refundWindowOpen: boolean; eventCancelled: boolean }) {
   const router = useRouter();
-  const { toast, t } = useApp();
+  const { toast, t, language } = useApp();
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function TicketActions({ booking }: { booking: Booking }) {
             <p role="status">
               {t("ticketActions.refundRequested")}
             </p>
-          ) : (
+          ) : refundWindowOpen ? (
             <button
               className="button button-outline"
               disabled={busy}
@@ -80,8 +80,8 @@ export default function TicketActions({ booking }: { booking: Booking }) {
             >
               {busy ? t("ticketActions.sending") : t("ticketActions.requestRefund")}
             </button>
-          ))}
-        {booking.status === "confirmed" && (
+          ) : <p>{language === "it" ? "Il termine per chiedere il rimborso è scaduto sette giorni prima dell'evento." : "The refund request window closed seven days before the event."}</p>)}
+        {booking.status === "confirmed" && !eventCancelled && (
           <>
             <button
               className="button button-dark"

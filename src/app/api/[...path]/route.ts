@@ -81,6 +81,8 @@ import {
   MAX_EVENT_IMAGE_BYTES,
   uploadedEventImageId,
 } from "@/lib/event-image";
+import { assertOperator, createCase, deliverMessagesBestEffort, moderateEvent, operatorSnapshot, resolveCase, retryFailedMessages } from "@/lib/operations";
+import { deleteIntent, demandSignals, intentMatchesForUser, intentsForUser, queueIntentMatchesForEvent, saveIntent } from "@/lib/intents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +137,26 @@ function sameOrigin(request: Request) {
   if (!origin || origin !== expected)
     throw new AppError("Request origin is not allowed.", 403);
 }
+async function bookingForStripeEvent(
+  paymentIntent: string | Stripe.PaymentIntent | null,
+  metadata: Record<string, string> | null,
+  event: Stripe.Event,
+) {
+  let bookingId = metadata?.booking_id;
+  let scope = metadata?.evently_payment_scope;
+  if (!bookingId && paymentIntent) {
+    const id = typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+    const intent = await stripe().paymentIntents.retrieve(
+      id, {}, event.account ? { stripeAccount: event.account } : undefined,
+    );
+    bookingId = intent.metadata?.booking_id;
+    scope = intent.metadata?.evently_payment_scope;
+  }
+  const booking = bookingId ? await bookingById(bookingId) : undefined;
+  return booking && booking.stripeAccount === paymentAccountFromWebhook(event.account, event.livemode, scope)
+    ? booking
+    : undefined;
+}
 async function webhook(request: Request) {
   if (organizerDemoMode())
     throw new AppError("Payments are disabled during the organizer demo.", 503);
@@ -168,6 +190,7 @@ async function webhook(request: Request) {
           session.metadata.evently_payment_scope,
         ),
       );
+    await deliverMessagesBestEffort(5);
   } else if (
     event.type === "checkout.session.expired" ||
     event.type === "checkout.session.async_payment_failed"
@@ -188,24 +211,29 @@ async function webhook(request: Request) {
       await expireBooking(session.id, booking.id);
   } else if (event.type === "charge.refunded") {
     const charge = event.data.object;
-    const booking = charge.metadata?.booking_id
-      ? await bookingById(charge.metadata.booking_id)
-      : undefined;
+    const booking = await bookingForStripeEvent(charge.payment_intent, charge.metadata, event);
     if (
       booking &&
-      booking.stripeAccount ===
-        paymentAccountFromWebhook(
-          event.account,
-          event.livemode,
-          charge.metadata?.evently_payment_scope,
-        ) &&
       charge.refunded &&
       charge.amount_refunded >= booking.total
     )
-      await run(
-        "UPDATE bookings SET status='refunded' WHERE id=? AND status='confirmed'",
-        booking.id,
-      );
+      {
+        await run("UPDATE bookings SET status='refunded' WHERE id=? AND status='confirmed'", booking.id);
+        await run(
+          "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+          "refund-issued:" + booking.id, "refund-issued", booking.id, booking.userId, Date.now(),
+        );
+      }
+  } else if (event.type === "charge.dispute.created") {
+    const dispute = event.data.object;
+    const booking = await bookingForStripeEvent(dispute.payment_intent, dispute.metadata, event);
+    await run(
+      "INSERT INTO operator_cases(id,kind,subject,details,status,event_id,booking_id,created_at,updated_at) VALUES(?,?,?,?,'open',?,?,?,?) ON CONFLICT(id) DO NOTHING",
+      "stripe-dispute:" + dispute.id, "dispute", "Stripe dispute requires review",
+      `Stripe dispute ${dispute.id} on connected account ${event.account || "platform"}. Review it in Stripe and record the outcome here.`,
+      booking?.eventId || null, booking?.id || null,
+      Date.now(), Date.now(),
+    );
   }
   return json({ received: true });
 }
@@ -332,6 +360,93 @@ async function handle(request: Request, context: Context) {
       return json({ ok: true, user: null });
     }
     const user = await requireVerifiedUser();
+    if (path[0] === "admin") {
+      assertOperator(user);
+      if (route === "admin" && method === "GET") return json(await operatorSnapshot());
+      if (route === "admin/messages/dispatch" && method === "POST")
+        return json(await retryFailedMessages());
+      if (route === "admin/cases" && method === "POST") {
+        const input = await body(request);
+        return json({ id: await createCase({
+          kind: input.kind as "incident" | "payment" | "dispute",
+          subject: input.subject,
+          details: input.details,
+          eventId: typeof input.eventId === "string" ? input.eventId : undefined,
+          bookingId: typeof input.bookingId === "string" ? input.bookingId : undefined,
+        }) }, 201);
+      }
+      if (path.length === 3 && path[1] === "cases" && method === "PUT") {
+        await resolveCase(path[2], (await body(request)).status as "open" | "resolved");
+        return json({ ok: true });
+      }
+      if (path.length === 3 && path[1] === "events" && method === "POST") {
+        const event = await moderateEvent(path[2], (await body(request)).action as "approve" | "reject" | "cancel");
+        if (event.visibility === "cancelled" || event.visibility === "published") await deliverMessagesBestEffort(5);
+        return json({ event });
+      }
+      if (path.length === 3 && path[1] === "refunds" && method === "POST") {
+        const booking = await bookingById(path[2]);
+        if (!booking) throw new AppError("Booking not found.", 404);
+        const status = await refundBooking(booking);
+        if (status === "succeeded")
+          await run("UPDATE operator_cases SET status='resolved',updated_at=? WHERE id=?", Date.now(), "cancellation-refund:" + booking.id);
+        await deliverMessagesBestEffort(5);
+        return json({ status });
+      }
+      if (path.length === 4 && path[1] === "checkouts" && path[3] === "expire" && method === "POST") {
+        const booking = await bookingById(path[2]);
+        if (!booking || (await getEvent(booking.eventId))?.visibility !== "cancelled")
+          throw new AppError("Cancelled event booking not found.", 404);
+        const current = await reconcileBooking(booking);
+        if (current.status === "pending") await cancelCheckout(current);
+        await deliverMessagesBestEffort(5);
+        return json({ status: (await bookingById(booking.id))?.status });
+      }
+    }
+    if (route === "reports" && method === "POST") {
+      await takeRateLimit("reports:" + user.id, 5, 3600000);
+      const input = await body(request);
+      const bookingId = typeof input.bookingId === "string" ? input.bookingId : undefined;
+      const reportedBooking = bookingId ? await bookingById(bookingId) : null;
+      if (bookingId && reportedBooking?.userId !== user.id)
+        throw new AppError("Booking not found.", 404);
+      const eventId = typeof input.eventId === "string" ? input.eventId : undefined;
+      if (eventId && reportedBooking && reportedBooking.eventId !== eventId)
+        throw new AppError("The booking and event do not match.", 400);
+      if (!eventId && !bookingId) throw new AppError("Choose an event or booking.");
+      return json({ id: await createCase({
+        kind: "incident", subject: input.subject, details: input.details,
+        eventId, bookingId, reporterId: user.id,
+      }) }, 201);
+    }
+    if (path[0] === "intents") {
+      if (user.isOrganizer) throw new AppError("An attendee account is required.", 403);
+      if (route === "intents" && method === "GET")
+        return json({ intents: await intentsForUser(user.id), matches: await intentMatchesForUser(user.id) });
+      if (route === "intents" && method === "POST") {
+        await takeRateLimit("intents:" + user.id, 8, 3600000);
+        return json({ intent: await saveIntent(user.id, await body(request)) }, 201);
+      }
+      if (path.length === 2 && method === "PUT") {
+        await takeRateLimit("intents-edit:" + user.id, 30, 3600000);
+        return json({ intent: await saveIntent(user.id, await body(request), path[1]) });
+      }
+      if (path.length === 2 && method === "DELETE") {
+        await deleteIntent(user.id, path[1]);
+        return json({ ok: true });
+      }
+    }
+    const organizerRoute =
+      (route === "event-images" && method === "POST") ||
+      path[0] === "business-profiles" ||
+      path[0] === "venues" ||
+      path[0] === "organizer" ||
+      path[0] === "stripe" ||
+      (path[0] === "events" && method !== "GET");
+    if (organizerRoute && !user.isOrganizer)
+      throw new AppError("An organizer account is required.", 403);
+    if (route === "organizer/demand" && method === "GET")
+      return json({ signals: await demandSignals() });
     if (route === "event-images" && method === "POST") {
       await takeRateLimit("event-images:" + user.id, 20, 3600000);
       if (Number(request.headers.get("content-length") || 0) > MAX_EVENT_IMAGE_BYTES + 10000)
@@ -464,7 +579,13 @@ async function handle(request: Request, context: Context) {
           "Connect and activate your Stripe account in Organizer studio before publishing paid tickets.",
           409,
         );
-      return json({ event: await createEvent(input, user, organizerProfile) }, 201);
+      const event = await transaction(async () => {
+        const created = await createEvent(input, user, organizerProfile);
+        await queueIntentMatchesForEvent(created);
+        return created;
+      });
+      if (event.visibility === "published") await deliverMessagesBestEffort(5);
+      return json({ event }, 201);
     }
     if (path[0] === "events" && path.length === 2 && method === "PUT") {
       const original = await getEvent(path[1]);
@@ -506,10 +627,12 @@ async function handle(request: Request, context: Context) {
           409,
         );
       const event = await transaction(async () => {
-        await one<{ id: string }>(
-          "SELECT id FROM events WHERE id=? FOR UPDATE",
+        const currentRow = await one<{ data: string }>(
+          "SELECT data FROM events WHERE id=? FOR UPDATE",
           original.id,
         );
+        if (!currentRow) throw new AppError("Event not found.", 404);
+        const current = JSON.parse(currentRow.data) as Event;
         const reserved = await one<{
           n: number;
           standard: number;
@@ -519,6 +642,10 @@ async function handle(request: Request, context: Context) {
           original.id,
         );
         const reservedTotal = reserved?.n || 0;
+        if (current.visibility === "cancelled")
+          throw new AppError("A cancelled event cannot be edited.", 409);
+        if (process.env.EVENTLY_REQUIRE_EVENT_APPROVAL === "true" && reservedTotal > 0)
+          throw new AppError("Contact Evently to change a reviewed event after tickets have been reserved.", 409);
         const reservedStandard = reserved?.standard || 0;
         const reservedVip = reserved?.vip || 0;
         const previousOrganizerProfileId =
@@ -566,15 +693,19 @@ async function handle(request: Request, context: Context) {
             : {}),
           id: original.id,
           slug: original.slug,
-          visibility: original.visibility,
+          visibility: process.env.EVENTLY_REQUIRE_EVENT_APPROVAL === "true" && !organizerDemoMode()
+            ? "review"
+            : current.visibility,
         };
         await run(
           "UPDATE events SET data=? WHERE id=?",
           JSON.stringify(value),
           original.id,
         );
+        await queueIntentMatchesForEvent(value);
         return value;
       });
+      if (event.visibility === "published") await deliverMessagesBestEffort(5);
       return json({ event });
     }
     if (route === "checkout" && method === "POST") {
@@ -645,6 +776,7 @@ async function handle(request: Request, context: Context) {
         textField(input.requestKey, "Request"),
         requestedTicketType,
       );
+      if (booking.status === "confirmed") await deliverMessagesBestEffort(1);
       if (
         booking.status === "cancelled" ||
         booking.status === "expired" ||
@@ -667,11 +799,15 @@ async function handle(request: Request, context: Context) {
       const event = (await getEvent(booking.eventId))!;
       if (path.length === 2 && method === "GET") {
         booking = await reconcileBooking(booking);
+        if (booking.status === "confirmed") await deliverMessagesBestEffort(1);
         return json({ booking, event });
       }
       if (path[2] === "cancel" && method === "POST") {
         if (booking.mode === "stripe") await cancelCheckout(booking);
-        else await cancelFreeBooking(booking.id, user.id);
+        else {
+          await cancelFreeBooking(booking.id, user.id);
+          await deliverMessagesBestEffort(1);
+        }
         return json({ ok: true });
       }
       if (path[2] === "resume" && method === "POST")
@@ -680,6 +816,8 @@ async function handle(request: Request, context: Context) {
         return json({ booking: await requestRefund(booking.id, user.id) });
       if (booking.status !== "confirmed")
         throw new AppError("Your ticket is available after confirmation.", 409);
+      if (event.visibility === "cancelled")
+        throw new AppError("This event has been cancelled. Tickets are not valid for entry.", 409);
       if (path[2] === "qr" && method === "GET") {
         const svg = await QRCode.toString(booking.code, {
           type: "svg",
@@ -778,7 +916,9 @@ async function handle(request: Request, context: Context) {
       );
       if (!booking || (await getEvent(booking.eventId))?.ownerId !== user.id)
         throw new AppError("Booking not found.", 404);
-      return json({ status: await refundBooking(booking) });
+      const status = await refundBooking(booking);
+      await deliverMessagesBestEffort(5);
+      return json({ status });
     }
     throw new AppError("Not found.", 404);
   } catch (error) {

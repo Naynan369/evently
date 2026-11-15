@@ -15,7 +15,8 @@ import { isMessinaCity, messinaAreas } from "@/lib/messina";
 import { localDateTime, zonedToIso } from "@/lib/dates";
 import { api } from "@/lib/client";
 import { MAX_EVENT_IMAGE_BYTES } from "@/lib/event-image";
-import type { BusinessProfile, Event, Venue } from "@/lib/types";
+import type { BusinessProfile, Category, Event, Venue } from "@/lib/types";
+import type { MessinaArea } from "@/lib/messina";
 import { useApp } from "../AppProvider";
 
 const wizardSteps = [
@@ -51,18 +52,22 @@ async function prepareCover(file: File) {
 
 export default function EventForm({
   initial,
+  demand,
   venues,
   organizerProfiles,
   venueProfiles,
   demoMode = false,
+  approvalRequired = false,
   platformTestCheckout = false,
   testVatPercent = 0,
 }: {
   initial?: Event;
+  demand?: { category: Category; area: MessinaArea | ""; month: string };
   venues: Venue[];
   organizerProfiles: BusinessProfile[];
   venueProfiles: BusinessProfile[];
   demoMode?: boolean;
+  approvalRequired?: boolean;
   platformTestCheckout?: boolean;
   testVatPercent?: number;
 }) {
@@ -86,7 +91,7 @@ export default function EventForm({
   const [venueCity, setVenueCity] = useState(
     initialVenue?.city || initial?.city || "Messina",
   );
-  const [venueArea, setVenueArea] = useState(initial?.area || "");
+  const [venueArea, setVenueArea] = useState(initial?.area || demand?.area || "");
   const [venueAddress, setVenueAddress] = useState(
     initialVenue
       ? initialVenue.address + ", " + initialVenue.postalCode
@@ -239,7 +244,7 @@ export default function EventForm({
         "events" + (initial ? "/" + initial.id : ""),
         { method: initial ? "PUT" : "POST", body },
       );
-      router.push("/events/" + result.event.slug);
+      router.push(result.event.visibility === "review" ? "/organizer" : "/events/" + result.event.slug);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -343,7 +348,7 @@ export default function EventForm({
             <div className="field">
               <label htmlFor="category">{t("create.category")}</label>
               <select
-                defaultValue={initial?.category || "music"}
+                defaultValue={initial?.category || demand?.category || "music"}
                 id="category"
                 name="category"
               >
@@ -767,7 +772,7 @@ export default function EventForm({
               <strong>{t("create.reviewHeading")}</strong>
               <p>{demoMode
                 ? (language === "it" ? "La bozza resterà privata e potrai modificarla in seguito." : "Your draft stays private and you can edit it later.")
-                : initial ? t("create.editIntro") : t("create.publishedNote")}</p>
+                : approvalRequired ? (language === "it" ? "L'evento sarà inviato alla revisione di Evently prima di comparire in Esplora." : "Your event will be reviewed by Evently before it appears in Explore.") : initial ? t("create.editIntro") : t("create.publishedNote")}</p>
             </div>
             <div className="event-wizard-confirm-actions">
               <button
@@ -790,7 +795,7 @@ export default function EventForm({
                     ? t("create.saveChanges")
                     : demoMode
                       ? language === "it" ? "Salva bozza" : "Save draft"
-                      : t("create.publish")}
+                      : approvalRequired ? (language === "it" ? "Invia per revisione" : "Submit for review") : t("create.publish")}
                 {initial ? <FiCheck /> : <FiArrowUpRight />}
               </button>
             </div>
@@ -801,7 +806,7 @@ export default function EventForm({
             {activeStep === wizardSteps.length - 1
               ? demoMode
                 ? (language === "it" ? "Questa bozza è visibile solo a te." : "This draft is visible only to you.")
-                : t("create.publishedNote")
+                : approvalRequired ? (language === "it" ? "L'evento sarà visibile al pubblico dopo la revisione." : "Your event will become public after review.") : t("create.publishedNote")
               : t("create.progressNote")}
           </p>
         )}

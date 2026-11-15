@@ -5,7 +5,7 @@ import { Brand } from "./Brand";
 import { FiArrowUpRight } from "react-icons/fi";
 import { useApp } from "./AppProvider";
 export default function Footer() {
-  const { user, t } = useApp();
+  const { user, language, t } = useApp();
   return (
     <footer className="site-footer">
       <div className="container footer-top">
@@ -55,6 +55,8 @@ export default function Footer() {
               {t("nav.about")} <FiArrowUpRight />
             </Link>
             <Link href="/help">{t("nav.help")}</Link>
+            <Link href="/report">{language === "it" ? "Segnala un problema" : "Report a problem"}</Link>
+            <Link href="/policies">{language === "it" ? "Regole e privacy" : "Policies and privacy"}</Link>
           </div>
         </div>
       </div>

@@ -131,6 +131,18 @@ async function sendMessage(message: OutgoingMessage) {
     );
 }
 
+export async function sendOperationalEmail(input: {
+  id: string;
+  to: string;
+  subject: string;
+  text: string;
+}) {
+  await sendMessage({
+    ...input,
+    html: `<html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#171717;max-width:600px;margin:32px auto;padding:24px"><h1 style="font-size:24px">evently.</h1><p style="white-space:pre-line">${escape(input.text)}</p></body></html>`,
+  });
+}
+
 export async function sendVerificationCodeEmail(input: {
   id: string;
   to: string;

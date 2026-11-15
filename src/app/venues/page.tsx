@@ -9,6 +9,7 @@ export default async function VenuesPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/venues");
   if (!user.emailVerified) redirect("/verify-email");
+  if (!user.isOrganizer) redirect("/account");
 
   await ensureBusinessProfile(user, "venue");
   const [venues, profiles] = await Promise.all([

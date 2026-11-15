@@ -16,6 +16,7 @@ import { eventDate } from "@/lib/format";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
 import AccountActions from "@/components/AccountActions";
+import { isOperator } from "@/lib/operations";
 import styles from "./AccountDashboard.module.css";
 
 export const metadata = { title: "Your account" };
@@ -52,6 +53,12 @@ export default async function Account() {
       count: savedCount,
     },
     {
+      href: "/intent",
+      title: "nav.personal.intent",
+      description: "nav.personal.intentDescription",
+      icon: FiStar,
+    },
+    {
       href: "/for-you",
       title: "account.recommendations",
       description: user.interests.length
@@ -75,6 +82,7 @@ export default async function Account() {
           <h1>{t("account.greeting", { name: user.name.split(" ")[0] })}</h1>
           <p>{t("account.intro")}</p>
           <div className={styles.heroActions}>
+            {isOperator(user) && <Link className={styles.primaryAction} href="/admin">{language === "it" ? "Centro operativo" : "Operations desk"} <FiArrowUpRight aria-hidden="true" /></Link>}
             <Link className={styles.primaryAction} href="/events">
               {t("nav.discovery.events")} <FiArrowUpRight aria-hidden="true" />
             </Link>

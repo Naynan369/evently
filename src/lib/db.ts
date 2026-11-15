@@ -5,6 +5,7 @@ import { categories, imageOptions, seedEvents } from "./catalog.ts";
 import { isMessinaArea, isMessinaCity } from "./messina.ts";
 import { AppError, integer, textField } from "./security.ts";
 import { eventIsPrivate, organizerDemoMode, sampleListingsEnabled } from "./demo.ts";
+import { refundWindowOpen } from "./refund-policy.ts";
 import { previewIncludedVat, previewTicketReferences, previewVatPercent } from "./ticket-preview.ts";
 import { uploadedEventImageId } from "./event-image.ts";
 import { BUSINESS_COUNTRIES } from "./business-countries.ts";
@@ -103,6 +104,21 @@ const schema = `
   );
   CREATE INDEX IF NOT EXISTS bookings_event_status ON bookings(event_id,status);
   CREATE INDEX IF NOT EXISTS bookings_user ON bookings(user_id);
+  CREATE TABLE IF NOT EXISTS event_intents (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category TEXT NOT NULL,
+    area TEXT NOT NULL DEFAULT '',
+    desired_month TEXT NOT NULL,
+    max_price_cents INTEGER NOT NULL CHECK(max_price_cents BETWEEN 0 AND 50000),
+    party_size INTEGER NOT NULL CHECK(party_size BETWEEN 1 AND 10),
+    note TEXT NOT NULL DEFAULT '',
+    email_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL,
+    UNIQUE(user_id,category,area,desired_month)
+  );
+  CREATE INDEX IF NOT EXISTS event_intents_demand ON event_intents(desired_month,category,area);
   CREATE TABLE IF NOT EXISTS rate_limits (
     key TEXT PRIMARY KEY, count INTEGER NOT NULL, resets_at BIGINT NOT NULL
   );
@@ -132,6 +148,23 @@ const schema = `
     body TEXT NOT NULL, created_at BIGINT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS demo_feedback_created ON demo_feedback(created_at);
+  CREATE TABLE IF NOT EXISTS operator_cases (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject TEXT NOT NULL,
+    details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open',
+    event_id TEXT REFERENCES events(id), booking_id TEXT REFERENCES bookings(id),
+    reporter_id TEXT REFERENCES users(id), created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS operator_cases_status ON operator_cases(status,created_at);
+  CREATE TABLE IF NOT EXISTS message_outbox (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL, booking_id TEXT REFERENCES bookings(id),
+    intent_id TEXT REFERENCES event_intents(id) ON DELETE CASCADE,
+    event_id TEXT REFERENCES events(id),
+    user_id TEXT NOT NULL REFERENCES users(id), status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, last_attempt_at BIGINT,
+    created_at BIGINT NOT NULL, sent_at BIGINT
+  );
+  CREATE INDEX IF NOT EXISTS message_outbox_pending ON message_outbox(status,created_at);
 `;
 
 function pool() {
@@ -192,6 +225,8 @@ async function initialize() {
     await client.query(
       "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS preview_ticket_refs JSONB NOT NULL DEFAULT '[]'::jsonb",
     );
+    await client.query("ALTER TABLE message_outbox ADD COLUMN IF NOT EXISTS intent_id TEXT REFERENCES event_intents(id) ON DELETE CASCADE");
+    await client.query("ALTER TABLE message_outbox ADD COLUMN IF NOT EXISTS event_id TEXT REFERENCES events(id)");
     if (sampleListingsEnabled()) {
       const count = await client.query<{ n: number }>(
         "SELECT COUNT(*)::integer AS n FROM events",
@@ -258,7 +293,7 @@ export async function resetDatabaseForTests() {
     throw new Error("Test database reset requires EVENTLY_TEST_MODE=true.");
   await initializeDatabase();
   await pool().query(
-    "TRUNCATE TABLE demo_feedback,oauth_states,oauth_login_states,social_identities,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
+    "TRUNCATE TABLE message_outbox,event_intents,operator_cases,demo_feedback,oauth_states,oauth_login_states,social_identities,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
   );
 }
 
@@ -906,7 +941,11 @@ export async function createEvent(
     ...content,
     id,
     slug,
-    visibility: organizerDemoMode() ? "draft" : "published",
+    visibility: organizerDemoMode()
+      ? "draft"
+      : process.env.EVENTLY_REQUIRE_EVENT_APPROVAL === "true"
+        ? "review"
+        : "published",
   };
   await run(
     "INSERT INTO events(id,slug,owner_id,data) VALUES(?,?,?,?)",
@@ -1065,6 +1104,15 @@ export async function reserveBooking(
       booking.previewVatPercent,
       booking.previewVatAmount,
     );
+    if (booking.status === "confirmed")
+      await run(
+        "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+        "booking-confirmed:" + booking.id,
+        "booking-confirmed",
+        booking.id,
+        userId,
+        Date.now(),
+      );
     return booking;
   });
 }
@@ -1118,6 +1166,9 @@ export async function confirmPayment(
     if (booking.status === "confirmed" || booking.status === "refunded") return;
     if (booking.status !== "pending")
       throw new AppError("Booking is no longer pending.", 409);
+    await one<{ id: string }>("SELECT id FROM events WHERE id=? FOR UPDATE", booking.eventId);
+    const event = await getEvent(booking.eventId);
+    if (!event) throw new AppError("Event not found.", 404);
     if (booking.previewVatPercent && session.livemode === true)
       throw new AppError("A test booking cannot be confirmed by a live payment.", 400);
     const previewRefs = booking.previewVatPercent
@@ -1129,6 +1180,22 @@ export async function confirmPayment(
       JSON.stringify(previewRefs),
       booking.id,
     );
+    if (event.visibility === "cancelled") {
+      await run(
+        "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+        "event-cancelled:" + booking.id, "event-cancelled", booking.id, booking.userId, Date.now(),
+      );
+      await run(
+        "INSERT INTO operator_cases(id,kind,subject,details,status,event_id,booking_id,created_at,updated_at) VALUES(?,?,?,?,'open',?,?,?,?) ON CONFLICT(id) DO NOTHING",
+        "cancellation-refund:" + booking.id, "payment", "Refund after event cancellation",
+        "Payment completed after this event was cancelled. Issue a full refund.", event.id, booking.id, Date.now(), Date.now(),
+      );
+    } else {
+      await run(
+        "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+        "booking-confirmed:" + booking.id, "booking-confirmed", booking.id, booking.userId, Date.now(),
+      );
+    }
   });
 }
 export async function expireBooking(sessionId: string, bookingId?: string) {
@@ -1153,6 +1220,14 @@ export async function cancelFreeBooking(id: string, userId: string) {
     "UPDATE bookings SET status='cancelled' WHERE id=? AND status='confirmed'",
     id,
   );
+  await run(
+    "INSERT INTO message_outbox(id,kind,booking_id,user_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+    "booking-cancelled:" + id,
+    "booking-cancelled",
+    id,
+    userId,
+    Date.now(),
+  );
 }
 export async function checkIn(
   code: string,
@@ -1167,6 +1242,8 @@ export async function checkIn(
     const event = booking ? await getEvent(booking.eventId) : null;
     if (!booking || event?.ownerId !== ownerId)
       throw new AppError("Ticket not found for one of your events.", 404);
+    if (event.visibility === "cancelled")
+      throw new AppError("This event has been cancelled. Tickets are not valid for entry.", 409);
     if (isPlatformTestBooking(booking))
       throw new AppError("Test checkout tickets are not valid for entry.", 409);
     if (organizerProfileId) {
@@ -1252,6 +1329,9 @@ export async function requestRefund(id: string, userId: string) {
       "Only confirmed paid bookings can request a refund.",
       409,
     );
+  const event = await getEvent(booking.eventId);
+  if (!event || !refundWindowOpen(event))
+    throw new AppError("The refund request window closes seven days before the event, unless the event is cancelled.", 409);
   await run(
     "UPDATE bookings SET refund_requested=? WHERE id=? AND refund_requested=0",
     Date.now(),

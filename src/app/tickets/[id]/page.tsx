@@ -10,6 +10,8 @@ import TicketActions from "@/components/TicketActions";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
 import { isPlatformTestBooking } from "@/lib/platform-checkout-test";
+import { refundWindowOpen } from "@/lib/refund-policy";
+import { deliverMessagesBestEffort } from "@/lib/operations";
 export const metadata = {
   title: "Your ticket",
   robots: { index: false, follow: false },
@@ -30,6 +32,7 @@ export default async function TicketPage({
   let paymentError = false;
   try {
     booking = await reconcileBooking(booking);
+    if (booking.status === "confirmed") await deliverMessagesBestEffort(1);
   } catch {
     paymentError = true;
   }
@@ -65,6 +68,12 @@ export default async function TicketPage({
             {t("ticket.paymentCheckError")}
           </div>
         )}
+        {event.visibility === "cancelled" && (
+          <div className="notice notice-warm" role="status">
+            <strong>{language === "it" ? "Evento annullato" : "Event cancelled"}</strong>{" "}
+            {language === "it" ? "Questo biglietto non è valido per l'ingresso. I biglietti pagati danno diritto a un rimborso completo." : "This ticket is no longer valid for entry. Paid tickets are due a full refund."}
+          </div>
+        )}
         {booking.status === "pending" && (
           <div className="notice">
             <strong>{t("ticket.awaiting")}</strong> {t("ticket.awaitingBody")}
@@ -73,7 +82,7 @@ export default async function TicketPage({
         <article className="ticket-paper">
           <div className="ticket-cover">
             <Image
-              src={"/images/" + event.image + ".jpg"}
+              src={event.coverImage || "/images/" + event.image + ".jpg"}
               alt=""
               fill
               sizes="810px"
@@ -103,7 +112,9 @@ export default async function TicketPage({
               </p>
             </div>
             <div className="ticket-qr">
-              {isPlatformTestBooking(booking) ? (
+              {event.visibility === "cancelled" ? (
+                <span className="status status-pending">{language === "it" ? "ANNULLATO" : "CANCELLED"}</span>
+              ) : isPlatformTestBooking(booking) ? (
                 <>
                   <span className="status status-pending">
                     {language === "it" ? "SOLO PROVA" : "TEST ONLY"}
@@ -168,7 +179,8 @@ export default async function TicketPage({
             </div>
           )}
         </article>
-        <TicketActions booking={booking} />
+        <TicketActions booking={booking} refundWindowOpen={refundWindowOpen(event)} eventCancelled={event.visibility === "cancelled"} />
+        <p><Link href={`/report?booking=${encodeURIComponent(booking.id)}`}>{language === "it" ? "Segnala un problema con questo biglietto" : "Report a problem with this ticket"} ↗</Link></p>
         {booking.mode === "stripe" && booking.status === "confirmed" && (
           <div className="notice">
             {t("ticket.refundHelp", { organizer: event.host })}

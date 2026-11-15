@@ -45,3 +45,6 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 !.env.example
+
+# Browser exports can contain passwords and payment information.
+Safari Export *.zip

@@ -12,6 +12,7 @@ import MessinaGuide from "@/components/MessinaGuide";
 import { categories, categoryName, categoryTagline } from "@/lib/catalog";
 import { isMessinaCity } from "@/lib/messina";
 import { discoveryData } from "@/lib/db";
+import { currentUser } from "@/lib/auth";
 import { getLanguage } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
@@ -37,7 +38,12 @@ const organizerTools = [
 export default async function Home() {
   const language = await getLanguage();
   const t = (key: TranslationKey) => translate(language, key);
-  const events = (await discoveryData()).events;
+  const [discovery, user] = await Promise.all([discoveryData(), currentUser()]);
+  const events = discovery.events;
+  const showOrganizerInvitation = !user || user.isOrganizer;
+  const createEventHref = user
+    ? "/create-event"
+    : "/register?type=organizer&next=/create-event";
   const featured = [
     ...events.filter((e) => !e.sample && isMessinaCity(e.city)),
     ...events.filter((e) => !e.sample && !isMessinaCity(e.city)),
@@ -73,9 +79,11 @@ export default async function Home() {
             <div className="empty-state">
               <h3>{t("home.greatExperiences")}</h3>
               <p>{t("home.firstToBring")}</p>
-              <Link className="button button-primary" href="/create-event">
-                {t("nav.createEvent")}
-              </Link>
+              {showOrganizerInvitation && (
+                <Link className="button button-primary" href={createEventHref}>
+                  {t("nav.createEvent")}
+                </Link>
+              )}
             </div>
           )}
           {featured.some((event) => event.sample) && (
@@ -105,34 +113,34 @@ export default async function Home() {
           ))}
         </div>
       </section>
-      <section className="container organizer-banner">
-        <div className="organizer-intro">
-          <span className="eyebrow organizer-label">
-            <span className="organizer-label-dot" aria-hidden="true" />
-            {t("home.organizers")}
-          </span>
-          <h2>{t("home.smootherEvents")}</h2>
-          <p>
-            {t("home.organizerBody")}
-          </p>
-          <Link className="button button-primary" href="/create-event">
-            {t("home.startOrganizing")} <FiArrowUpRight />
-          </Link>
-        </div>
-        <ul className="organizer-points" aria-label={t("home.organizerTools")}>
-          {organizerTools.map(({ label, description, icon: Icon }) => (
-            <li key={label}>
-              <span className="organizer-tool-icon" aria-hidden="true">
-                <Icon />
-              </span>
-              <span className="organizer-tool-copy">
-                <strong>{t(label)}</strong>
-                <span>{t(description)}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {showOrganizerInvitation && (
+        <section className="container organizer-banner">
+          <div className="organizer-intro">
+            <span className="eyebrow organizer-label">
+              <span className="organizer-label-dot" aria-hidden="true" />
+              {t("home.organizers")}
+            </span>
+            <h2>{t("home.smootherEvents")}</h2>
+            <p>{t("home.organizerBody")}</p>
+            <Link className="button button-primary" href={createEventHref}>
+              {t("home.startOrganizing")} <FiArrowUpRight />
+            </Link>
+          </div>
+          <ul className="organizer-points" aria-label={t("home.organizerTools")}>
+            {organizerTools.map(({ label, description, icon: Icon }) => (
+              <li key={label}>
+                <span className="organizer-tool-icon" aria-hidden="true">
+                  <Icon />
+                </span>
+                <span className="organizer-tool-copy">
+                  <strong>{t(label)}</strong>
+                  <span>{t(description)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
