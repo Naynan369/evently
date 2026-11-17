@@ -25,6 +25,7 @@ export default async function Verify({
       deliveryFailed={delivery === "failed"}
       emailDelivery={emailDeliveryMode()}
       organizerProfile={organizerProfile}
+      operatorAccount={user?.role === "ADMIN"}
     />
   );
 }

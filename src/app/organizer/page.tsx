@@ -23,6 +23,7 @@ export default async function Organizer() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/organizer");
   if (!user.emailVerified) redirect("/verify-email");
+  if (isOperator(user)) redirect("/admin");
   if (!user.isOrganizer) redirect("/account");
 
   await ensureBusinessProfile(user, "organizer");
@@ -40,7 +41,6 @@ export default async function Organizer() {
           <p>{t("organizer.intro")}</p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {isOperator(user) && <Link href="/admin" className="button button-outline">{language === "it" ? "Centro operativo" : "Operations desk"}</Link>}
           <Link href="/organizer/demand" className="button button-outline">{language === "it" ? "Interessi della comunità" : "Community demand"}</Link>
           <Link href="/create-event" className="button button-primary"><FiPlus aria-hidden="true" /> {t("nav.createEvent")}</Link>
         </div>

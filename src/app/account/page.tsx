@@ -27,6 +27,7 @@ export default async function Account() {
     translate(language, key, values);
   const user = await currentUser();
   if (!user) redirect("/login?next=/account");
+  if (isOperator(user)) redirect("/admin");
   if (user.isOrganizer) redirect("/organizer");
 
   const { upcoming, savedCount } = await loadAttendeeDashboard(user.id);
@@ -82,7 +83,6 @@ export default async function Account() {
           <h1>{t("account.greeting", { name: user.name.split(" ")[0] })}</h1>
           <p>{t("account.intro")}</p>
           <div className={styles.heroActions}>
-            {isOperator(user) && <Link className={styles.primaryAction} href="/admin">{language === "it" ? "Centro operativo" : "Operations desk"} <FiArrowUpRight aria-hidden="true" /></Link>}
             <Link className={styles.primaryAction} href="/events">
               {t("nav.discovery.events")} <FiArrowUpRight aria-hidden="true" />
             </Link>

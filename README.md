@@ -182,11 +182,32 @@ The draft platform rule permits a full refund request until seven days before th
 
 ### Operator workspace and service messages
 
-1. Create and verify a dedicated operator account. Set its email in `EVENTLY_ADMIN_EMAILS` (comma-separated for multiple operators), restart or redeploy, then open `/admin`. The operations API checks the same verified-email allowlist. Do not use a shared organizer login as your only operator account.
-2. Once `/admin` works, set `EVENTLY_REQUIRE_EVENT_APPROVAL=true`. New organizer events then enter review and stay out of discovery until approved. Edits to reviewed events return to review; edits after ticket reservations require operator help. Existing published events stay published unless cancelled. Organizers cannot approve their own listings.
-3. Attendees can report an event from its page or a booking from its ticket. The operator can track and resolve cases. For payment disputes, use Stripe's evidence and dispute tools; Evently records the case, not the card-network decision.
-4. Booking confirmation, free-booking cancellation, event cancellation, and refund messages enter a database outbox. Evently attempts immediate delivery after key actions and the Stripe webhook. Set `MYEMAIL`, `MYPASS`, `EMAIL_DELIVERY=gmail`, and `APP_URL` for live delivery. Failed messages are visible in `/admin`; use **Send or retry messages** after fixing the sender. Set `CRON_SECRET` on Vercel for the daily retry route in `vercel.json`.
-5. Set `EVENTLY_LEGAL_NAME`, `EVENTLY_LEGAL_ADDRESS`, `EVENTLY_LEGAL_EMAIL`, and (if applicable) `EVENTLY_VAT_NUMBER`. The `/policies` page is a draft, kept out of search indexing. Obtain legal and privacy review before relying on it for public sales. The fixed refund rule is coded, but ticket tax and Italian fiscal ticket issuance remain separate launch requirements.
+1. For a new dedicated admin account, run the private provisioning command with an unused email address. It creates an inactive `ADMIN` account in the configured PostgreSQL database and emails a one-time link to set a password and verify the address. The address must not already belong to an attendee, organizer, or venue account. Configure `APP_URL` and email delivery first. Run the command with the environment of the intended site; the local database and Vercel database have separate accounts.
+
+   ```sh
+   npm run admin:provision -- --email admin@example.com --name "Evently Admin"
+   ```
+
+   Open the emailed link, set the password, and sign in through the normal login page. The account then opens `/admin`. In local email preview mode, the command prints the preview file containing the setup link. If the 30-minute link expires, use **Forgot password** with the admin email to request a new link. There is no public admin signup option or admin email environment flag. Only the first admin can be provisioned this way; existing admins grant later access from the private Accounts view.
+
+2. If a separate account is already registered and verified, grant the first admin role with the one-time PostgreSQL query below instead. Replace the example email with that account's email. It updates an account without an organizer or venue business profile; a zero-row result means those conditions were not met. The `ADMIN` role persists on that account.
+
+   ```sql
+   UPDATE users AS u
+   SET role = 'ADMIN'
+   WHERE lower(u.email) = lower('admin@example.com')
+     AND u.email_verified_at > 0
+     AND NOT EXISTS (
+       SELECT 1 FROM business_profiles AS b WHERE b.owner_id = u.id
+     )
+   RETURNING u.email, u.role;
+   ```
+
+   Once signed in, use `/admin?view=users` to grant or revoke admin access for other verified accounts. Accounts with organizer or venue business profiles cannot be promoted. An admin cannot remove their own role or the last stored admin role. The private admin page and API check the stored role on every request.
+3. Once `/admin` works, set `EVENTLY_REQUIRE_EVENT_APPROVAL=true`. New organizer events then enter review and stay out of discovery until approved. Edits to reviewed events return to review; edits after ticket reservations require operator help. Existing published events stay published unless cancelled. Organizers cannot approve their own listings.
+4. Attendees can report an event from its page or a booking from its ticket. The operator can track and resolve cases. For payment disputes, use Stripe's evidence and dispute tools; Evently records the case, not the card-network decision.
+5. Booking confirmation, free-booking cancellation, event cancellation, and refund messages enter a database outbox. Evently attempts immediate delivery after key actions and the Stripe webhook. Set `MYEMAIL`, `MYPASS`, `EMAIL_DELIVERY=gmail`, and `APP_URL` for live delivery. Failed messages are visible in `/admin`; use **Send or retry messages** after fixing the sender. Set `CRON_SECRET` on Vercel for the daily retry route in `vercel.json`.
+6. Set `EVENTLY_LEGAL_NAME`, `EVENTLY_LEGAL_ADDRESS`, `EVENTLY_LEGAL_EMAIL`, and (if applicable) `EVENTLY_VAT_NUMBER`. The `/policies` page is a draft, kept out of search indexing. Obtain legal and privacy review before relying on it for public sales. The fixed refund rule is coded, but ticket tax and Italian fiscal ticket issuance remain separate launch requirements.
 
 ## Deployment and data
 

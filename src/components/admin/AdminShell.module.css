@@ -1,0 +1,320 @@
+.workspace {
+  --admin-canvas: #f5f7f7;
+  --admin-panel: #ffffff;
+  --admin-panel-alt: #f0f3f4;
+  --admin-line: #d9e0e2;
+  --admin-ink: #1b292e;
+  --admin-muted: #5e6d72;
+  --admin-sidebar: #eef2f3;
+  --admin-sidebar-ink: #24343a;
+  --admin-sidebar-muted: #5d7075;
+  --admin-accent: #296f78;
+  --admin-accent-soft: #dcebed;
+  --admin-shadow: 0 14px 38px rgb(29 52 58 / 4%);
+  color-scheme: light;
+  display: grid;
+  grid-template-columns: 242px minmax(0, 1fr);
+  min-height: 100svh;
+  background: var(--admin-canvas);
+  color: var(--admin-ink);
+}
+
+:global(.dark) .workspace {
+  --admin-canvas: #121617;
+  --admin-panel: #1c2224;
+  --admin-panel-alt: #252d2f;
+  --admin-line: #354044;
+  --admin-ink: #f2f5f5;
+  --admin-muted: #a8b6ba;
+  --admin-sidebar: #171d1f;
+  --admin-sidebar-ink: #f0f4f4;
+  --admin-sidebar-muted: #a5b3b7;
+  --admin-accent: #a0d8de;
+  --admin-accent-soft: #273c40;
+  --admin-shadow: 0 14px 38px rgb(0 0 0 / 12%);
+  color-scheme: dark;
+}
+.workspace :focus-visible {
+  outline-color: var(--admin-accent);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  min-width: 0;
+  padding: 28px 16px 20px;
+  border-right: 1px solid var(--admin-line);
+  background: var(--admin-sidebar);
+  color: var(--admin-sidebar-ink);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 37px;
+  padding: 0 10px;
+  color: inherit;
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.07em;
+  line-height: 1;
+}
+.identity:hover {
+  color: var(--admin-sidebar-ink);
+}
+.mark {
+  font-size: 24px;
+}
+.dot {
+  color: var(--admin-accent);
+}
+.adminTag {
+  margin-left: 4px;
+  padding: 5px 6px 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  color: var(--admin-sidebar-muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.sidebarRule {
+  height: 1px;
+  margin: 27px 10px 21px;
+  background: var(--admin-line);
+}
+.navigation {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.navigationLink {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 44px;
+  padding: 10px 13px;
+  border-radius: 9px;
+  color: var(--admin-sidebar-muted);
+  font-size: 13px;
+  font-weight: 540;
+  line-height: 1.2;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+.navigationLink svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--admin-sidebar-muted);
+}
+.navigationLink:hover,
+.navigationLink:focus-visible {
+  background: var(--admin-panel-alt);
+  color: var(--admin-sidebar-ink);
+}
+.activeLink,
+.activeLink:hover {
+  background: var(--admin-accent-soft);
+  color: var(--admin-sidebar-ink);
+  font-weight: 670;
+  box-shadow: inset 2px 0 var(--admin-accent);
+}
+.activeLink svg {
+  color: var(--admin-accent);
+}
+.sidebarFoot {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 19px 12px 0;
+  border-top: 1px solid var(--admin-line);
+}
+.sidebarFoot span {
+  color: var(--admin-sidebar-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.sidebarFoot strong,
+.sidebarFoot small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebarFoot strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.sidebarFoot small {
+  color: var(--admin-sidebar-muted);
+  font-size: 11px;
+}
+.mainColumn {
+  min-width: 0;
+}
+.topbar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 71px;
+  padding: 11px clamp(22px, 3vw, 46px);
+  border-bottom: 1px solid var(--admin-line);
+  background: color-mix(in srgb, var(--admin-panel) 96%, transparent);
+  backdrop-filter: blur(16px);
+}
+.topbarTitle {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.topbarTitle span {
+  color: var(--admin-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.topbarTitle strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.iconLink,
+.iconButton,
+.languageControl,
+.topbarActions :global(.account-signout) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 35px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+}
+.iconLink,
+.iconButton {
+  width: 35px;
+  padding: 0;
+}
+.iconLink:hover,
+.iconButton:hover,
+.topbarActions :global(.account-signout:hover) {
+  background: var(--admin-panel-alt);
+}
+.themeSun { display: none; }
+:global(.dark) .themeSun { display: block; }
+:global(.dark) .themeMoon { display: none; }
+.languageControl {
+  gap: 4px;
+  padding: 0 7px;
+}
+.languageControl select {
+  width: 40px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+.topbarActions :global(.account-signout) {
+  gap: 7px;
+  width: auto;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 11px;
+}
+.content {
+  min-width: 0;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    display: block;
+  }
+  .sidebar {
+    position: relative;
+    height: auto;
+    padding: 13px 16px 8px;
+    border-right: 0;
+  }
+  .identity {
+    font-size: 20px;
+  }
+  .sidebarRule,
+  .sidebarFoot {
+    display: none;
+  }
+  .navigation {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    margin-top: 11px;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .navigationLink {
+    flex: none;
+    min-height: 37px;
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 560px) {
+  .topbar {
+    min-height: 62px;
+    padding: 9px 15px;
+  }
+  .topbarTitle span {
+    font-size: 8px;
+  }
+  .topbarTitle strong {
+    font-size: 13px;
+  }
+  .topbarActions {
+    gap: 5px;
+  }
+  .iconLink {
+    display: none;
+  }
+  .topbarActions :global(.account-signout) {
+    width: 35px;
+    padding: 0;
+    font-size: 0;
+  }
+  .topbarActions :global(.account-signout svg) {
+    width: 16px;
+    height: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navigationLink {
+    transition: none;
+  }
+}

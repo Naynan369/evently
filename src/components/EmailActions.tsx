@@ -13,6 +13,7 @@ export default function EmailActions({
   deliveryFailed = false,
   emailDelivery = "unavailable",
   organizerProfile = false,
+  operatorAccount = false,
 }: {
   mode: "verify" | "forgot" | "reset";
   token?: string;
@@ -20,8 +21,9 @@ export default function EmailActions({
   deliveryFailed?: boolean;
   emailDelivery?: EmailDeliveryMode;
   organizerProfile?: boolean;
+  operatorAccount?: boolean;
 }) {
-  const { user, setSession, t } = useApp();
+  const { user, language, setSession, t } = useApp();
   const router = useRouter();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(
@@ -164,16 +166,22 @@ export default function EmailActions({
             className="button button-primary button-wide"
             href={
               mode === "verify" && user
-                ? organizerProfile
-                  ? "/organizer"
-                  : "/for-you"
+                ? operatorAccount
+                  ? "/admin"
+                  : organizerProfile
+                    ? "/organizer"
+                    : "/for-you"
                 : "/login"
             }
           >
             {mode === "verify" && user
-              ? organizerProfile
-                ? t("recovery.openStudio")
-                : t("recovery.findExperience")
+              ? operatorAccount
+                ? language === "it"
+                  ? "Apri il centro operativo"
+                  : "Open operations desk"
+                : organizerProfile
+                  ? t("recovery.openStudio")
+                  : t("recovery.findExperience")
               : t("recovery.backToSignIn")}{" "}
             <FiArrowRight />
           </Link>

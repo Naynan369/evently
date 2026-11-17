@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "db:migrate": "tsx scripts/migrate-database.ts",
+    "admin:provision": "node --import tsx scripts/admin/provision.ts",
     "demo:feedback": "tsx scripts/export-demo-feedback.ts",
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",

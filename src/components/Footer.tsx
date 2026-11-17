@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Brand } from "./Brand";
 import { FiArrowUpRight } from "react-icons/fi";
 import { useApp } from "./AppProvider";
-export default function Footer() {
+export default function Footer({ operator = false }: { operator?: boolean }) {
   const { user, language, t } = useApp();
   return (
     <footer className="site-footer">
@@ -26,7 +26,9 @@ export default function Footer() {
           </div>
           <div>
             <span>{t("footer.account")}</span>
-            {user?.isOrganizer ? (
+            {operator ? (
+              <Link href="/admin">{language === "it" ? "Centro operativo" : "Operations desk"}</Link>
+            ) : user?.isOrganizer ? (
               <>
                 <Link href="/organizer">{t("nav.organize.dashboard")}</Link>
                 <Link href="/create-event">{t("nav.organize.create")}</Link>

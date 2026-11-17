@@ -6,6 +6,7 @@ import { categoryName } from "@/lib/catalog";
 import { money } from "@/lib/format";
 import { getLanguage } from "@/lib/i18n-server";
 import { messinaAreaLabel } from "@/lib/messina";
+import { isOperator } from "@/lib/operations";
 import styles from "@/components/IntentMarketplace.module.css";
 
 export const metadata = { title: "Demand in Messina", robots: { index: false, follow: false } };
@@ -14,6 +15,7 @@ export default async function OrganizerDemandPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/organizer/demand");
   if (!user.emailVerified) redirect("/verify-email");
+  if (isOperator(user)) redirect("/admin");
   if (!user.isOrganizer) redirect("/account");
   const [signals, language] = await Promise.all([demandSignals(), getLanguage()]);
   const it = language === "it";

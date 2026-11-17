@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createEvent, getEvent, listEvents, reserveBooking, confirmPayment, bookingById, checkIn, requestRefund, run, one } from "../src/lib/db.ts";
-import { createCase, dispatchMessages, isOperator, moderateEvent, operatorSnapshot, resolveCase } from "../src/lib/operations.ts";
+import { createEvent, getEvent, listEvents, reserveBooking, confirmPayment, bookingById, checkIn, requestRefund, run, one, userById } from "../src/lib/db.ts";
+import { changeUserRole, createCase, dispatchMessages, isOperator, moderateEvent, operatorSnapshot, resolveCase } from "../src/lib/operations.ts";
 import { prepareTestDatabase } from "./database.ts";
 import type { User } from "../src/lib/types.ts";
 
@@ -10,14 +10,13 @@ await prepareTestDatabase("operations");
 process.env.APP_URL = "http://127.0.0.1:3100";
 process.env.EMAIL_DELIVERY = "preview";
 process.env.EMAIL_PREVIEW_DIR = "/private/tmp/evently-operations-mail";
-process.env.EVENTLY_ADMIN_EMAILS = "operator@example.test";
 process.env.EVENTLY_REQUIRE_EVENT_APPROVAL = "true";
 
-const owner: User = { id: "ops-owner", name: "Organizer", email: "organizer@example.test", interests: [], stripeAccount: "acct_ops", emailVerified: true };
-const guest: User = { id: "ops-guest", name: "Guest", email: "guest@example.test", interests: [], stripeAccount: null, emailVerified: true };
-const operator: User = { ...guest, id: "ops-operator", email: "operator@example.test" };
+const owner: User = { id: "ops-owner", name: "Organizer", email: "organizer@example.test", role: "USER", interests: [], stripeAccount: "acct_ops", emailVerified: true };
+const guest: User = { id: "ops-guest", name: "Guest", email: "guest@example.test", role: "USER", interests: [], stripeAccount: null, emailVerified: true };
+const operator: User = { ...guest, id: "ops-operator", email: "operator@example.test", role: "ADMIN" };
 for (const user of [owner, guest, operator])
-  await run("INSERT INTO users(id,name,email,password_hash,stripe_account,created_at) VALUES(?,?,?,?,?,?)", user.id, user.name, user.email, "unused", user.stripeAccount, Date.now());
+  await run("INSERT INTO users(id,name,email,password_hash,stripe_account,created_at,role,email_verified_at) VALUES(?,?,?,?,?,?,?,?)", user.id, user.name, user.email, "unused", user.stripeAccount, Date.now(), user.role, user.id === operator.id ? Date.now() : 0);
 const photo = randomUUID();
 await run("INSERT INTO event_images(id,owner_id,media_type,bytes,created_at) VALUES(?,?,?,?,?)", photo, owner.id, "image/jpeg", Buffer.from([0xff, 0xd8, 0xff, 0xd9]), Date.now());
 function input(price: number) {
@@ -32,7 +31,7 @@ function input(price: number) {
   };
 }
 
-test("only a verified allowlisted account can operate listings", async () => {
+test("a verified stored admin can operate listings", async () => {
   assert.equal(isOperator(operator), true);
   assert.equal(isOperator({ ...operator, emailVerified: false }), false);
   assert.equal(isOperator(guest), false);
@@ -44,6 +43,20 @@ test("only a verified allowlisted account can operate listings", async () => {
   assert.equal((await getEvent(event.id))?.visibility, "published");
   assert.equal((await listEvents()).some((item) => item.id === event.id), true);
   await assert.rejects(moderateEvent(event.id, "approve"), { status: 409 });
+});
+
+test("admin roles require a verified account and cannot be self-removed", async () => {
+  await assert.rejects(changeUserRole(guest, guest.id, "ADMIN"), { status: 403 });
+  await assert.rejects(changeUserRole(operator, guest.id, "ADMIN"), { status: 409 });
+  await run("UPDATE users SET email_verified_at=? WHERE id=?", Date.now(), guest.id);
+  await changeUserRole(operator, guest.id, "ADMIN");
+  assert.equal((await userById(guest.id))?.role, "ADMIN");
+  assert.equal(isOperator(await userById(guest.id)), true);
+  const promoted = (await userById(guest.id))!;
+  await assert.rejects(changeUserRole(promoted, guest.id, "USER"), { status: 409 });
+  await changeUserRole(operator, guest.id, "USER");
+  assert.equal((await userById(guest.id))?.role, "USER");
+  await assert.rejects(changeUserRole(operator, operator.id, "USER"), { status: 409 });
 });
 
 test("cancellation invalidates entry, queues notice and exposes paid refunds", async () => {

@@ -3,7 +3,7 @@ import { all, bookingById, getEvent, one, run, transaction, userById } from "./d
 import { applicationOrigin, emailDeliveryMode, sendOperationalEmail } from "./mail.ts";
 import { AppError, textField } from "./security.ts";
 import { eventMatchesIntent, intentById, queueIntentMatchesForEvent } from "./intents.ts";
-import type { Event, User } from "./types.ts";
+import type { BusinessProfile, Event, User } from "./types.ts";
 
 export type OperatorCase = {
   id: string;
@@ -20,12 +20,37 @@ export type OperatorCase = {
   updatedAt: number;
 };
 
+export type OperatorOrganizer = BusinessProfile & {
+  ownerName: string;
+  ownerEmail: string;
+};
+
+export type OperatorBooking = {
+  id: string;
+  eventTitle: string;
+  eventSlug: string;
+  attendeeEmail: string;
+  ticketType: string;
+  quantity: number;
+  total: number;
+  currency: string;
+  status: string;
+  mode: string;
+  createdAt: number;
+};
+
+export type OperatorUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "USER" | "ADMIN";
+  emailVerified: boolean;
+  hasBusinessProfile: boolean;
+  createdAt: number;
+};
+
 export function isOperator(user: User | null) {
-  const emails = (process.env.EVENTLY_ADMIN_EMAILS || "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  return Boolean(user?.emailVerified && emails.includes(user.email.toLowerCase()));
+  return Boolean(user?.emailVerified && user.role === "ADMIN");
 }
 
 export function assertOperator(user: User | null): asserts user is User {
@@ -35,7 +60,7 @@ export function assertOperator(user: User | null): asserts user is User {
 const caseColumns = 'c.id,c.kind,c.subject,c.details,c.status,c.event_id AS "eventId",c.booking_id AS "bookingId",c.reporter_id AS "reporterId",u.email AS "reporterEmail",e.data::jsonb->>\'title\' AS "eventTitle",c.created_at AS "createdAt",c.updated_at AS "updatedAt"';
 
 export async function operatorSnapshot() {
-  const [eventRows, cases, pendingMessages, exceptions, messageIssues, pendingCancellations] = await Promise.all([
+  const [eventRows, cases, pendingMessages, exceptions, messageIssues, pendingCancellations, organizerRows, bookingRows, users, totals, crmDue] = await Promise.all([
     all<{ data: string }>("SELECT data FROM events WHERE owner_id IS NOT NULL ORDER BY id DESC"),
     all<OperatorCase>(`SELECT ${caseColumns} FROM operator_cases c LEFT JOIN users u ON u.id=c.reporter_id LEFT JOIN events e ON e.id=c.event_id ORDER BY CASE c.status WHEN 'open' THEN 0 ELSE 1 END, c.created_at DESC LIMIT 100`),
     one<{ count: number }>("SELECT COUNT(*)::integer AS count FROM message_outbox WHERE status IN ('pending','failed')"),
@@ -57,15 +82,106 @@ export async function operatorSnapshot() {
        WHERE b.status='pending' AND b.mode='stripe' AND e.data::jsonb->>'visibility'='cancelled'
        ORDER BY b.created_at DESC LIMIT 40`,
     ),
+    all<{ data: string; ownerName: string; ownerEmail: string }>(
+      `SELECT b.data,u.name AS "ownerName",u.email AS "ownerEmail"
+       FROM business_profiles b JOIN users u ON u.id=b.owner_id
+       WHERE b.kind='organizer' ORDER BY u.name,b.id LIMIT 100`,
+    ),
+    all<OperatorBooking>(
+      `SELECT b.id,b.quantity,b.total,b.currency,b.status,b.mode,
+              b.ticket_type AS "ticketType",b.created_at AS "createdAt",
+              u.email AS "attendeeEmail",e.slug AS "eventSlug",
+              e.data::jsonb->>'title' AS "eventTitle"
+       FROM bookings b JOIN users u ON u.id=b.user_id JOIN events e ON e.id=b.event_id
+       ORDER BY b.created_at DESC LIMIT 100`,
+    ),
+    all<{ id: string; name: string; email: string; role: "USER" | "ADMIN"; emailVerified: boolean; hasBusinessProfile: boolean; createdAt: number }>(
+      `SELECT u.id,u.name,u.email,u.role,
+              (u.email_verified_at>0) AS "emailVerified",
+              EXISTS(SELECT 1 FROM business_profiles b WHERE b.owner_id=u.id) AS "hasBusinessProfile",
+              u.created_at AS "createdAt"
+       FROM users u ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 ELSE 1 END,u.created_at DESC LIMIT 100`,
+    ),
+    one<{ organizerCount: number; paidTickets: number; confirmedSalesCents: number }>(
+      `SELECT
+        (SELECT COUNT(*)::integer FROM business_profiles WHERE kind='organizer') AS "organizerCount",
+        (SELECT COALESCE(SUM(quantity),0)::bigint FROM bookings WHERE status='confirmed' AND mode='stripe') AS "paidTickets",
+        (SELECT COALESCE(SUM(total),0)::bigint FROM bookings WHERE status='confirmed' AND mode='stripe' AND LOWER(currency)='eur') AS "confirmedSalesCents"`,
+    ),
+    one<{ count: number }>(
+      `SELECT COUNT(*)::integer AS count FROM crm_contacts
+       WHERE follow_up_on<=to_char(now() AT TIME ZONE 'Europe/Rome','YYYY-MM-DD')
+         AND status IN ('open','waiting')`,
+    ),
   ]);
+  const events = eventRows
+    .map((row) => JSON.parse(row.data) as Event)
+    .sort((a, b) =>
+      Number(b.visibility === "review") - Number(a.visibility === "review") ||
+      Date.parse(b.startsAt) - Date.parse(a.startsAt),
+    );
   return {
-    events: eventRows.map((row) => JSON.parse(row.data) as Event),
+    events,
     cases,
     pendingMessages: pendingMessages?.count || 0,
+    crmDue: crmDue?.count || 0,
     refundRequests: exceptions,
     messageIssues,
     pendingCancellations,
+    organizers: organizerRows.map((row) => ({
+      ...(JSON.parse(row.data) as BusinessProfile),
+      ownerName: row.ownerName,
+      ownerEmail: row.ownerEmail,
+    })) satisfies OperatorOrganizer[],
+    bookings: bookingRows,
+    users: users satisfies OperatorUser[],
+    totals: {
+      organizerCount: totals?.organizerCount ?? 0,
+      paidTickets: totals?.paidTickets ?? 0,
+      confirmedSalesCents: totals?.confirmedSalesCents ?? 0,
+    },
+    settings: {
+      approvalRequired: process.env.EVENTLY_REQUIRE_EVENT_APPROVAL === "true",
+      emailDelivery: emailDeliveryMode(),
+    },
   };
+}
+
+export async function changeUserRole(actor: User, userId: string, role: "USER" | "ADMIN") {
+  assertOperator(actor);
+  if (role !== "USER" && role !== "ADMIN") throw new AppError("Invalid account role.");
+  if (role === "USER" && actor.id === userId)
+    throw new AppError("You cannot remove your own admin access.", 409);
+  await transaction(async () => {
+    // Serialize role changes so two admins cannot demote the last stored admin together.
+    await run("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE");
+    const target = await one<{ id: string; role: "USER" | "ADMIN"; emailVerified: number; hasBusinessProfile: boolean }>(
+      `SELECT u.id,u.role,u.email_verified_at AS "emailVerified",
+              EXISTS(SELECT 1 FROM business_profiles b WHERE b.owner_id=u.id) AS "hasBusinessProfile"
+       FROM users u WHERE u.id=?`, userId,
+    );
+    if (!target) throw new AppError("Account not found.", 404);
+    if (role === "ADMIN" && (!target.emailVerified || target.hasBusinessProfile))
+      throw new AppError("Only a verified account without a business profile can become an admin.", 409);
+    if (role === "USER" && target.role === "ADMIN") {
+      const admins = await one<{ count: number }>("SELECT COUNT(*)::integer AS count FROM users WHERE role='ADMIN'");
+      if ((admins?.count ?? 0) <= 1)
+        throw new AppError("At least one admin account must remain.", 409);
+    }
+    await run("UPDATE users SET role=? WHERE id=?", role, userId);
+  });
+}
+
+export async function findOperatorUser(email: string): Promise<OperatorUser | null> {
+  const normalized = textField(email, "Email", 5, 254).toLowerCase();
+  const user = await one<OperatorUser>(
+    `SELECT u.id,u.name,u.email,u.role,
+            (u.email_verified_at>0) AS "emailVerified",
+            EXISTS(SELECT 1 FROM business_profiles b WHERE b.owner_id=u.id) AS "hasBusinessProfile",
+            u.created_at AS "createdAt"
+     FROM users u WHERE u.email=?`, normalized,
+  );
+  return user ?? null;
 }
 
 export async function retryFailedMessages() {

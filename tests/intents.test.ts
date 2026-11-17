@@ -14,10 +14,10 @@ process.env.EMAIL_PREVIEW_DIR = "/private/tmp/evently-intent-mail";
 process.env.EVENTLY_ORGANIZER_DEMO = "false";
 process.env.EVENTLY_REQUIRE_EVENT_APPROVAL = "true";
 
-const owner: User = { id: "intent-owner", name: "Organizer", email: "intent-owner@example.test", interests: [], stripeAccount: null, emailVerified: true };
+const owner: User = { id: "intent-owner", name: "Organizer", email: "intent-owner@example.test", role: "USER", interests: [], stripeAccount: null, emailVerified: true };
 const guests: User[] = [0, 1, 2, 3].map((index) => ({
   id: `intent-guest-${index}`, name: `Guest ${index}`, email: `intent-guest-${index}@example.test`,
-  interests: [], stripeAccount: null, emailVerified: true,
+  role: "USER", interests: [], stripeAccount: null, emailVerified: true,
 }));
 for (const user of [owner, ...guests])
   await run("INSERT INTO users(id,name,email,password_hash,created_at) VALUES(?,?,?,?,?)", user.id, user.name, user.email, "unused", Date.now());

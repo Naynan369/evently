@@ -44,7 +44,8 @@ const schema = `
     id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL, interests TEXT NOT NULL DEFAULT '[]',
     stripe_account TEXT, created_at BIGINT NOT NULL,
-    email_verified_at BIGINT NOT NULL DEFAULT 0
+    email_verified_at BIGINT NOT NULL DEFAULT 0,
+    role TEXT NOT NULL DEFAULT 'USER' CHECK (role IN ('USER','ADMIN'))
   );
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
@@ -156,6 +157,22 @@ const schema = `
     updated_at BIGINT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS operator_cases_status ON operator_cases(status,created_at);
+  CREATE TABLE IF NOT EXISTS crm_contacts (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'none' CHECK (status IN ('none','open','waiting','resolved')),
+    follow_up_on TEXT,
+    updated_at BIGINT NOT NULL,
+    updated_by TEXT REFERENCES users(id) ON DELETE SET NULL
+  );
+  CREATE INDEX IF NOT EXISTS crm_contacts_follow_up ON crm_contacts(follow_up_on,status);
+  CREATE TABLE IF NOT EXISTS crm_notes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    created_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS crm_notes_contact ON crm_notes(user_id,created_at DESC);
   CREATE TABLE IF NOT EXISTS message_outbox (
     id TEXT PRIMARY KEY, kind TEXT NOT NULL, booking_id TEXT REFERENCES bookings(id),
     intent_id TEXT REFERENCES event_intents(id) ON DELETE CASCADE,
@@ -206,6 +223,9 @@ async function initialize() {
     await client.query(schema);
     await client.query(
       "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at BIGINT NOT NULL DEFAULT 0",
+    );
+    await client.query(
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'USER' CHECK (role IN ('USER','ADMIN'))",
     );
     await client.query(
       "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_requested BIGINT NOT NULL DEFAULT 0",
@@ -293,7 +313,7 @@ export async function resetDatabaseForTests() {
     throw new Error("Test database reset requires EVENTLY_TEST_MODE=true.");
   await initializeDatabase();
   await pool().query(
-    "TRUNCATE TABLE message_outbox,event_intents,operator_cases,demo_feedback,oauth_states,oauth_login_states,social_identities,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
+    "TRUNCATE TABLE message_outbox,crm_notes,crm_contacts,event_intents,operator_cases,demo_feedback,oauth_states,oauth_login_states,social_identities,music_profiles,music_connections,account_tokens,rate_limits,bookings,saved,sessions,events,venues,business_profiles,users CASCADE",
   );
 }
 
@@ -374,6 +394,7 @@ export function publicUser(
     id: String(row.id),
     name: String(row.name),
     email: String(row.email),
+    role: row.role === "ADMIN" ? "ADMIN" : "USER",
     interests: JSON.parse(String(row.interests)) as Category[],
     stripeAccount: row.stripe_account ? String(row.stripe_account) : null,
     emailVerified: Boolean(row.email_verified_at),

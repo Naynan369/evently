@@ -1,7 +1,7 @@
 .workspace {
-  --workspace-rail: #1d2224;
-  --workspace-rail-line: #343c3e;
-  --workspace-rail-muted: #aab5b7;
+  --workspace-rail: #1c1c1c;
+  --workspace-rail-line: #3c3c3c;
+  --workspace-rail-muted: #b7b7b7;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
   min-height: 100svh;
@@ -18,7 +18,7 @@
   padding: 28px 14px 16px;
   border-right: 1px solid var(--workspace-rail-line);
   background: var(--workspace-rail);
-  color: #f4f7f7;
+  color: #f5f5f5;
 }
 
 .identity {
@@ -60,7 +60,7 @@
   padding: 0 12px;
   border-radius: 9px;
   background: #d6f4f2;
-  color: #122629;
+  color: #172727;
   font-size: 12px;
   font-weight: 700;
   transition:
@@ -96,7 +96,7 @@
   min-height: 42px;
   padding: 0 12px;
   border-radius: 8px;
-  color: #c3cbcc;
+  color: #d0d0d0;
   font-size: 12px;
   font-weight: 600;
   transition:
@@ -105,19 +105,19 @@
 }
 
 .navigationLink:hover {
-  background: #303a3c;
+  background: #303030;
   color: #fff;
 }
 
 .navigationLink svg {
   width: 16px;
   height: 16px;
-  color: #a5b2b4;
+  color: #b9b9b9;
 }
 
 .activeLink {
-  background: #344447;
-  color: #effdfc;
+  background: #353535;
+  color: #f5f5f5;
 }
 
 .activeLink svg {
@@ -141,10 +141,10 @@
   flex: 0 0 32px;
   place-items: center;
   height: 32px;
-  border: 1px solid #66797b;
+  border: 1px solid #666666;
   border-radius: 8px;
-  background: #3b4d50;
-  color: #e9f9f7;
+  background: #333333;
+  color: #f5f5f5;
   font-size: 10px;
   font-weight: 700;
 }
@@ -174,11 +174,11 @@
 .sidebarBottom :global(.account-signout) {
   width: 100%;
   margin-top: 10px;
-  color: #c3cbcc;
+  color: #d0d0d0;
 }
 
 .sidebarBottom :global(.account-signout:hover) {
-  background: #303a3c;
+  background: #303030;
   color: #fff;
 }
 
@@ -332,7 +332,7 @@
     top: 0;
     right: 0;
     border-color: var(--workspace-rail-line);
-    background: #303a3c;
+    background: #303030;
     color: #fff;
   }
 }

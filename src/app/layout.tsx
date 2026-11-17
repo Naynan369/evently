@@ -6,6 +6,7 @@ import { AppProvider } from "@/components/AppProvider";
 import { currentUser } from "@/lib/auth";
 import { savedIds } from "@/lib/db";
 import { getLanguage } from "@/lib/i18n-server";
+import { isOperator } from "@/lib/operations";
 import { translate } from "@/lib/i18n";
 import "./globals.css";
 import "./professional.css";
@@ -44,7 +45,7 @@ export default async function RootLayout({
             <a className="skip-link" href="#main">
               {translate(language, "common.skipContent")}
             </a>
-            <AppShell>{children}</AppShell>
+            <AppShell operator={isOperator(user)}>{children}</AppShell>
           </AppProvider>
         </ThemeProvider>
       </body>

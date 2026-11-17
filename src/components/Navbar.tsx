@@ -26,6 +26,7 @@ import {
   FiMoon,
   FiSun,
   FiGlobe,
+  FiShield,
 } from "react-icons/fi";
 import { Brand } from "./Brand";
 import { useApp } from "./AppProvider";
@@ -162,11 +163,23 @@ function MenuLink({
     </Link>
   );
 }
-export default function Navbar() {
+function AdminMenuLink({ language, onNavigate }: { language: Language; onNavigate: () => void }) {
+  return (
+    <Link href="/admin" className="navigation-item" onClick={onNavigate}>
+      <span className="navigation-icon"><FiShield aria-hidden="true" /></span>
+      <span className="navigation-copy">
+        <strong>{language === "it" ? "Centro operativo" : "Operations desk"}</strong>
+        <span>{language === "it" ? "Gestione della piattaforma" : "Manage the platform"}</span>
+      </span>
+      <FiArrowRight className="navigation-arrow" aria-hidden="true" />
+    </Link>
+  );
+}
+export default function Navbar({ operator = false }: { operator?: boolean }) {
   const path = usePathname();
   const { user, language, setLanguage, t } = useApp();
-  const attendeeWorkspace = Boolean(user && !user.isOrganizer);
-  const accountItems = user?.isOrganizer ? organizerAccount : attendeeAccount;
+  const attendeeWorkspace = Boolean(user && (!user.isOrganizer || operator));
+  const accountItems = operator ? [] : user?.isOrganizer ? organizerAccount : attendeeAccount;
   const { resolvedTheme, setTheme } = useTheme();
   const [panel, setPanel] = useState<
     "discover" | "account" | "language" | "mobile" | null
@@ -379,6 +392,9 @@ export default function Navbar() {
                         onNavigate={close}
                       />
                     ))}
+                    {operator && (
+                      <AdminMenuLink language={language} onNavigate={close} />
+                    )}
                     <div className="account-menu-bottom">
                       <Link href="/help" onClick={close}>
                         <FiHelpCircle aria-hidden="true" /> {t("nav.help")}
@@ -453,6 +469,9 @@ export default function Navbar() {
                       onNavigate={close}
                     />
                   ))}
+                  {operator && group.label === t("nav.yourAccount") && (
+                    <AdminMenuLink language={language} onNavigate={close} />
+                  )}
                 </section>
               ))}
             </div>

@@ -81,7 +81,8 @@ import {
   MAX_EVENT_IMAGE_BYTES,
   uploadedEventImageId,
 } from "@/lib/event-image";
-import { assertOperator, createCase, deliverMessagesBestEffort, moderateEvent, operatorSnapshot, resolveCase, retryFailedMessages } from "@/lib/operations";
+import { assertOperator, changeUserRole, createCase, deliverMessagesBestEffort, findOperatorUser, isOperator, moderateEvent, operatorSnapshot, resolveCase, retryFailedMessages } from "@/lib/operations";
+import { addCrmNote, crmContactDetail, listCrmContacts, updateCrmContact } from "@/lib/admin-crm";
 import { deleteIntent, demandSignals, intentMatchesForUser, intentsForUser, queueIntentMatchesForEvent, saveIntent } from "@/lib/intents";
 
 export const runtime = "nodejs";
@@ -291,8 +292,8 @@ async function handle(request: Request, context: Context) {
       );
       if (!row || !valid)
         throw new AppError("Email or password is incorrect.", 401);
-      await run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
       const user = (await userById(String(row.id)))!;
+      await run("DELETE FROM rate_limits WHERE key=?", "login:" + tokenHash(email));
       await createSession(user.id);
       return json({
         user,
@@ -363,6 +364,40 @@ async function handle(request: Request, context: Context) {
     if (path[0] === "admin") {
       assertOperator(user);
       if (route === "admin" && method === "GET") return json(await operatorSnapshot());
+      if (route === "admin/crm" && method === "GET") {
+        const params = new URL(request.url).searchParams;
+        return json(await listCrmContacts(user, {
+          query: params.get("query") ?? "",
+          segment: params.get("segment") ?? "all",
+          page: params.get("page") ?? "1",
+        }));
+      }
+      if (path.length === 4 && path[1] === "crm" && path[2] === "contacts") {
+        if (method === "GET") return json(await crmContactDetail(user, path[3]));
+        if (method === "PUT") {
+          const input = await body(request);
+          await updateCrmContact(user, path[3], {
+            status: input.status,
+            followUpOn: input.followUpOn,
+          });
+          return json({ ok: true });
+        }
+      }
+      if (path.length === 5 && path[1] === "crm" && path[2] === "contacts" && path[4] === "notes" && method === "POST") {
+        const input = await body(request);
+        return json({ id: await addCrmNote(user, path[3], input.note) }, 201);
+      }
+      if (route === "admin/users" && method === "GET") {
+        const email = new URL(request.url).searchParams.get("email") ?? "";
+        return json({ user: await findOperatorUser(email) });
+      }
+      if (path.length === 4 && path[1] === "users" && path[3] === "role" && method === "POST") {
+        const input = await body(request);
+        if (input.role !== "USER" && input.role !== "ADMIN")
+          throw new AppError("Invalid account role.");
+        await changeUserRole(user, path[2], input.role);
+        return json({ ok: true });
+      }
       if (route === "admin/messages/dispatch" && method === "POST")
         return json(await retryFailedMessages());
       if (route === "admin/cases" && method === "POST") {
@@ -443,6 +478,8 @@ async function handle(request: Request, context: Context) {
       path[0] === "organizer" ||
       path[0] === "stripe" ||
       (path[0] === "events" && method !== "GET");
+    if (organizerRoute && isOperator(user))
+      throw new AppError("Admin accounts use the operations desk.", 403);
     if (organizerRoute && !user.isOrganizer)
       throw new AppError("An organizer account is required.", 403);
     if (route === "organizer/demand" && method === "GET")

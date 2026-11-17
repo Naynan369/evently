@@ -81,6 +81,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  role: "USER" | "ADMIN";
   interests: Category[];
   stripeAccount: string | null;
   emailVerified: boolean;

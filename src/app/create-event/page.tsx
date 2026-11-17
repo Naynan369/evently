@@ -16,6 +16,7 @@ import { previewVatPercent } from "@/lib/ticket-preview";
 import { platformCheckoutTestEnabled } from "@/lib/platform-checkout-test";
 import { categories } from "@/lib/catalog";
 import { intentMonthOptions } from "@/lib/intents";
+import { isOperator } from "@/lib/operations";
 import { isMessinaArea, messinaAreaLabel, type MessinaArea } from "@/lib/messina";
 import type { Category } from "@/lib/types";
 export const metadata = { title: "Create an event" };
@@ -41,6 +42,7 @@ export default async function CreateEvent({
         encodeURIComponent("/create-event" + (edit ? "?edit=" + edit : "")),
     );
   if (!user.emailVerified) redirect("/verify-email");
+  if (isOperator(user)) redirect("/admin");
   if (!user.isOrganizer) redirect("/account");
   const initial = edit ? await getEvent(edit) : undefined;
   if (edit && (!initial || initial.ownerId !== user.id)) notFound();

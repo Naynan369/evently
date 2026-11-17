@@ -63,7 +63,7 @@ export default function AuthForm({
       const result = await api<{
         user: User;
         saved: string[];
-        home?: "/account" | "/organizer";
+        home?: "/account" | "/organizer" | "/admin";
         verificationSent?: boolean;
         verificationDelivery?: string;
       }>("auth/" + (register ? "register" : "login"), {
