@@ -116,14 +116,9 @@ async function sendMessage(message: OutgoingMessage) {
     html: message.html,
   });
   const accepted = Array.isArray(result.accepted) ? result.accepted : [];
-  const recipientAccepted = accepted.some((recipient) => {
-    const address =
-      typeof recipient === "string" ? recipient : recipient.address;
-    return (
-      typeof address === "string" &&
-      address.trim().toLowerCase() === message.to.trim().toLowerCase()
-    );
-  });
+  const recipientAccepted = accepted.some(
+    (address) => address.trim().toLowerCase() === message.to.trim().toLowerCase(),
+  );
   if (!recipientAccepted)
     throw new AppError(
       "The mail provider did not accept the email. Please try again shortly.",

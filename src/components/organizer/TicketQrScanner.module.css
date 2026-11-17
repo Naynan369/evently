@@ -1,0 +1,90 @@
+.scanner {
+  margin-top: 17px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.header > span svg { color: var(--accent); }
+
+.header button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.header button:hover { border-color: var(--accent); }
+
+.viewport {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  border-radius: 9px;
+  background: #101719;
+}
+
+.viewport video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.frame {
+  position: absolute;
+  inset: 16%;
+  border: 2px solid rgb(255 255 255 / 87%);
+  border-radius: 14px;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 15%);
+  pointer-events: none;
+}
+
+.starting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(11 17 19 / 72%);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+.help,
+.issue {
+  margin-top: 11px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.help { color: var(--muted); }
+.issue { color: var(--ink); }
+
+@media (max-width: 620px) {
+  .viewport { aspect-ratio: 1 / 1; }
+  .frame { inset: 18%; }
+}

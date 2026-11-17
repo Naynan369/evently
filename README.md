@@ -15,11 +15,11 @@ A working event discovery and ticketing application built with Next.js, React, P
 - Revocable server-backed sessions; password recovery signs out every existing session.
 - Recommendations based on selected interests, saved categories, artist lineups and music genres, with booked and unavailable events excluded.
 - Optional Apple Music and gated Spotify connections: consent, playlist selection, bounded import, explicit match reasons and disconnect/delete controls. Manual artist and genre preferences work without provider credentials.
-- Organizer event publishing/editing, inventory limits, guest lists, CSV export and ticket-code check-in.
+- Organizer event publishing/editing, inventory limits, guest lists, CSV export and camera QR check-in with manual code entry as a fallback.
 - Distinct signed-in workspaces: attendee accounts open a dashboard for plans and preferences; organizer accounts open a studio for event creation and operations. They share the same sign-in page, while organizer tools require an organizer account.
 - Free reservations and clearly marked sample bookings; QR tickets, calendar downloads and print-to-PDF.
 - Stripe Connect onboarding, hosted Checkout, verified payment fulfillment, checkout resumption/cancellation, attendee refund requests and organizer full refunds.
-- A private operations desk for listing review, reports, disputes, cancelled-event refund follow-up, and failed booking emails.
+- A private operations desk for listing review, reports, disputes, cancelled-event refund follow-up, failed booking emails, and an admin contact CRM with notes and follow-up dates.
 - Attendee event ideas for Messina and an anonymous organizer demand board, with matching-event emails only for attendees who opt in.
 
 The included listings are fictional examples. Sample bookings never charge money and do not grant admission to real events. The application does not come with Stripe credentials or a connected merchant account.
@@ -44,7 +44,7 @@ Set `EVENTLY_ORGANIZER_DEMO=true` in `.env.local` and restart the app. In this m
 
 - New organizer events are saved as private drafts. Only their owner can open the event preview; drafts do not appear in search, discovery, or recommendations.
 - Ticket prices are planning information. Stripe setup is hidden in Organizer studio and payment actions are disabled, even if a Stripe key is configured.
-- Organizers can create up to ten clearly marked practice guests for each private event, open their sample tickets, and test code-based check-in and guest export. Practice tickets do not grant real admission.
+- Organizers can create up to ten clearly marked practice guests for each private event, open their sample tickets, and test QR or code check-in and guest export. Practice tickets do not grant real admission.
 - Organizers can submit feedback in Organizer studio. Read the saved responses locally with `npm run demo:feedback` (includes organizer names and email addresses; keep the output private).
 
 Use verified test accounts for organizers. The demo needs PostgreSQL, but no Stripe account. Existing organizer events are private while demo mode is enabled; newly created drafts remain private when demo mode is turned off. Public sample listings still appear for exploration. This is suitable for guided local sessions before setting up an invite-only preview address.
@@ -237,6 +237,7 @@ If you already have Evently data in another PostgreSQL database, copy it to Neon
 
 ```sh
 npm run lint
+npm run test:unit
 npm test
 npm run build
 npm run test:e2e
@@ -244,7 +245,7 @@ npm run test:e2e
 
 The tests cover password hashing, one-use/expired verification and reset tokens, session revocation, mail failure cleanup, music encryption, OAuth state, Spotify refresh/import contracts, Apple JWT signing/import contracts, disconnect races, recommendation exclusions, capacity, idempotency, ownership and signed payment webhooks.
 
-The unit and end-to-end suites use PostgreSQL. Set `TEST_DATABASE_URL` to a separate disposable database; tests isolate their tables in dedicated schemas. Never point it at production data. The end-to-end suite also writes to a local email outbox. It uses **fixture secrets**, not a real Stripe account, and does not charge money. Tests default to installed Google Chrome. To use Playwright Chromium, install it with `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium`. Build before running the suite.
+`npm run test:unit` runs checks that do not require a database. The full `npm test` and end-to-end suites use PostgreSQL. Set `TEST_DATABASE_URL` to a separate disposable database; tests isolate their tables in dedicated schemas. Never point it at production data. The end-to-end suite also writes to a local email outbox. It uses **fixture secrets**, not a real Stripe account, and does not charge money. Tests default to installed Google Chrome. To use Playwright Chromium, install it with `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium`. Build before running the suite.
 
 Run only the API flow with:
 

@@ -1,33 +1,3 @@
-:root {
-  --bg: #f7f7f7;
-  --surface: #ffffff;
-  --ink: #171717;
-  --muted: #616161;
-  --line: #dddddd;
-  --soft: #ededed;
-  --accent: #171717;
-  --accent-hover: #333333;
-  --accent-soft: #e8e8e8;
-  --accent-contrast: #ffffff;
-  --green: #5d5d5d;
-  --radius: 12px;
-}
-
-.dark {
-  color-scheme: dark;
-  --bg: #111111;
-  --surface: #1f1f1f;
-  --ink: #f5f5f5;
-  --muted: #b9b9b9;
-  --line: #3c3c3c;
-  --soft: #2b2b2b;
-  --accent: #f5f5f5;
-  --accent-hover: #dedede;
-  --accent-soft: #353535;
-  --accent-contrast: #111111;
-  --green: #e4e4e4;
-}
-
 html {
   scroll-padding-top: 84px;
 }
@@ -4579,7 +4549,7 @@ h4 {
   align-items: center;
   gap: 9px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -4636,7 +4606,7 @@ h4 {
 
 .org-stat-label {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .org-stat strong {
@@ -4649,7 +4619,7 @@ h4 {
 
 .org-stat small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .org-section {
@@ -4690,7 +4660,7 @@ h4 {
 
 .org-tool-state {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.13em;
 }
@@ -4706,11 +4676,27 @@ h4 {
   max-width: 470px;
   min-height: 43px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
-.org-checkin-form,
+.org-checkin-form {
+  display: grid;
+  gap: 11px;
+  margin-top: 23px;
+}
+
+.org-checkin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.org-checkin-actions .button {
+  flex: 1 1 170px;
+  justify-content: center;
+}
+
 .org-connect-form {
   display: flex;
   align-items: end;
@@ -4726,11 +4712,12 @@ h4 {
 
 .org-checkin-form .button,
 .org-connect-form .button {
-  min-height: 43px;
-  flex: 0 0 auto;
+  min-height: 44px;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
 }
+
+.org-connect-form .button { flex: 0 0 auto; }
 
 .org-checkin-form .button svg,
 .org-connect-form .button svg {
@@ -4740,7 +4727,7 @@ h4 {
 .org-tool-card .field input,
 .org-tool-card .field select {
   min-height: 43px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .org-inline-success,
@@ -4921,13 +4908,13 @@ h4 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 27px;
-  padding: 5px 9px;
+  min-height: 30px;
+  padding: 6px 10px;
   border: 1px solid rgb(255 255 255 / 28%);
   border-radius: 999px;
   background: rgb(23 23 23 / 56%);
   color: #f7f7f7;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   backdrop-filter: blur(10px);
 }
@@ -4945,7 +4932,7 @@ h4 {
 }
 
 .org-event-content {
-  padding: 18px 19px 16px;
+  padding: 20px 21px 18px;
 }
 
 .org-event-meta {
@@ -4957,18 +4944,18 @@ h4 {
 
 .org-event-category {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
 .org-event-draft {
-  padding: 4px 7px;
+  padding: 5px 9px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -4976,8 +4963,8 @@ h4 {
 
 .org-event-content h3 {
   overflow: hidden;
-  margin-top: 6px;
-  font-size: 17px;
+  margin-top: 9px;
+  font-size: 20px;
   font-weight: 590;
   letter-spacing: -0.035em;
   text-overflow: ellipsis;
@@ -4993,9 +4980,9 @@ h4 {
   align-items: center;
   gap: 6px;
   overflow: hidden;
-  margin-top: 7px;
+  margin-top: 9px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5018,18 +5005,18 @@ h4 {
   gap: 12px;
   margin-bottom: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .org-ticket-progress-label strong {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
 .org-ticket-progress-label small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 450;
 }
 
@@ -5057,13 +5044,13 @@ h4 {
 
 .org-event-footer > span {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .org-event-footer > span small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 450;
 }
 
@@ -5077,7 +5064,7 @@ h4 {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 650;
   transition: color 150ms ease;
 }
@@ -5120,7 +5107,7 @@ h4 {
 }
 
 .org-empty-events h3 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 630;
 }
 
@@ -5129,14 +5116,14 @@ h4 {
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .org-empty-events .button {
   margin-left: auto;
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .org-guests {
@@ -5144,10 +5131,13 @@ h4 {
   border-top: 1px solid var(--line);
 }
 
+.org-guests .org-section-kicker { font-size: 11px; }
+.org-guests .org-section-heading p { font-size: 13px; line-height: 1.5; }
+
 .org-export-button {
-  min-height: 37px;
+  min-height: 42px;
   gap: 7px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .org-export-button svg {
@@ -5163,26 +5153,26 @@ h4 {
 
 .org-table {
   width: 100%;
-  min-width: 800px;
+  min-width: 860px;
   border-collapse: collapse;
   text-align: left;
 }
 
 .org-table th {
-  padding: 13px 16px;
+  padding: 15px 18px;
   background: color-mix(in srgb, var(--surface) 62%, var(--soft));
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .org-table td {
-  padding: 13px 16px;
+  padding: 17px 18px;
   border-top: 1px solid var(--line);
   color: var(--ink);
-  font-size: 10px;
+  font-size: 13px;
   vertical-align: middle;
 }
 
@@ -5196,26 +5186,26 @@ h4 {
 
 .org-table td:first-child strong {
   display: block;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 650;
 }
 
 .org-table td small {
   display: block;
-  margin-top: 3px;
+  margin-top: 5px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .org-booking-status {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 3px 8px;
+  min-height: 27px;
+  padding: 4px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   text-transform: capitalize;
 }
 
@@ -5232,11 +5222,11 @@ h4 {
 }
 
 .org-refund-button {
-  padding: 5px 8px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   transition:
     border-color 150ms ease,
     color 150ms ease,
@@ -5253,13 +5243,63 @@ h4 {
   color: var(--muted);
 }
 
+@media (max-width: 800px) {
+  .org-table { min-width: 0; }
+
+  .org-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .org-table tbody {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .org-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px 18px;
+    padding: 17px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .org-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .org-table td::before {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .org-table td:first-child,
+  .org-table td:last-child { grid-column: 1 / -1; }
+}
+
 .org-empty-guests {
   color: var(--accent);
 }
 
 .org-empty-guests > div strong {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .org-refund-confirm {
@@ -5341,15 +5381,17 @@ h4 {
     padding: 19px;
   }
 
-  .org-checkin-form,
   .org-connect-form {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .org-checkin-form .button,
+  .org-checkin-actions { flex-direction: column; }
+
+  .org-checkin-actions .button,
   .org-connect-form .button {
     justify-content: center;
+    flex-basis: auto;
   }
 
   .org-section-heading {

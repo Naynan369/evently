@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   FiArrowUpRight,
   FiCalendar,
+  FiCamera,
   FiCheckCircle,
   FiCreditCard,
   FiDownload,
@@ -23,6 +24,7 @@ import { useApp } from "../AppProvider";
 import type { Event, Booking, BusinessProfile } from "@/lib/types";
 import type { TranslationKey } from "@/lib/i18n";
 import { PLATFORM_TEST_ACCOUNT } from "@/lib/platform-checkout-test";
+import TicketQrScanner from "./TicketQrScanner";
 
 type Guest = Booking & { name: string; email: string };
 
@@ -84,6 +86,8 @@ export default function OrganizerStudio({
     ? countryChoices[selectedProfile.id] || selectedProfile.countryCode || "IT"
     : "IT";
   const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [checkResult, setCheckResult] = useState("");
   const [checkError, setCheckError] = useState("");
   const [refund, setRefund] = useState<string | null>(null);
@@ -160,12 +164,12 @@ export default function OrganizerStudio({
     }
   }
 
-  async function checkIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function admitCode(code: string) {
+    if (checkingRef.current) return false;
+    checkingRef.current = true;
     setChecking(true);
     setCheckResult("");
     setCheckError("");
-    const form = event.currentTarget;
     try {
       const result = await api<{
         quantity: number;
@@ -174,7 +178,7 @@ export default function OrganizerStudio({
       }>("organizer/check-in", {
         method: "POST",
         body: {
-          code: new FormData(form).get("code"),
+          code,
           organizerProfileId: selectedProfile?.id,
         },
       });
@@ -185,13 +189,23 @@ export default function OrganizerStudio({
           event: result.event,
         }),
       );
-      form.reset();
       router.refresh();
+      return true;
     } catch (error) {
       setCheckError((error as Error).message);
+      return false;
     } finally {
+      checkingRef.current = false;
       setChecking(false);
     }
+  }
+
+  async function checkIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const code = String(new FormData(form).get("code") || "");
+    setScannerOpen(false);
+    if (await admitCode(code)) form.reset();
   }
 
   async function doRefund() {
@@ -467,11 +481,33 @@ export default function OrganizerStudio({
                 maxLength={40}
               />
             </div>
-            <button className="button button-primary" disabled={checking}>
-              {checking ? t("studio.checking") : t("studio.checkInGuest")}
-              <FiArrowUpRight aria-hidden="true" />
-            </button>
+            <div className="org-checkin-actions">
+              <button className="button button-primary" disabled={checking}>
+                {checking ? t("studio.checking") : t("studio.checkInGuest")}
+                <FiArrowUpRight aria-hidden="true" />
+              </button>
+              <button
+                className="button button-outline"
+                type="button"
+                disabled={checking}
+                aria-expanded={scannerOpen}
+                onClick={() => setScannerOpen((current) => !current)}
+              >
+                <FiCamera aria-hidden="true" />
+                {scannerOpen ? t("studio.cameraClose") : t("studio.scanTicket")}
+              </button>
+            </div>
           </form>
+          {scannerOpen && (
+            <TicketQrScanner
+              key={selectedProfileId}
+              onCode={(code) => {
+                setScannerOpen(false);
+                void admitCode(code);
+              }}
+              onClose={() => setScannerOpen(false)}
+            />
+          )}
           {checkResult && <div className="org-inline-success" role="status">{checkResult}</div>}
           {checkError && <div className="error-box" role="alert">{checkError}</div>}
         </article>
@@ -592,20 +628,20 @@ export default function OrganizerStudio({
               <tbody>
                 {profileBookings.map((booking) => (
                   <tr key={booking.id}>
-                    <td><strong>{booking.name}</strong><small>{booking.email}</small></td>
-                    <td>{eventById.get(booking.eventId)?.title || t("studio.eventUnavailable")}</td>
-                    <td>
+                    <td data-label={t("studio.guest")}><strong>{booking.name}</strong><small>{booking.email}</small></td>
+                    <td data-label={t("studio.event")}>{eventById.get(booking.eventId)?.title || t("studio.eventUnavailable")}</td>
+                    <td data-label={t("studio.ticketsType")}>
                       <strong>{booking.quantity}</strong>
                       <small>{booking.ticketType === "vip" ? "VIP" : t("booking.standard")}</small>
                       {booking.checkedIn ? <small>{t("studio.checkedIn")}</small> : null}
                     </td>
-                    <td>
+                    <td data-label={t("studio.status")}>
                       <span className={"org-booking-status is-" + booking.status}>{t(("tickets." + booking.status) as TranslationKey)}</span>
                       {booking.stripeAccount === PLATFORM_TEST_ACCOUNT && <small>{language === "it" ? "Pagamento di prova" : "Test payment"}</small>}
                       {booking.refundRequested > 0 && booking.status === "confirmed" && <small>{t("studio.refundRequested")}</small>}
                     </td>
-                    {!demoMode && <td>{money(booking.total, booking.currency, language)}</td>}
-                    <td>
+                    {!demoMode && <td data-label={t("studio.payment")}>{money(booking.total, booking.currency, language)}</td>}
+                    <td data-label={t("studio.action")}>
                       {demoMode && booking.demoGuestName ? (
                         <Link className="org-refund-button" href={"/tickets/" + booking.id}>
                           {language === "it" ? "Biglietto di esempio" : "Sample ticket"}

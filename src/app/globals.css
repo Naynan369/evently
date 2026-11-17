@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 :root {
+  color-scheme: light;
   --bg: #f7f7f7;
   --surface: #ffffff;
   --ink: #171717;
@@ -12,7 +13,8 @@
   --accent-soft: #e8e8e8;
   --accent-contrast: #ffffff;
   --green: #5d5d5d;
-  --radius: 18px;
+  --danger: #a03030;
+  --radius: 16px;
 }
 .dark {
   color-scheme: dark;
@@ -27,6 +29,7 @@
   --accent-soft: #353535;
   --accent-contrast: #111111;
   --green: #e4e4e4;
+  --danger: #ffaaa4;
 }
 * {
   box-sizing: border-box;

@@ -619,10 +619,27 @@ const messages = {
     "studio.guestOperations": "GUEST OPERATIONS",
     "studio.welcomeGuests": "Welcome them in.",
     "studio.checkinIntro":
-      "Check a ticket code to admit the whole booking. Each code works once and only for events you host.",
+      "Scan the ticket QR or enter its code to admit the whole booking. Each code works once and only for events you host.",
     "studio.ticketCode": "Ticket code",
     "studio.checking": "Checking…",
     "studio.checkInGuest": "Check in guest",
+    "studio.scanTicket": "Scan ticket QR",
+    "studio.cameraTitle": "Scan a ticket",
+    "studio.cameraClose": "Close camera",
+    "studio.cameraPreview": "Live camera preview for ticket scanning",
+    "studio.cameraStarting": "Starting camera…",
+    "studio.cameraHelp":
+      "Hold the ticket QR inside the frame. A valid scan checks in the whole booking immediately.",
+    "studio.cameraSecure":
+      "Camera access needs HTTPS or a local address. Enter the code instead.",
+    "studio.cameraPermission":
+      "Camera access was denied. Allow camera access in your browser or enter the code instead.",
+    "studio.cameraUnavailable":
+      "No camera is available. Enter the ticket code instead.",
+    "studio.cameraError":
+      "The camera could not start. Close it and try again, or enter the code.",
+    "studio.cameraWrongCode":
+      "That QR is not an Evently ticket. Try another ticket QR.",
     "studio.payments": "PAYMENTS",
     "studio.ready": "Ready",
     "studio.setupProgress": "Setup in progress",
@@ -979,7 +996,7 @@ const messages = {
       "Open Organizer studio and connect your Stripe account. Finish Stripe’s identity and payout setup. Once the account can accept payments and payouts, you can publish an event with a paid ticket. The platform’s Stripe integration must also be configured. You can publish free events without Stripe.",
     "help.q7": "How does check-in work?",
     "help.a7":
-      "Each confirmed booking has one unique QR code and ticket code for the entire group. The organizer enters that code in their studio to admit the group. A code can be used only once, and another organizer cannot check in your event’s tickets.",
+      "Each confirmed booking has one QR code and ticket code for the entire group. In Organizer studio, scan the QR with the camera or enter the code to admit the group. A code can be used only once, and another organizer cannot check in your event’s tickets.",
     "help.q8": "What information is stored?",
     "help.a8":
       "Evently stores your profile, selected interests, saved events and booking records in its application database. Passwords are stored as salted hashes. Stripe handles card details, which are never stored by Evently. Event organizers can see the names and emails of people who booked their events.",
@@ -1711,10 +1728,27 @@ const messages = {
     "studio.guestOperations": "GESTIONE OSPITI",
     "studio.welcomeGuests": "Dai loro il benvenuto.",
     "studio.checkinIntro":
-      "Controlla un codice per ammettere tutta la prenotazione. Ogni codice è valido una sola volta e solo per i tuoi eventi.",
+      "Scansiona il QR o inserisci il codice per ammettere tutta la prenotazione. Ogni codice è valido una sola volta e solo per i tuoi eventi.",
     "studio.ticketCode": "Codice del biglietto",
     "studio.checking": "Verifica…",
     "studio.checkInGuest": "Registra l'ingresso",
+    "studio.scanTicket": "Scansiona il QR",
+    "studio.cameraTitle": "Scansiona un biglietto",
+    "studio.cameraClose": "Chiudi fotocamera",
+    "studio.cameraPreview": "Anteprima della fotocamera per la scansione dei biglietti",
+    "studio.cameraStarting": "Avvio della fotocamera…",
+    "studio.cameraHelp":
+      "Inquadra il QR del biglietto. Una scansione valida registra subito tutta la prenotazione.",
+    "studio.cameraSecure":
+      "La fotocamera richiede HTTPS o un indirizzo locale. Inserisci il codice manualmente.",
+    "studio.cameraPermission":
+      "Accesso alla fotocamera negato. Abilitalo nel browser oppure inserisci il codice.",
+    "studio.cameraUnavailable":
+      "Nessuna fotocamera disponibile. Inserisci il codice del biglietto.",
+    "studio.cameraError":
+      "Impossibile avviare la fotocamera. Chiudila e riprova oppure inserisci il codice.",
+    "studio.cameraWrongCode":
+      "Questo QR non è un biglietto Evently. Prova con un altro biglietto.",
     "studio.payments": "PAGAMENTI",
     "studio.ready": "Pronto",
     "studio.setupProgress": "Configurazione in corso",
@@ -2082,7 +2116,7 @@ const messages = {
       "Apri lo Studio organizzatori e collega il tuo account Stripe. Completa la verifica dell'identità e la configurazione dei pagamenti. Quando l'account può ricevere pagamenti, puoi pubblicare biglietti a pagamento. Anche Stripe sulla piattaforma deve essere configurato. Puoi pubblicare eventi gratuiti senza Stripe.",
     "help.q7": "Come funziona la registrazione all'ingresso?",
     "help.a7":
-      "Ogni prenotazione confermata ha un QR code e un codice biglietto univoci per tutto il gruppo. L'organizzatore inserisce il codice nel proprio studio per registrare l'ingresso. Ogni codice si usa una sola volta e solo per gli eventi gestiti da quell'organizzatore.",
+      "Ogni prenotazione confermata ha un QR code e un codice biglietto per tutto il gruppo. Nello Studio organizzatori puoi scansionare il QR con la fotocamera o inserire il codice per registrare l'ingresso. Ogni codice si usa una sola volta e solo per gli eventi gestiti da quell'organizzatore.",
     "help.q8": "Quali informazioni vengono conservate?",
     "help.a8":
       "Evently conserva nel database il tuo profilo, gli interessi scelti, gli eventi salvati e le prenotazioni. Le password sono archiviate come hash con salt. Stripe gestisce i dati delle carte: Evently non li conserva. Gli organizzatori possono vedere nome ed email di chi prenota i loro eventi.",
