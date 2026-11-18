@@ -17,7 +17,7 @@ import type {
   CrmSegment,
   CrmStatus,
 } from "@/lib/admin-crm";
-import styles from "./AdminCrm.module.css";
+import styles from "@/styles/AdminCrm.module.css";
 
 type CrmList = {
   contacts: CrmContact[];

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FiCamera, FiX } from "react-icons/fi";
 import { useApp } from "@/components/AppProvider";
-import styles from "./TicketQrScanner.module.css";
+import styles from "@/styles/TicketQrScanner.module.css";
 
 type ScanIssue = "secure" | "permission" | "unavailable" | "other" | "unrecognized";
 

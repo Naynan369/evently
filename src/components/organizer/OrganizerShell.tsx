@@ -23,7 +23,7 @@ import { useApp } from "@/components/AppProvider";
 import AccountActions from "@/components/AccountActions";
 import { Brand } from "@/components/Brand";
 import type { TranslationKey } from "@/lib/i18n";
-import styles from "./OrganizerShell.module.css";
+import styles from "@/styles/OrganizerShell.module.css";
 
 type WorkspaceLink = { href: string; label: TranslationKey; icon: IconType };
 

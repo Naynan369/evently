@@ -9,7 +9,7 @@ import { messinaAreas, messinaAreaLabel, type MessinaArea } from "@/lib/messina"
 import type { EventIntent } from "@/lib/intents";
 import type { Category, Event } from "@/lib/types";
 import { useApp } from "./AppProvider";
-import styles from "./IntentMarketplace.module.css";
+import styles from "@/styles/IntentMarketplace.module.css";
 
 type IntentMatch = { intentId: string; events: Event[] };
 type Snapshot = { intents: EventIntent[]; matches: IntentMatch[] };

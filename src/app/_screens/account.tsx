@@ -17,7 +17,7 @@ import { getLanguage } from "@/lib/i18n-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
 import AccountActions from "@/components/AccountActions";
 import { isOperator } from "@/lib/operations";
-import styles from "./AccountDashboard.module.css";
+import styles from "@/styles/AccountDashboard.module.css";
 
 export const metadata = { title: "Your account" };
 

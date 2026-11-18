@@ -8,9 +8,9 @@ import { savedIds } from "@/lib/db";
 import { getLanguage } from "@/lib/i18n-server";
 import { isOperator } from "@/lib/operations";
 import { translate } from "@/lib/i18n";
-import "./globals.css";
-import "./professional.css";
-import "./refinement.css";
+import "@/styles/globals.css";
+import "@/styles/professional.css";
+import "@/styles/refinement.css";
 const spaceGrotesk = localFont({
   src: "../../public/fonts/space-grotesk-variable.woff2",
   variable: "--font-interface",

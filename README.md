@@ -257,7 +257,7 @@ npm run test:e2e -- --grep 'organizer flow|account security API'
 
 The code is an integrated first version, not a completed live merchant deployment. Live Stripe checkout, onboarding and refunds still require account configuration and tests against Stripe.
 
-Gmail SMTP verification/recovery and Apple Music still need live account tests; Spotify additionally needs approval for the use case. Booking emails, event cancellation notifications, moderation and operator-specific legal policy pages are not implemented. Define operational/refund/privacy policies before opening registration to the public. The music privacy page describes the implemented behavior and does not replace the operator’s complete privacy policy. QR codes contain a group ticket code; organizers currently enter that code in the studio rather than using an in-app camera scanner.
+Booking and cancellation emails, listing moderation, and camera QR check-in are implemented, but still need end-to-end checks with configured services and real devices. Gmail SMTP verification/recovery and Apple Music need live account tests; Spotify additionally needs approval for the use case. The `/policies` page remains a draft: complete and review the operator's legal, refund, and privacy details before public registration. The music privacy page describes the implemented behavior and does not replace the operator's complete privacy policy. Each QR code admits a whole booking; separate check-in for individual guests within a group is not implemented.
 
 ## Assets
 

@@ -7,7 +7,7 @@ import { money } from "@/lib/format";
 import { getLanguage } from "@/lib/i18n-server";
 import { messinaAreaLabel } from "@/lib/messina";
 import { isOperator } from "@/lib/operations";
-import styles from "@/components/IntentMarketplace.module.css";
+import styles from "@/styles/IntentMarketplace.module.css";
 
 export const metadata = { title: "Demand in Messina", robots: { index: false, follow: false } };
 

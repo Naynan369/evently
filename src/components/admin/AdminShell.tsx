@@ -20,7 +20,7 @@ import {
 import { useApp } from "@/components/AppProvider";
 import AccountActions from "@/components/AccountActions";
 import { adminViewFromParam, type AdminView } from "./adminViews";
-import styles from "./AdminShell.module.css";
+import styles from "@/styles/AdminShell.module.css";
 
 const navigation = [
   { view: "overview", en: "Overview", it: "Panoramica", icon: FiGrid },

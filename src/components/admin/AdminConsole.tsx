@@ -8,7 +8,7 @@ import { useApp } from "@/components/AppProvider";
 import type { operatorSnapshot, OperatorUser } from "@/lib/operations";
 import { adminViewFromParam } from "./adminViews";
 import AdminCrm from "./AdminCrm";
-import styles from "./AdminConsole.module.css";
+import styles from "@/styles/AdminConsole.module.css";
 
 type Snapshot = Awaited<ReturnType<typeof operatorSnapshot>>;
 

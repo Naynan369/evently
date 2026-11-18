@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import {
+  dynamicScreenRewrites,
+  staticScreenPaths,
+} from "./src/app/_screens/paths";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -25,6 +29,17 @@ const nextConfig: NextConfig = {
         destination: canonical.origin + "/:path*",
         permanent: false,
       },
+    ];
+  },
+  async rewrites() {
+    // Page implementations share one route. Explicit rewrites keep unknown
+    // public URLs on Next.js's normal 404 path.
+    return [
+      ...staticScreenPaths.map((path) => ({
+        source: path ? `/${path}` : "/",
+        destination: path ? `/render/${path}` : "/render",
+      })),
+      ...dynamicScreenRewrites,
     ];
   },
   outputFileTracingExcludes: {
