@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { mailLink } from "./fixtures";
 
 const origin = "http://127.0.0.1:3100";
 const password = "Account-menu-test-123!";
@@ -29,6 +30,14 @@ test("account navigation follows the signed-in account type", async ({
     expect((await registration.json()).user.isOrganizer).toBe(
       accountType === "organizer",
     );
+    const verification = await mailLink(email);
+    expect(
+      (
+        await client.post("/api/auth/verify-email", {
+          data: { token: new URL(verification).searchParams.get("token") },
+        })
+      ).status(),
+    ).toBe(200);
     expect((await client.post("/api/auth/logout")).status()).toBe(200);
     const login = await client.post("/api/auth/login", {
       data: { email, password },

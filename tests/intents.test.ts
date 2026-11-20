@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createEvent, one, run } from "../src/lib/db.ts";
 import { deleteIntent, demandSignals, eventMatchesIntent, eventMonth, intentMatchesForUser, intentsForUser, queueIntentMatchesForEvent, saveIntent } from "../src/lib/intents.ts";
 import { dispatchMessages, moderateEvent } from "../src/lib/operations.ts";
@@ -10,7 +12,7 @@ import type { User } from "../src/lib/types.ts";
 await prepareTestDatabase("intents");
 process.env.APP_URL = "http://127.0.0.1:3100";
 process.env.EMAIL_DELIVERY = "preview";
-process.env.EMAIL_PREVIEW_DIR = "/private/tmp/evently-intent-mail";
+process.env.EMAIL_PREVIEW_DIR = join(tmpdir(), "evently-intent-mail");
 process.env.EVENTLY_ORGANIZER_DEMO = "false";
 process.env.EVENTLY_REQUIRE_EVENT_APPROVAL = "true";
 

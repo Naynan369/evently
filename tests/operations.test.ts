@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createEvent, getEvent, listEvents, reserveBooking, confirmPayment, bookingById, checkIn, requestRefund, run, one, userById } from "../src/lib/db.ts";
 import { changeUserRole, createCase, dispatchMessages, isOperator, moderateEvent, operatorSnapshot, resolveCase } from "../src/lib/operations.ts";
 import { prepareTestDatabase } from "./database.ts";
@@ -9,7 +11,7 @@ import type { User } from "../src/lib/types.ts";
 await prepareTestDatabase("operations");
 process.env.APP_URL = "http://127.0.0.1:3100";
 process.env.EMAIL_DELIVERY = "preview";
-process.env.EMAIL_PREVIEW_DIR = "/private/tmp/evently-operations-mail";
+process.env.EMAIL_PREVIEW_DIR = join(tmpdir(), "evently-operations-mail");
 process.env.EVENTLY_REQUIRE_EVENT_APPROVAL = "true";
 
 const owner: User = { id: "ops-owner", name: "Organizer", email: "organizer@example.test", role: "USER", interests: [], stripeAccount: "acct_ops", emailVerified: true };
