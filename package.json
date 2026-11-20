@@ -12,7 +12,7 @@
     "demo:feedback": "tsx scripts/export-demo-feedback.ts",
     "lint": "eslint",
     "test": "node --import tsx --test tests/*.test.ts",
-    "test:unit": "node --import tsx --test tests/admin-access.test.ts tests/dev-routing.test.ts tests/dev-startup.test.ts tests/platform-checkout-test.test.ts",
+    "test:unit": "node --import tsx --test tests/admin-access.test.ts tests/dev-routing.test.ts tests/dev-startup.test.ts tests/google-translation.test.ts tests/platform-checkout-test.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

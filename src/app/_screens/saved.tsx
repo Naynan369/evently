@@ -3,6 +3,7 @@ import { currentUser } from "@/lib/auth";
 import { listEvents } from "@/lib/db";
 import SavedEvents from "@/components/SavedEvents";
 import { getLanguage } from "@/lib/i18n-server";
+import { localizePublicEvents } from "@/lib/google-translation-server";
 import { translate } from "@/lib/i18n";
 export const metadata = { title: "Saved events" };
 export default async function Saved() {
@@ -16,7 +17,7 @@ export default async function Saved() {
         <h1>{t("saved.title")}</h1>
         <p>{t("saved.intro")}</p>
       </div>
-      <SavedEvents events={await listEvents()} />
+      <SavedEvents events={await localizePublicEvents(await listEvents(), language)} />
     </main>
   );
 }

@@ -2226,6 +2226,14 @@ const messages = {
 } as const;
 
 export type TranslationKey = keyof typeof messages.en;
+export type GoogleTranslationMap = Partial<Record<TranslationKey, string>>;
+export const englishMessages = messages.en;
+
+let googleTranslations: GoogleTranslationMap | null = null;
+
+export function setGoogleTranslations(translations: GoogleTranslationMap | null) {
+  googleTranslations = translations;
+}
 
 export function isLanguage(value: string | undefined): value is Language {
   return value === "en" || value === "it";
@@ -2236,7 +2244,10 @@ export function translate(
   key: TranslationKey,
   values?: Record<string, string | number>,
 ) {
-  let message: string = messages[language][key] ?? messages.en[key];
+  let message: string =
+    (language === "it" ? googleTranslations?.[key] : undefined) ??
+    messages[language][key] ??
+    messages.en[key];
   if (values) {
     for (const [name, value] of Object.entries(values)) {
       message = message.replaceAll(`{${name}}`, String(value));

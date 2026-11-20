@@ -22,6 +22,7 @@ import { platformCheckoutTestEnabled } from "@/lib/platform-checkout-test";
 import BookingPanel from "@/components/BookingPanel";
 import EventCard from "@/components/EventCard";
 import { getLanguage } from "@/lib/i18n-server";
+import { localizePublicEvents } from "@/lib/google-translation-server";
 import { translate, type TranslationKey } from "@/lib/i18n";
 
 export async function generateMetadata({
@@ -67,23 +68,27 @@ export default async function EventDetail({
   };
   if (aliases[slug]) redirect("/events?category=" + aliases[slug]);
 
-  const event = await getEvent(slug);
+  let event = await getEvent(slug);
   if (!event) notFound();
   const privatePreview = eventIsPrivate(event);
   if (privatePreview && event.ownerId !== (await currentUser())?.id) notFound();
   const language = await getLanguage();
   const t = (key: TranslationKey, values?: Record<string, string | number>) =>
     translate(language, key, values);
+  if (!privatePreview) [event] = await localizePublicEvents([event], language);
 
   const { now } = await discoveryData();
-  const related = (await listEvents())
-    .filter(
-      (candidate) =>
-        candidate.id !== event.id &&
-        candidate.category === event.category &&
-        Date.parse(candidate.startsAt) > now,
-    )
-    .slice(0, 3);
+  const related = await localizePublicEvents(
+    (await listEvents())
+      .filter(
+        (candidate) =>
+          candidate.id !== event.id &&
+          candidate.category === event.category &&
+          Date.parse(candidate.startsAt) > now,
+      )
+      .slice(0, 3),
+    language,
+  );
   const coverImage = event.coverImage || `/images/${event.image}.jpg`;
   const eventIsFull = event.available < 1;
   const testCheckout =
