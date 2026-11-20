@@ -4,7 +4,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/client";
 import {
   LANGUAGE_COOKIE,
+  setGoogleTranslations,
   translate,
+  type GoogleTranslationMap,
   type Language,
   type TranslationKey,
 } from "@/lib/i18n";
@@ -13,6 +15,7 @@ type AppContext = {
   user: User | null;
   saved: string[];
   language: Language;
+  googleTranslated: boolean;
   t: (key: TranslationKey, values?: Record<string, string | number>) => string;
   setLanguage: (language: Language) => void;
   setSession: (user: User | null, saved?: string[]) => void;
@@ -25,12 +28,15 @@ export function AppProvider({
   initialUser,
   initialSaved,
   initialLanguage,
+  initialGoogleTranslations,
 }: {
   children: ReactNode;
   initialUser: User | null;
   initialSaved: string[];
   initialLanguage: Language;
+  initialGoogleTranslations: GoogleTranslationMap | null;
 }) {
+  setGoogleTranslations(initialGoogleTranslations);
   const [user, setUser] = useState(initialUser);
   const [saved, setSaved] = useState(initialSaved);
   const [language, setLanguageState] = useState(initialLanguage);
@@ -41,7 +47,10 @@ export function AppProvider({
     if (nextLanguage === language) return;
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `${LANGUAGE_COOKIE}=${nextLanguage}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
-    document.documentElement.lang = nextLanguage;
+    document.documentElement.lang =
+      nextLanguage === "it" && initialGoogleTranslations
+        ? "it-x-mtfrom-en"
+        : nextLanguage;
     setLanguageState(nextLanguage);
     router.refresh();
   }
@@ -78,6 +87,7 @@ export function AppProvider({
         user,
         saved,
         language,
+        googleTranslated: language === "it" && Boolean(initialGoogleTranslations),
         t: (key, values) => translate(language, key, values),
         setLanguage,
         setSession: (next, ids) => {

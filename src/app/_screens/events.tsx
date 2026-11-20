@@ -2,6 +2,7 @@ import Explore from "@/components/Explore";
 import ExploreVisualizer from "@/components/ExploreVisualizer";
 import { discoveryData } from "@/lib/db";
 import { getLanguage } from "@/lib/i18n-server";
+import { localizePublicEvents } from "@/lib/google-translation-server";
 import { translate } from "@/lib/i18n";
 export const metadata = { title: "Discover events" };
 export default async function EventsPage({
@@ -32,7 +33,10 @@ export default async function EventsPage({
       <Explore
         key={JSON.stringify(initial)}
         initial={initial}
-        events={(await discoveryData()).events}
+        events={await localizePublicEvents(
+          (await discoveryData()).events,
+          language,
+        )}
       />
     </main>
   );

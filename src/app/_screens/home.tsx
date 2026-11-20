@@ -14,6 +14,7 @@ import { isMessinaCity } from "@/lib/messina";
 import { discoveryData } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { getLanguage } from "@/lib/i18n-server";
+import { localizePublicEvents } from "@/lib/google-translation-server";
 import { translate } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
 
@@ -39,7 +40,7 @@ export default async function Home() {
   const language = await getLanguage();
   const t = (key: TranslationKey) => translate(language, key);
   const [discovery, user] = await Promise.all([discoveryData(), currentUser()]);
-  const events = discovery.events;
+  const events = await localizePublicEvents(discovery.events, language);
   const showOrganizerInvitation = !user || user.isOrganizer;
   const createEventHref = user
     ? "/create-event"

@@ -8,6 +8,8 @@ import { savedIds } from "@/lib/db";
 import { getLanguage } from "@/lib/i18n-server";
 import { isOperator } from "@/lib/operations";
 import { translate } from "@/lib/i18n";
+import { getGoogleTranslationBundle } from "@/lib/google-translation-server";
+import TranslationNotice from "@/components/TranslationNotice";
 import "@/styles/globals.css";
 import "@/styles/professional.css";
 import "@/styles/refinement.css";
@@ -33,19 +35,26 @@ export default async function RootLayout({
 }) {
   const user = await currentUser();
   const language = await getLanguage();
+  const googleTranslations =
+    language === "it" ? await getGoogleTranslationBundle() : null;
   return (
-    <html lang={language} suppressHydrationWarning>
+    <html
+      lang={googleTranslations ? "it-x-mtfrom-en" : language}
+      suppressHydrationWarning
+    >
       <body className={spaceGrotesk.variable}>
         <ThemeProvider>
           <AppProvider
             initialUser={user}
             initialSaved={user ? await savedIds(user.id) : []}
             initialLanguage={language}
+            initialGoogleTranslations={googleTranslations}
           >
             <a className="skip-link" href="#main">
               {translate(language, "common.skipContent")}
             </a>
             <AppShell operator={isOperator(user)}>{children}</AppShell>
+            <TranslationNotice />
           </AppProvider>
         </ThemeProvider>
       </body>

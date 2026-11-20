@@ -31,6 +31,14 @@ export default async function Help() {
         {t("page.helpOrganizing")}{" "}
         <Link href="/organizer">{t("page.helpOrganizerLink")}</Link>.
       </div>
+      <div className="notice section-spacer">
+        {language === "it"
+          ? "Quando disponibile, Google Translate traduce alcuni testi dell’interfaccia e le descrizioni degli eventi pubblici. Le traduzioni automatiche possono contenere errori."
+          : "When available, Google Translate translates some interface text and public event descriptions into Italian. Automatic translations can contain errors."}{" "}
+        <a href="https://translate.google.com/" target="_blank" rel="noopener noreferrer">
+          Google Translate
+        </a>.
+      </div>
     </main>
   );
 }

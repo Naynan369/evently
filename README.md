@@ -60,6 +60,12 @@ npm run db:migrate
 npm run dev
 ```
 
+## Google translation
+
+Set `GOOGLE_TRANSLATE_API_KEY` in the ignored `.env.local` file to use the same Cloud Translation - Basic service as MyPortfolio. Evently translates English interface text into Italian on the server and caches the result in each running server process. It also translates descriptions of public events when the attendee views them; private drafts, account details, event titles, venue names and addresses are not sent for translation. If the key is absent or Google is unavailable, Evently uses its existing Italian interface text and keeps event descriptions in their original language.
+
+Google's API key stays server-side. A Google Translate attribution notice appears when automatic Italian translation is active. The public [Google Translate service](https://translate.google.com/) and [Cloud Translation setup guide](https://docs.cloud.google.com/translate/docs/setup) explain the service and key setup. Add `GOOGLE_TRANSLATE_API_KEY` to the Vercel environment separately and redeploy if the hosted site should use it.
+
 Create an empty PostgreSQL database first, then set `DATABASE_URL` in `.env.local` to its connection string. Evently initializes the schema on first use; `npm run db:migrate` can also prepare it explicitly. Set `MYEMAIL` and `MYPASS` to the Gmail sender and Google app password used by Habesha Brokers, then open http://127.0.0.1:3000. Account creation works even before email delivery is configured. Unverified accounts can browse but cannot book, publish or connect music. There are no default passwords.
 
 The development command loads `.env.local` and starts on the exact hostname and port in `APP_URL`. The terminal's Local address therefore matches your forms, cookies and email/music links. If the port is already occupied, stop the previous server; Evently will not silently move to another port. Conflicting port/hostname overrides are rejected with a setup message.
