@@ -4,29 +4,13 @@ import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 import { Pool } from "pg";
 import { resolve } from "node:path";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { mailLink } from "./fixtures";
 const origin = "http://127.0.0.1:3100";
-async function mailLink(email: string, purpose = "verify-email") {
-  const dir = resolve("test-results/mail");
-  const messages = await Promise.all(
-    (await readdir(dir)).map(
-      async (name) =>
-        JSON.parse(await readFile(resolve(dir, name), "utf8")) as {
-          to: string;
-          url: string;
-          createdAt: number;
-        },
-    ),
-  );
-  const message = messages
-    .filter((m) => m.to === email.toLowerCase() && m.url.includes("/" + purpose + "?"))
-    .sort((a, b) => b.createdAt - a.createdAt)[0];
-  if (!message) throw new Error("Expected test email was not delivered");
-  return message.url;
-}
 test("discovery, mobile navigation, themes and accessibility", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
@@ -86,13 +70,12 @@ test("discovery, mobile navigation, themes and accessibility", async ({
   expect(await cityGuide.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lightGuideBg);
   await expect(cityPhoto).toBeVisible();
   await expect(page.locator(".messina-home-area")).toHaveCount(6);
-  const firstArtwork = await cityStage.locator(".messina-home-stage__art-subject").first().getAttribute("d");
   await page.locator(".messina-home-area").nth(4).hover();
   await expect(page.locator(".messina-home-stage__caption strong")).toHaveText(
     "Torre Faro",
   );
   await expect(page.locator(".messina-home-heading__index")).toHaveText("05 / 06");
-  expect(await cityStage.locator(".messina-home-stage__art-subject").first().getAttribute("d")).not.toBe(firstArtwork);
+  await expect(cityPhoto).toHaveAttribute("src", /messina-torre-faro/);
   const light = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
@@ -241,8 +224,8 @@ test("organizer flow, inventory, ownership, check-in and webhook verification", 
     city: "London",
     venue: "Test Room",
     address: "1 Test Road, London",
-    startsAt: new Date(Date.now() + 86400000).toISOString(),
-    endsAt: new Date(Date.now() + 90000000).toISOString(),
+    startsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+    endsAt: new Date(Date.now() + 15 * 86400000 + 3600000).toISOString(),
     timezone: "Europe/London",
     price: 0,
     currency: "gbp",
